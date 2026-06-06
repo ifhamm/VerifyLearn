@@ -1,0 +1,191 @@
+{
+  "backend": {
+    "core_topics": [
+      "Internet",
+      "Pick a Language",
+      "Version Control Systems",
+      "Relational Databases",
+      "Learn about APIs",
+      "Web Security",
+      "Testing",
+      "CI / CD",
+      "Architectural Patterns"
+    ],
+    "advanced_topics": [
+      "More about Databases",
+      "Scaling Databases",
+      "NoSQL Databases",
+      "Message Brokers",
+      "Web Servers",
+      "Building For Scale",
+      "Real-Time Data",
+      "Search Engines"
+    ],
+    "core_subtopics": [
+      "How does the internet work?",
+      "What is HTTP?",
+      "Go",
+      "JavaScript",
+      "Python",
+      "Git",
+      "PostgreSQL",
+      "MySQL",
+      "REST",
+      "JSON APIs",
+      "Authentication",
+      "JWT",
+      "OAuth",
+      "HTTPS",
+      "OWASP Risks",
+      "CORS",
+      "SSL/TLS",
+      "Unit Testing",
+      "Integration Testing",
+      "ACID",
+      "Transactions",
+      "Normalization",
+      "Database Indexes",
+      "Microservices",
+      "Monolithic Apps",
+      "Twelve Factor Apps"
+    ],
+    "advanced_subtopics": [
+      "gRPC",
+      "GraphQL",
+      "WebSockets",
+      "Kafka",
+      "RabbitMQ",
+      "Redis",
+      "MongoDB",
+      "Elasticsearch",
+      "Data Replication",
+      "Sharding Strategies",
+      "CAP Theorem",
+      "Circuit Breaker",
+      "Nginx",
+      "Docker",
+      "Kubernetes",
+      "Serverless",
+      "Service Mesh",
+      "Monitoring",
+      "Observability"
+    ]
+  },
+  "frontend": {
+    "core_topics": [
+      "Internet",
+      "HTML",
+      "CSS",
+      "JavaScript",
+      "Version Control Systems",
+      "VCS Hosting",
+      "Package Managers",
+      "Pick a Framework",
+      "Writing CSS",
+      "Linters and Formatters",
+      "Web Security Basics",
+      "Testing"
+    ],
+    "advanced_topics": [
+      "Module Bundlers",
+      "SSR",
+      "GraphQL",
+      "PWAs",
+      "Static Site Generators",
+      "Web Components",
+      "Authentication Strategies",
+      "Desktop Apps"
+    ],
+    "core_subtopics": [
+      "How does the internet work?",
+      "What is HTTP?",
+      "What is Domain Name?",
+      "Browsers and how they work?",
+      "Git",
+      "GitHub",
+      "npm",
+      "yarn",
+      "React",
+      "Vue.js",
+      "Tailwind",
+      "ESLint",
+      "Prettier",
+      "Jest",
+      "Vitest",
+      "HTTPS",
+      "CORS",
+      "OWASP Security Risks",
+      "Next.js",
+      "TypeScript"
+    ],
+    "advanced_subtopics": [
+      "Angular",
+      "Svelte",
+      "Solid JS",
+      "Nuxt.js",
+      "GraphQL",
+      "Relay Modern",
+      "Apollo",
+      "Electron",
+      "Playwright",
+      "Cypress",
+      "Shadow DOM",
+      "Custom Elements",
+      "Vite",
+      "Webpack",
+      "esbuild",
+      "SWC",
+      "React Native",
+      "Flutter"
+    ]
+  },
+  "fullstack": {
+    "core_topics": [
+      "HTML",
+      "CSS",
+      "JavaScript",
+      "npm",
+      "React",
+      "Tailwind CSS",
+      "Git",
+      "GitHub",
+      "Node.js",
+      "PostgreSQL",
+      "RESTful APIs",
+      "JWT Auth"
+    ],
+    "advanced_topics": [
+      "Redis",
+      "Linux Basics",
+      "Basic AWS Services",
+      "GitHub Actions",
+      "Monit",
+      "Ansible",
+      "Terraform"
+    ],
+    "core_subtopics": [
+      "Checkpoint - Static Webpages",
+      "Checkpoint - Interactivity",
+      "Checkpoint - Collaborative Work",
+      "Checkpoint - External Packages",
+      "Checkpoint - Frontend Apps",
+      "Checkpoint — CLI Apps",
+      "Checkpoint — Simple CRUD Apps",
+      "Checkpoint — Complete App"
+    ],
+    "advanced_subtopics": [
+      "Route53",
+      "SES",
+      "EC2",
+      "S3"
+    ]
+  },
+  "pace": {
+    "hours_per_week": {
+      "1": 10,
+      "2": 8,
+      "3": 6
+    },
+    "comment": "Asumsi jam belajar per minggu berdasarkan durasi: makin panjang durasinya makin santai pace-nya"
+  }
+}

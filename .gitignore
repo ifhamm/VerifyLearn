@@ -26,3 +26,7 @@ Thumbs.db
 Ehthumbs.db
 Desktop.ini
 .DS_Store
+
+python_ai/chroma_db/
+**/__pycache__/
+**/*.pyc
