@@ -1,0 +1,35 @@
+version: '3.8'
+
+services:
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: verify-learn-backend
+    ports:
+      - "3000:3000"
+    environment:
+      - PORT=3000
+      - NODE_ENV=development
+      - AI_SERVICE_URL=http://python_ai:8000
+    volumes:
+      - ./backend:/app
+      - /app/node_modules
+    restart: always
+
+  python_ai:
+    build:
+      context: ./python_ai
+      dockerfile: Dockerfile
+    container_name: verify-learn-python-ai
+    ports:
+      - "8000:8000"
+    environment:
+      - PORT=8000
+      - GEMINI_API_KEY=${GEMINI_API_KEY:-}
+    volumes:
+      - ./python_ai:/app
+      - /app/chroma_db
+    command: tail -f /dev/null
+    restart: always
+

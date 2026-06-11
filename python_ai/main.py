@@ -32,10 +32,15 @@ def print_divider(title: str):
 
 def main():
     parser = argparse.ArgumentParser(description="VerifyLearn - Live Test AI Engine Runner")
-    parser.add_argument("--api-key", required=True, help="Gemini API Key Anda")
+    parser.add_argument("--api-key", default=os.environ.get("GEMINI_API_KEY"), help="Gemini API Key Anda (atau via env GEMINI_API_KEY)")
     parser.add_argument("--db-dir", default=os.path.join(BASE_DIR, "chroma_db"), help="Direktori database ChromaDB")
     parser.add_argument("--role", default="backend", choices=["backend", "frontend", "fullstack"], help="Role yang ingin diuji")
     args = parser.parse_args()
+
+    if not args.api_key:
+        print("❌ Error: --api-key wajib diisi atau diset lewat env GEMINI_API_KEY")
+        sys.exit(1)
+
 
     print("============================================================")
     print("      VerifyLearn — Memulai Pengujian Sistem Live AI        ")
