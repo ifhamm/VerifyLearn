@@ -1,11 +1,7 @@
-from google import genai
-from google.genai import types
-import os
+import ollama
 import json
 import re
 import math
-import requests
-import google.generativeai as tgai
 from typing import List, Optional
 from dataclasses import dataclass, asdict, field
 from pathlib import Path
@@ -29,22 +25,20 @@ def _load_config() -> dict:
 
 @dataclass
 class Material:
-    """Satu materi/topik dalam learning path."""
     id: str
     slug: str
     title: str
     role: str
-    topic_type: str          # topic | subtopic
-    priority: str            # core | advanced
+    topic_type: str
+    priority: str            # core | advanced | supplementary
     parent_topic: str
-    content_summary: str     # ringkasan konten untuk ditampilkan ke user
-    week_number: int         # materi ini dijadwalkan di minggu ke-berapa
+    content_summary: str
+    week_number: int
     estimated_hours: float
 
 
 @dataclass
 class LearningPlan:
-    """Full learning plan hasil generate untuk satu role + durasi."""
     role: str
     duration_months: int
     total_weeks: int
@@ -52,7 +46,7 @@ class LearningPlan:
     total_materials: int
     core_materials: int
     advanced_materials: int
-    weekly_schedule: List[dict]   # [{week: 1, materials: [Material, ...]}, ...]
+    weekly_schedule: List[dict]
     pace_note: str
 
 
@@ -60,8 +54,8 @@ class LearningPlan:
 class QuizQuestion:
     type: str                # multiple_choice | essay
     question: str
-    options: Optional[List[str]] = None   # untuk multiple_choice
-    correct_answer: Optional[str] = None  # index option (A/B/C/D) atau None untuk essay
+    options: Optional[List[str]] = None
+    correct_answer: Optional[str] = None
     explanation: str = ""
     difficulty: str = "medium"
 
@@ -79,9 +73,9 @@ class LivecodeChallenge:
 
 @dataclass
 class VoiceChallenge:
-    trigger_reason: str      # kenapa voice challenge dipicu
-    question: str            # pertanyaan yang harus dijawab via suara
-    context: str             # konteks dari tulisan/kode user
+    trigger_reason: str
+    question: str
+    context: str
     expected_keywords: List[str]
     time_limit_seconds: int = 120
 
@@ -89,88 +83,61 @@ class VoiceChallenge:
 @dataclass
 class FinalChallenge:
     livecode: LivecodeChallenge
-    voice_explanation_prompt: str   # "Jelaskan kode yang kamu tulis..."
+    voice_explanation_prompt: str
     expected_voice_keywords: List[str]
 
 
 # ── Engine ────────────────────────────────────────────────────────────────────
 
 class RAGEngine:
-    LLM_MODEL = "gemini-1.5-flash"
+    LLM_MODEL = "qwen2.5:latest"  # nama model lokal di Ollama
 
-    # Jam belajar per minggu berdasarkan durasi (bulan)
     HOURS_PER_WEEK = {1: 10, 2: 8, 3: 7, 4: 6, 6: 5}
 
-    def __init__(self, vector_store: VectorStore, api_key: str):
-        self.client = genai.Client(api_key=api_key)
+    def __init__(self, vector_store: VectorStore, api_key: str = "", host: str = "http://localhost:11434"):
+        # api_key diabaikan — Ollama berjalan lokal tanpa autentikasi
+        self.client = ollama.Client(host=host)
         self.vs = vector_store
         self.cfg = _load_config()
-        print(f"[RAGEngine] Ready — model: {self.LLM_MODEL}")
+        print(f"[RAGEngine] Ready — model: {self.LLM_MODEL} (Ollama @ {host})")
 
     # ── Internal helpers ──────────────────────────────────────────────────────
 
-    def _llm(self, prompt: str, json_mode: bool = True) -> str:
-        # 1. Ambil API Key secara aman dari client atau fallback ke key kamu
-        api_key = getattr(self.client, 'key', None)
-        if not api_key:
-            api_key = "AQ.Ab8RN6JBkn_NoC3Mb2WiW4xd6EjPW0KgF6GDS8bp1vTkElq5WA"
-            
-        # 2. Set URL endpoint resmi Google AI Studio (Gunakan v1 agar stabil dengan API Key)
-        url = f"https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key={api_key}"
-        
-        headers = {
-            "Content-Type": "application/json"
-        }
-        
-        # 3. Susun payload sesuai dokumentasi resmi Google REST API
-        payload = {
-            "contents": [{
-                "parts": [{"text": prompt}]
-            }],
-            "generationConfig": {
-                "temperature": 0.4
-            }
-        }
-        
-        # Jika butuh JSON, paksa lewat config REST API
-        if json_mode:
-            payload["generationConfig"]["responseMimeType"] = "application/json"
-            
-        # 4. Tembak langsung menggunakan requests
-        try:
-            response = requests.post(url, headers=headers, json=payload)
-            response_json = response.json()
-            
-            # Jika API mengembalikan error code (seperti 400, 401, dsb)
-            if response.status_code != 200:
-                raise Exception(f"Google API Error {response.status_code}: {response.text}")
-                
-            # Ambil output teks dari struktur response Gemini
-            text_output = response_json['candidates'][0]['content']['parts'][0]['text']
-            return text_output
-            
-        except Exception as e:
-            print(f"❌ [REST API Error] Gagal berkomunikasi dengan Gemini: {e}")
-            raise e
+    def _llm(self, prompt: str) -> str:
+        """Call Qwen2.5 via Ollama lokal, selalu return JSON string."""
+        response = self.client.chat(
+            model=self.LLM_MODEL,
+            messages=[
+                {
+                    "role": "system",
+                    "content": "Kamu adalah AI assistant untuk platform pembelajaran VerifyLearn. "
+                               "Selalu respond dengan JSON valid tanpa markdown, tanpa penjelasan tambahan, "
+                               "tanpa teks pembuka atau penutup. Output HARUS dimulai dengan { dan diakhiri }."
+                },
+                {"role": "user", "content": prompt}
+            ],
+            format="json",   # paksa Ollama return JSON valid
+            options={
+                "temperature": 0.4,
+                "num_predict": 2048,
+            },
+        )
+        return response["message"]["content"]
 
     def _clean_json(self, text: str) -> str:
         text = re.sub(r"```json\s*", "", text)
         text = re.sub(r"```\s*", "", text)
         return text.strip()
 
-    def _get_core_slugs(self, role: str) -> set:
-        """Slug dari core_topics + core_subtopics untuk role tertentu."""
+    def _get_core_names(self, role: str) -> set:
         cfg = self.cfg.get(role, {})
-        names = set(cfg.get("core_topics", [])) | set(cfg.get("core_subtopics", []))
-        return names
+        return set(cfg.get("core_topics", [])) | set(cfg.get("core_subtopics", []))
 
-    def _get_advanced_slugs(self, role: str) -> set:
+    def _get_advanced_names(self, role: str) -> set:
         cfg = self.cfg.get(role, {})
-        names = set(cfg.get("advanced_topics", [])) | set(cfg.get("advanced_subtopics", []))
-        return names
+        return set(cfg.get("advanced_topics", [])) | set(cfg.get("advanced_subtopics", []))
 
     def _hours_per_week(self, duration_months: int) -> float:
-        """Jam belajar per minggu — makin lama durasi, makin santai pace."""
         keys = sorted(self.HOURS_PER_WEEK.keys())
         for k in keys:
             if duration_months <= k:
@@ -183,31 +150,24 @@ class RAGEngine:
             f"[{d.get('topic_name', '')}]\n{d['text']}" for d in docs
         )
 
-    # ── 1. Pace Calculator + Learning Plan ───────────────────────────────────
+    # ── 1. Learning Plan ──────────────────────────────────────────────────────
 
     def generate_learning_plan(
         self,
         role: str,
         duration_months: int,
     ) -> LearningPlan:
-        """
-        Buat jadwal belajar per minggu berdasarkan role dan durasi.
-        Core materials wajib masuk. Advanced materials diisi kalau ada sisa slot.
-        Setiap materi diasumsikan butuh ~2 jam (baca + quiz + livecode).
-        """
-        print(f"\n[RAGEngine] Generating learning plan: role={role}, duration={duration_months} bulan")
+        print(f"\n[RAGEngine] Generating plan: role={role}, duration={duration_months} bulan")
 
-        # Load semua docs untuk role ini
         jsonl_path = Path(__file__).parent.parent.parent / "data" / "knowledge_base" / f"{role}.jsonl"
         if not jsonl_path.exists():
             raise FileNotFoundError(f"Knowledge base tidak ditemukan: {jsonl_path}")
 
-        all_docs = [json.loads(l) for l in open(jsonl_path)]
+        all_docs = [json.loads(l) for l in open(jsonl_path, encoding="utf-8")]
 
-        core_names   = self._get_core_slugs(role)
-        adv_names    = self._get_advanced_slugs(role)
+        core_names = self._get_core_names(role)
+        adv_names  = self._get_advanced_names(role)
 
-        # Klasifikasikan setiap dokumen
         core_docs, adv_docs, other_docs = [], [], []
         for d in all_docs:
             name = d["topic_name"]
@@ -218,48 +178,40 @@ class RAGEngine:
             else:
                 other_docs.append(d)
 
-        # Sort: topics dulu, lalu subtopics (berdasarkan position)
         def sort_key(d):
             return (0 if d["topic_type"] == "topic" else 1, d.get("position_in_roadmap", 999))
 
         core_docs.sort(key=sort_key)
         adv_docs.sort(key=sort_key)
 
-        # Hitung kapasitas
-        total_weeks      = duration_months * 4
-        hours_per_week   = self._hours_per_week(duration_months)
-        hours_per_material = 2.0          # estimasi per materi
-        slots_per_week   = max(1, int(hours_per_week / hours_per_material))
-        total_slots      = total_weeks * slots_per_week
+        total_weeks        = duration_months * 4
+        hours_per_week     = self._hours_per_week(duration_months)
+        hours_per_material = 2.0
+        slots_per_week     = max(1, int(hours_per_week / hours_per_material))
+        total_slots        = total_weeks * slots_per_week
 
         print(f"[RAGEngine] {total_weeks} minggu × {slots_per_week} materi/minggu = {total_slots} slot")
         print(f"[RAGEngine] Core: {len(core_docs)}, Advanced: {len(adv_docs)}, Other: {len(other_docs)}")
 
-        # Pilih materi: core dulu, lalu advanced, lalu other kalau masih ada slot
-        selected: List[dict] = []
-        selected.extend(core_docs)
-        remaining_slots = total_slots - len(core_docs)
+        selected: List[dict] = list(core_docs)
+        remaining = total_slots - len(core_docs)
+        if remaining > 0:
+            take_adv = adv_docs[:remaining]
+            selected.extend(take_adv)
+            remaining -= len(take_adv)
+        if remaining > 0:
+            selected.extend(other_docs[:remaining])
 
-        if remaining_slots > 0:
-            selected.extend(adv_docs[:remaining_slots])
-            remaining_slots -= len(adv_docs[:remaining_slots])
-
-        if remaining_slots > 0:
-            selected.extend(other_docs[:remaining_slots])
-
-        # Buat Material objects
         materials: List[Material] = []
         for i, d in enumerate(selected):
-            week_num = (i // slots_per_week) + 1
-            week_num = min(week_num, total_weeks)
-
-            name = d["topic_name"]
+            week_num = min((i // slots_per_week) + 1, total_weeks)
+            name     = d["topic_name"]
             priority = "core" if name in core_names else ("advanced" if name in adv_names else "supplementary")
 
             materials.append(Material(
                 id=d["doc_id"],
                 slug=d["slug"],
-                title=d["topic_name"],
+                title=name,
                 role=role,
                 topic_type=d["topic_type"],
                 priority=priority,
@@ -269,7 +221,6 @@ class RAGEngine:
                 estimated_hours=hours_per_material,
             ))
 
-        # Susun weekly schedule
         from collections import defaultdict
         week_map = defaultdict(list)
         for m in materials:
@@ -285,9 +236,9 @@ class RAGEngine:
         adv_count  = sum(1 for m in materials if m.priority == "advanced")
 
         pace_msgs = {
-            1: "Intensif — 10 jam/minggu. Fokus core dulu.",
+            1: "Intensif — 10 jam/minggu. Fokus penuh pada core materials.",
             2: "Moderat — 8 jam/minggu. Seimbang antara core dan advanced.",
-            3: "Santai — 6 jam/minggu. Ada ruang untuk eksplorasi lebih dalam.",
+            3: "Santai — 7 jam/minggu. Ada ruang untuk eksplorasi lebih dalam.",
         }
         pace_note = pace_msgs.get(duration_months, f"{hours_per_week} jam/minggu, {total_weeks} minggu total.")
 
@@ -303,10 +254,10 @@ class RAGEngine:
             pace_note=pace_note,
         )
 
-        print(f"[RAGEngine] ✓ Plan: {len(materials)} materi, {core_count} core, {adv_count} advanced")
+        print(f"[RAGEngine] ✓ {len(materials)} materi ({core_count} core, {adv_count} advanced)")
         return plan
 
-    # ── 2. Quiz Generator ─────────────────────────────────────────────────────
+    # ── 2. Quiz ───────────────────────────────────────────────────────────────
 
     def generate_quiz(
         self,
@@ -314,51 +265,43 @@ class RAGEngine:
         n_pg: int = 4,
         n_essay: int = 1,
     ) -> List[QuizQuestion]:
-        """
-        Generate soal quiz untuk satu materi.
-        n_pg: jumlah soal pilihan ganda
-        n_essay: jumlah soal essay
-        """
-        print(f"[RAGEngine] Generating quiz: {material['title']} ({n_pg} PG + {n_essay} essay)")
+        print(f"[RAGEngine] Generating quiz: {material['title']}")
 
         context = self._retrieve_context(material["title"], material["role"], n=4)
 
-        prompt = f"""Kamu adalah pembuat soal untuk platform pembelajaran VerifyLearn.
+        prompt = f"""Buat soal quiz untuk materi: {material['title']}
 
-MATERI: {material['title']}
-KONTEN:
+Konten materi:
 {material.get('content_summary', '')}
 
-KONTEKS TAMBAHAN:
-{context[:1000]}
+Konteks tambahan:
+{context[:800]}
 
-Buat soal quiz dengan format berikut:
-- {n_pg} soal pilihan ganda (A/B/C/D), difficulty: easy hingga medium
-- {n_essay} soal essay pendek, difficulty: medium
+Buat {n_pg} soal pilihan ganda (A/B/C/D) dan {n_essay} soal essay.
 
-Respond HANYA JSON valid:
+Respond dengan JSON:
 {{
   "questions": [
     {{
       "type": "multiple_choice",
-      "question": "<pertanyaan>",
+      "question": "pertanyaan",
       "options": ["A. ...", "B. ...", "C. ...", "D. ..."],
       "correct_answer": "A",
-      "explanation": "<penjelasan singkat kenapa jawaban ini benar>",
+      "explanation": "penjelasan kenapa benar",
       "difficulty": "easy"
     }},
     {{
       "type": "essay",
-      "question": "<pertanyaan essay>",
+      "question": "pertanyaan essay",
       "options": null,
       "correct_answer": null,
-      "explanation": "<poin-poin yang harus ada dalam jawaban ideal>",
+      "explanation": "poin-poin jawaban ideal",
       "difficulty": "medium"
     }}
   ]
 }}"""
 
-        raw = self._llm(prompt)
+        raw  = self._llm(prompt)
         data = json.loads(self._clean_json(raw))
 
         return [
@@ -380,52 +323,39 @@ Respond HANYA JSON valid:
         material: dict,
         difficulty: str = "normal",
     ) -> LivecodeChallenge:
-        """
-        Generate tantangan coding untuk satu materi.
-        difficulty: "normal" (user normal) | "hard" (user anomali)
-        """
         print(f"[RAGEngine] Generating livecode: {material['title']} [{difficulty}]")
 
-        context = self._retrieve_context(material["title"], material["role"], n=4)
-        role = material["role"]
+        context = self._retrieve_context(material["title"], material["role"], n=3)
+        role    = material["role"]
 
         lang_hint = {
-            "backend":   "Go atau Python (sesuai materi)",
+            "backend":   "Go atau Python",
             "frontend":  "JavaScript atau TypeScript",
             "fullstack": "JavaScript/TypeScript (frontend) atau Node.js (backend)",
         }.get(role, "sesuai materi")
 
-        difficulty_instruction = {
-            "normal": "Soal cukup untuk membuktikan pemahaman dasar konsep.",
-            "hard":   "Soal lebih kompleks, membutuhkan penerapan konsep secara mendalam dan tidak bisa diselesaikan hanya dengan copy-paste.",
-        }.get(difficulty, "")
+        mins = 20 if difficulty == "normal" else 35
 
-        prompt = f"""Kamu adalah pembuat tantangan coding untuk platform VerifyLearn.
+        prompt = f"""Buat tantangan livecode untuk materi: {material['title']}
+Bahasa: {lang_hint}
+Level: {"soal standar untuk pemahaman dasar" if difficulty == "normal" else "soal kompleks, butuh pemahaman mendalam"}
+Waktu: {mins} menit
 
-MATERI: {material['title']}
-BAHASA: {lang_hint}
-LEVEL: {difficulty_instruction}
+Konteks:
+{context[:600]}
 
-KONTEKS:
-{context[:800]}
-
-Buat 1 tantangan livecode yang:
-1. Spesifik ke konsep materi ini
-2. Bisa diselesaikan dalam {20 if difficulty == 'normal' else 35} menit
-3. Starter code sudah tersedia (user tinggal melengkapi)
-
-Respond HANYA JSON valid:
+Respond dengan JSON:
 {{
-  "title": "<judul singkat>",
-  "description": "<deskripsi soal yang jelas, termasuk input/output yang diharapkan>",
-  "starter_code": "<kode awal dengan TODO comments>",
-  "expected_behavior": "<apa yang harus terjadi saat kode dijalankan>",
-  "hints": ["<hint 1>", "<hint 2>"],
+  "title": "judul singkat",
+  "description": "deskripsi soal lengkap dengan contoh input/output",
+  "starter_code": "kode awal dengan TODO comments",
+  "expected_behavior": "apa yang terjadi saat kode berjalan dengan benar",
+  "hints": ["hint 1", "hint 2"],
   "difficulty": "{difficulty}",
-  "estimated_minutes": {20 if difficulty == 'normal' else 35}
+  "estimated_minutes": {mins}
 }}"""
 
-        raw = self._llm(prompt)
+        raw  = self._llm(prompt)
         data = json.loads(self._clean_json(raw))
 
         return LivecodeChallenge(
@@ -438,7 +368,7 @@ Respond HANYA JSON valid:
             estimated_minutes=data["estimated_minutes"],
         )
 
-    # ── 4. Voice Challenge (anomali dadakan) ──────────────────────────────────
+    # ── 4. Voice Challenge ────────────────────────────────────────────────────
 
     def generate_voice_challenge(
         self,
@@ -446,36 +376,28 @@ Respond HANYA JSON valid:
         user_code_or_text: str,
         trigger_reason: str,
     ) -> VoiceChallenge:
-        """
-        Generate pertanyaan voice dadakan saat anomali terdeteksi.
-        Pertanyaan harus spesifik ke kode/teks yang ditulis user.
-        """
         print(f"[RAGEngine] Generating voice challenge — trigger: {trigger_reason}")
 
-        prompt = f"""Kamu adalah interviewer teknikal VerifyLearn.
-User terdeteksi anomali: {trigger_reason}
+        prompt = f"""User terdeteksi anomali: {trigger_reason}
+Materi: {material['title']}
 
-MATERI YANG SEDANG DIKERJAKAN: {material['title']}
-
-KODE/TEKS USER:
+Kode/teks user:
 \"\"\"
-{user_code_or_text[:1200]}
+{user_code_or_text[:1000]}
 \"\"\"
 
-Buat 1 pertanyaan verifikasi suara yang:
-1. Sangat spesifik ke kode/teks user (bukan pertanyaan generik)
-2. Hanya bisa dijawab jika user benar-benar memahami apa yang ditulis
-3. Tidak bisa dijawab dengan jawaban template
+Buat 1 pertanyaan verifikasi suara yang sangat spesifik ke kode user.
+Hanya bisa dijawab jika user benar-benar memahami apa yang ditulis.
 
-Respond HANYA JSON valid:
+Respond dengan JSON:
 {{
-  "question": "<pertanyaan yang harus dijawab user via suara>",
-  "context": "<konteks singkat mengapa pertanyaan ini diajukan>",
+  "question": "pertanyaan spesifik ke kode user",
+  "context": "konteks singkat kenapa pertanyaan ini diajukan",
   "expected_keywords": ["kw1", "kw2", "kw3"],
   "time_limit_seconds": 120
 }}"""
 
-        raw = self._llm(prompt)
+        raw  = self._llm(prompt)
         data = json.loads(self._clean_json(raw))
 
         return VoiceChallenge(
@@ -486,34 +408,28 @@ Respond HANYA JSON valid:
             time_limit_seconds=data.get("time_limit_seconds", 120),
         )
 
-    # ── 5. Final Challenge per Materi ─────────────────────────────────────────
+    # ── 5. Final Challenge ────────────────────────────────────────────────────
 
     def generate_final_challenge(self, material: dict) -> FinalChallenge:
-        """
-        Final challenge untuk menutup satu materi.
-        Terdiri dari livecode (lebih sulit) + voice explanation setelah selesai.
-        """
         print(f"[RAGEngine] Generating final challenge: {material['title']}")
 
         livecode = self.generate_livecode_challenge(material, difficulty="hard")
 
-        context = self._retrieve_context(material["title"], material["role"], n=3)
-        prompt = f"""Buat prompt voice explanation untuk tantangan berikut:
+        prompt = f"""Buat instruksi voice explanation untuk tantangan berikut:
+Materi: {material['title']}
+Tantangan: {livecode.title}
+Deskripsi: {livecode.description}
 
-MATERI: {material['title']}
-TANTANGAN: {livecode.title}
-DESKRIPSI: {livecode.description}
+Buat kalimat yang meminta user menjelaskan kode yang baru ditulis via suara,
+seperti interviewer sungguhan.
 
-Buat kalimat instruksi yang meminta user menjelaskan kode yang baru ditulis via suara.
-Prompt harus natural, seperti interviewer sungguhan yang meminta klarifikasi.
-
-Respond HANYA JSON valid:
+Respond dengan JSON:
 {{
-  "voice_prompt": "<kalimat instruksi untuk user>",
+  "voice_prompt": "kalimat instruksi untuk user",
   "expected_keywords": ["kw1", "kw2", "kw3", "kw4", "kw5"]
 }}"""
 
-        raw = self._llm(prompt)
+        raw  = self._llm(prompt)
         data = json.loads(self._clean_json(raw))
 
         return FinalChallenge(
@@ -522,7 +438,7 @@ Respond HANYA JSON valid:
             expected_voice_keywords=data["expected_keywords"],
         )
 
-    # ── Serialization helper ──────────────────────────────────────────────────
+    # ── Helper ────────────────────────────────────────────────────────────────
 
     def to_dict(self, obj) -> dict:
         return asdict(obj)
