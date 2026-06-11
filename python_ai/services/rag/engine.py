@@ -1,3 +1,4 @@
+# pyrefly: ignore [missing-import]
 import ollama
 import json
 import re
@@ -95,7 +96,11 @@ class RAGEngine:
     HOURS_PER_WEEK = {1: 10, 2: 8, 3: 7, 4: 6, 6: 5}
 
     def __init__(self, vector_store: VectorStore, api_key: str = "", host: str = "http://localhost:11434"):
+        import os
         # api_key diabaikan — Ollama berjalan lokal tanpa autentikasi
+        env_host = os.getenv("OLLAMA_HOST")
+        if env_host:
+            host = env_host
         self.client = ollama.Client(host=host)
         self.vs = vector_store
         self.cfg = _load_config()

@@ -27,9 +27,12 @@ services:
     environment:
       - PORT=8000
       - GEMINI_API_KEY=${GEMINI_API_KEY:-}
+      - OLLAMA_HOST=${OLLAMA_HOST:-http://host.docker.internal:11434}
     volumes:
       - ./python_ai:/app
       - /app/chroma_db
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     command: tail -f /dev/null
     restart: always
 
