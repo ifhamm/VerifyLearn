@@ -1,4 +1,5 @@
 # pyrefly: ignore [missing-import]
+import os
 import ollama
 import json
 import re
@@ -91,7 +92,7 @@ class FinalChallenge:
 # ── Engine ────────────────────────────────────────────────────────────────────
 
 class RAGEngine:
-    LLM_MODEL = "qwen2.5:latest"  # nama model lokal di Ollama
+    LLM_MODEL = os.getenv("OLLAMA_MODEL", "qwen2.5:latest")  # nama model lokal di Ollama
 
     HOURS_PER_WEEK = {1: 10, 2: 8, 3: 7, 4: 6, 6: 5}
 
