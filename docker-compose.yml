@@ -14,6 +14,7 @@ services:
       - AI_SERVICE_URL=http://python_ai:8000
     volumes:
       - ./backend:/app
+      - ./python_ai:/app/python_ai:ro
       - /app/node_modules
     restart: always
 

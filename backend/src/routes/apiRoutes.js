@@ -10,6 +10,7 @@ router.get('/status', (req, res) => {
 
 // Learning routes
 router.get('/learning-path', learningController.getLearningPath);
+router.get('/material', learningController.getMaterial);
 
 // Integrity/verification routes
 router.post('/verify-keystroke', integrityController.verifyKeystroke);

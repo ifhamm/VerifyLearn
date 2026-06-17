@@ -23,11 +23,16 @@ import json
 import os
 import re
 import argparse
+import socket
 import sys
+import time
+from html import unescape
+from html.parser import HTMLParser
 from pathlib import Path
 from dataclasses import dataclass, asdict
-from typing import Optional
-import time
+from typing import List, Optional
+from urllib.error import HTTPError, URLError
+from urllib.request import Request, urlopen
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, BASE_DIR)
@@ -82,6 +87,97 @@ def clean_content(raw_md: str) -> str:
     # Hapus multiple blank lines
     result = re.sub(r"\n{3,}", "\n\n", result)
     return result.strip()
+
+
+def extract_urls(text: str) -> list[str]:
+    """Ambil semua URL dari markdown link atau tulisan biasa."""
+    url_pattern = re.compile(r"https?://[\w\-\.\/%#?=&@:+,;~]+", re.IGNORECASE)
+    return url_pattern.findall(text)
+
+
+class SimpleHTMLTextExtractor(HTMLParser):
+    def __init__(self):
+        super().__init__()
+        self.text_parts = []
+        self.skip = False
+        self.skip_tags = {"script", "style", "noscript"}
+        self.block_tags = {
+            "p", "div", "br", "li", "section", "article",
+            "header", "footer", "aside", "nav",
+            "h1", "h2", "h3", "h4", "h5", "h6"
+        }
+
+    def handle_starttag(self, tag, attrs):
+        if tag in self.skip_tags:
+            self.skip = True
+            return
+        if tag in self.block_tags:
+            self.text_parts.append("\n")
+
+    def handle_endtag(self, tag):
+        if tag in self.skip_tags:
+            self.skip = False
+            return
+        if tag in self.block_tags:
+            self.text_parts.append("\n")
+
+    def handle_data(self, data):
+        if self.skip:
+            return
+        self.text_parts.append(data)
+
+    def handle_comment(self, data):
+        pass
+
+    def get_text(self):
+        return unescape("".join(self.text_parts)).strip()
+
+
+def fetch_url_text(url: str, timeout: int = 8) -> str:
+    """Fetch URL dan ambil teks sederhana dari HTML."""
+    headers = {"User-Agent": "Mozilla/5.0 (compatible; VerifyLearnBot/1.0)"}
+    req = Request(url, headers=headers)
+    try:
+        with urlopen(req, timeout=timeout) as resp:
+            if resp.headers.get_content_type() != "text/html":
+                return ""
+            raw_html = resp.read().decode(errors="ignore")
+    except (HTTPError, URLError, socket.timeout, ConnectionResetError, ValueError):
+        return ""
+    except Exception:
+        return ""
+
+    parser = SimpleHTMLTextExtractor()
+    parser.feed(raw_html)
+    text = parser.get_text()
+    text = re.sub(r"\n{3,}", "\n\n", text).strip()
+
+    # Filter out known JS variable blocks and inline script leftovers.
+    text = re.sub(r"window\.dataLayer\s*=\s*window\.dataLayer\s*\|\|\s*\[\];", "", text)
+    text = re.sub(r"gtag\([^\)]*\);", "", text)
+    text = re.sub(r"console\.warn\([^\)]*\);", "", text)
+    text = re.sub(r"try \{[^\}]*\}\s*catch \([^\)]*\) \{[^\}]*\}", "", text, flags=re.DOTALL)
+    text = re.sub(r"[\t ]{2,}", " ", text)
+    text = re.sub(r"\n{3,}", "\n\n", text).strip()
+    return text
+
+
+def summarize_url_text(text: str, max_chars: int = 1500) -> str:
+    """Ringkas teks panjang menjadi potongan yang lebih pendek."""
+    if not text:
+        return ""
+
+    text = text.replace("\r", "\n")
+    chunks = [chunk.strip() for chunk in text.split("\n\n") if chunk.strip()]
+    summary_parts = []
+    total = 0
+    for chunk in chunks:
+        if total + len(chunk) > max_chars:
+            break
+        summary_parts.append(chunk)
+        total += len(chunk)
+
+    return "\n\n".join(summary_parts).strip()
 
 
 def build_topic_hierarchy(nodes: list) -> dict:
@@ -215,6 +311,21 @@ def extract_role_docs(
         existing_ids = [d.doc_id for d in docs]
         doc_id = base_id if base_id not in existing_ids else f"{base_id}__{position}"
 
+        url_summaries = []
+        for url in extract_urls(raw_md):
+            summary = fetch_url_text(url)
+            if summary:
+                trimmed = summarize_url_text(summary, max_chars=800)
+                if trimmed:
+                    url_summaries.append({"url": url, "summary": trimmed})
+
+        expanded_content = clean
+        if url_summaries:
+            expanded_content += "\n\n" + "\n\n".join(
+                f"Sumber: {item['url']}\n{item['summary']}"
+                for item in url_summaries
+            )
+
         doc = KnowledgeDoc(
             doc_id=doc_id,
             role=role_norm,
@@ -226,6 +337,7 @@ def extract_role_docs(
             content_with_links=raw_md,
             position_in_roadmap=position,
         )
+        doc.expanded_content = expanded_content
         docs.append(doc)
         position += 1
 
