@@ -1,0 +1,19 @@
+/* Custom scrollbar untuk tampilan bersih */
+::-webkit-scrollbar { 
+    width: 6px; 
+}
+::-webkit-scrollbar-track { 
+    background: transparent; 
+}
+::-webkit-scrollbar-thumb { 
+    background: #e5e7eb; 
+    border-radius: 10px; 
+}
+::-webkit-scrollbar-thumb:hover { 
+    background: #d1d5db; 
+}
+
+/* Menyembunyikan default radio button (Khusus Quiz) */
+input[type="radio"] { 
+    display: none; 
+}

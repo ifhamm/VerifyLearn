@@ -1,73 +1,210 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" class="scroll-smooth">
+
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>VerifyLearn - Smart Web3 Learning Platform</title>
-  <!-- Google Fonts -->
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="styles/tailwind.css">
+  <title>VerifyLearn | Prove Your Skills</title>
+  <link rel="stylesheet" href="/styles/tailwind.css">
+  <link rel="stylesheet" href="/styles/custom.css">
 </head>
-<body class="bg-slate-950 text-slate-100 min-h-screen font-['Outfit',sans-serif] flex flex-col justify-between">
-  
-  <header class="border-b border-slate-800/80 backdrop-blur-md sticky top-0 z-50 bg-slate-950/80">
-    <div class="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
-      <div class="flex items-center gap-2">
-        <div class="w-8 h-8 rounded-lg bg-gradient-to-tr from-violet-600 to-indigo-600 flex items-center justify-center font-bold text-white shadow-lg shadow-indigo-500/20">V</div>
-        <span class="font-bold text-xl tracking-tight bg-gradient-to-r from-violet-400 to-indigo-400 bg-clip-text text-transparent">VerifyLearn</span>
+
+<body
+  class="bg-base text-textMain font-sans antialiased overflow-x-hidden selection:bg-brandOrange selection:text-white">
+
+  <header class="fixed top-0 w-full bg-base/90 border-b-2 border-textMain z-50 backdrop-blur-md">
+    <div class="max-w-7xl mx-auto px-6 py-4 flex justify-between items-center">
+      <div class="text-2xl font-black tracking-tighter uppercase">
+        Verify<span class="text-brandOrange">Learn.</span>
       </div>
-      <div>
-        <button id="connectWalletBtn" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg font-medium text-sm transition-all shadow-md shadow-indigo-600/10 active:scale-95">
-          Connect Wallet
-        </button>
+      <div class="hidden md:flex gap-8">
+        <a href="materi.html" class="text-sm font-bold text-textMuted hover:text-brandOrange transition">Black Theme</a>
+        <a href="#how-it-works" class="text-sm font-bold text-textMuted hover:text-brandOrange transition">HOW IT
+          WORKS</a>
       </div>
+      <a href="#"
+        class="px-6 py-2.5 text-sm font-bold text-textMain bg-white border-2 border-textMain hover:bg-brandOrange hover:border-brandOrange transition shadow-brutal">
+        SIGN IN
+      </a>
     </div>
   </header>
 
-  <main class="max-w-7xl mx-auto px-6 py-12 flex-1 w-full flex flex-col items-center justify-center text-center">
-    <div class="max-w-3xl">
-      <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-violet-500/30 bg-violet-950/30 text-violet-400 text-xs font-semibold mb-6 animate-pulse">
-        <span>✨</span> Web3 Integrity Verified Learning
+  <section
+    class="relative pt-40 pb-24 lg:pt-48 lg:pb-32 overflow-hidden flex flex-col justify-center min-h-screen border-b-2 border-textMain">
+    <div class="absolute inset-0 bg-grid-pattern" style="background-size: 32px 32px;"></div>
+
+    <div class="relative z-10 max-w-5xl mx-auto px-6 text-left md:text-center flex flex-col md:items-center">
+
+      <div
+        class="inline-flex items-center gap-3 px-4 py-2 mb-8 border-2 border-textMain bg-white text-sm font-bold text-textMain uppercase tracking-widest shadow-brutal">
+        <span class="text-brandOrange">AI Powered</span>
+        <span class="w-1.5 h-1.5 bg-textMain"></span>
+        <span>Adaptive Integrity</span>
+        <span class="w-1.5 h-1.5 bg-textMain"></span>
+        <span class="text-brandViolet">Web3 Verified</span>
       </div>
-      <h1 class="text-4xl md:text-6xl font-bold tracking-tight text-white mb-6">
-        Verify Your Learning Path <br />
-        <span class="bg-gradient-to-r from-violet-400 via-indigo-400 to-cyan-400 bg-clip-text text-transparent">With Keystroke Dynamics</span>
+
+      <h1 class="text-6xl md:text-8xl font-black tracking-tighter leading-[1] mb-6 text-textMain uppercase">
+        Choose Your Path.<br />
+        <span class="text-transparent bg-clip-text bg-gradient-brand">Prove Your Skills.</span>
       </h1>
-      <p class="text-slate-400 text-lg md:text-xl max-w-2xl mx-auto mb-8">
-        Ensure proof-of-work and verify user behavior integrity on-chain. Experience learning with secure, AI-powered validation.
+
+      <p class="text-lg md:text-2xl text-textMuted mb-10 font-medium max-w-3xl leading-relaxed">
+        Learn Frontend, Backend, or Fullstack through AI-powered learning paths and Adaptive Integrity Testing that
+        verifies genuine understanding.
       </p>
-      
-      <div class="bg-slate-900/50 border border-slate-800 rounded-2xl p-6 md:p-8 max-w-xl mx-auto backdrop-blur-md">
-        <textarea id="typingArea" rows="4" class="w-full bg-slate-950 border border-slate-800 rounded-xl p-4 text-slate-200 placeholder-slate-600 focus:outline-none focus:border-indigo-500 transition-colors resize-none" placeholder="Start typing here to test keystroke analytics..."></textarea>
-        <div class="mt-4 flex items-center justify-between text-xs text-slate-500">
-          <span id="wpmCounter">WPM: 0</span>
-          <span id="pasteDetector">Paste status: None</span>
-        </div>
+
+      <div class="flex flex-col sm:flex-row gap-4 w-full sm:w-auto mt-2">
+        <a href="materi.html"
+          class="px-8 py-4 text-base font-black text-white bg-brandOrange border-2 border-textMain hover:bg-brandViolet transition shadow-brutal uppercase text-center tracking-wide">
+          Start Learning
+        </a>
+        <a href="#"
+          class="px-8 py-4 text-base font-black text-black text-textMain bg-white border-2 border-textMain hover:bg-panel transition shadow-brutal uppercase text-center tracking-wide">
+          Watch Demo
+        </a>
       </div>
+    </div>
+  </section>
 
-      <section class="bg-slate-900/50 border border-slate-800 rounded-3xl p-6 md:p-8 max-w-3xl mx-auto mt-10 backdrop-blur-md text-left">
-        <div class="flex flex-col md:flex-row md:items-end md:justify-between gap-4 mb-6">
-          <div class="flex-1">
-            <label for="materialSlug" class="text-sm text-slate-400 mb-2 block">Cari materi lengkap (slug):</label>
-            <input id="materialSlug" type="text" placeholder="how-does-the-internet-work" class="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-slate-100 placeholder-slate-600 focus:outline-none focus:border-indigo-500 transition-colors" />
+  <section id="features" class="py-24 bg-panel border-b-2 border-textMain">
+    <div class="max-w-7xl mx-auto px-6">
+      <div class="grid lg:grid-cols-2 gap-16 items-center">
+
+        <div>
+          <h2 class="text-brandViolet tracking-widest text-sm font-black uppercase mb-4">Adaptive Integrity Testing</h2>
+          <h3 class="text-5xl md:text-6xl font-black text-textMain leading-[1.1] mb-8 uppercase tracking-tight">
+            We Don't Just Test Answers.<br />
+            <span class="text-brandOrange bg-clip-text to-slate-300">We Verify Understanding.</span>
+          </h3>
+          <p class="text-lg text-textMuted font-medium leading-relaxed max-w-lg">
+            Behavioral Intelligence analyzes typing rhythm, learning patterns, semantic consistency, and adaptive
+            responses to ensure authentic learning.
+          </p>
+        </div>
+
+        <div class="space-y-6">
+          <div class="bg-white border-2 border-textMain p-6 flex items-center shadow-brutal">
+            <div class="w-4 h-4 bg-brandOrange mr-4"></div>
+            <span class="text-textMain font-bold text-lg uppercase tracking-wide">Behavioral Biometrics</span>
           </div>
-          <div class="flex gap-3">
-            <button id="fetchMaterialBtn" class="px-4 py-3 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl font-medium transition-all">Fetch Material</button>
-            <button id="fetchListBtn" class="px-4 py-3 bg-slate-700 hover:bg-slate-600 text-slate-100 rounded-xl font-medium transition-all">List Semua</button>
+          <div class="bg-white border-2 border-textMain p-6 flex items-center shadow-brutal">
+            <div class="w-4 h-4 bg-brandViolet mr-4"></div>
+            <span class="text-textMain font-bold text-lg uppercase tracking-wide">AI Anomaly Detection</span>
+          </div>
+          <div class="bg-white border-2 border-textMain p-6 flex items-center shadow-brutal">
+            <div class="w-4 h-4 bg-textMuted mr-4"></div>
+            <span class="text-textMain font-bold text-lg uppercase tracking-wide">Dynamic RAG Challenges</span>
+          </div>
+          <div class="bg-white border-2 border-textMain p-6 flex items-center shadow-brutal">
+            <div class="w-4 h-4 bg-textMain mr-4"></div>
+            <span class="text-textMain font-bold text-lg uppercase tracking-wide">Immutable SBT Minted</span>
           </div>
         </div>
 
-        <div id="materialResult" class="space-y-4 text-sm text-slate-200"></div>
-      </section>
+      </div>
     </div>
-  </main>
+  </section>
 
-  <footer class="border-t border-slate-900 py-6 text-center text-xs text-slate-600">
-    <p>&copy; 2026 VerifyLearn Ecosystem. All rights reserved.</p>
+  <!-- SECTION 3: HOW IT WORKS (ALTERNATING ZIG-ZAG TIMELINE) -->
+  <section id="how-it-works" class="py-32 bg-base border-b-2 border-textMain">
+    <div class="max-w-5xl mx-auto px-6 overflow-hidden md:overflow-visible">
+      <h2 class="text-4xl md:text-5xl font-black text-textMain text-center mb-24 uppercase tracking-tighter">The
+        Validation Loop</h2>
+
+      <!-- Alternating Timeline Base -->
+      <ol
+        class="relative space-y-16 before:absolute before:top-0 before:left-1/2 before:h-full before:w-[2px] before:-translate-x-1/2 before:bg-textMain">
+
+        <!-- Phase 01 (Kiri) -->
+        <li class="group relative grid grid-cols-2 odd:-me-2 even:-ms-2">
+          <div
+            class="relative flex items-start gap-4 md:gap-8 group-odd:flex-row-reverse group-odd:text-right group-even:order-last">
+            <span
+              class="size-4 shrink-0 border-2 border-textMain bg-brandOrange mt-1.5 z-10 shadow-[4px_4px_0px_#09090b]"></span>
+            <div class="-mt-1.5 bg-base px-2">
+              <time class="text-xs/none font-black text-brandOrange uppercase tracking-widest">Phase 01</time>
+              <h3 class="text-lg md:text-2xl font-black text-textMain mt-2 uppercase">Learn</h3>
+              <p class="mt-1 text-xs md:text-sm text-textMuted font-bold">Study with AI-powered adaptive content.</p>
+            </div>
+          </div>
+          <div aria-hidden="true"></div>
+        </li>
+
+        <!-- Phase 02 (Kanan) -->
+        <li class="group relative grid grid-cols-2 odd:-me-2 even:-ms-2">
+          <div
+            class="relative flex items-start gap-4 md:gap-8 group-odd:flex-row-reverse group-odd:text-right group-even:order-last">
+            <span
+              class="size-4 shrink-0 border-2 border-textMain bg-brandViolet mt-1.5 z-10 shadow-[4px_4px_0px_#09090b]"></span>
+            <div class="-mt-1.5 bg-base px-2">
+              <time class="text-xs/none font-black text-brandViolet uppercase tracking-widest">Phase 02</time>
+              <h3 class="text-lg md:text-2xl font-black text-textMain mt-2 uppercase">Analyze</h3>
+              <p class="mt-1 text-xs md:text-sm text-textMuted font-bold">Behavioral AI analyzes your learning process.
+              </p>
+            </div>
+          </div>
+          <div aria-hidden="true"></div>
+        </li>
+
+        <!-- Phase 03 (Kiri) -->
+        <li class="group relative grid grid-cols-2 odd:-me-2 even:-ms-2">
+          <div
+            class="relative flex items-start gap-4 md:gap-8 group-odd:flex-row-reverse group-odd:text-right group-even:order-last">
+            <span
+              class="size-4 shrink-0 border-2 border-textMain bg-brandOrange mt-1.5 z-10 shadow-[4px_4px_0px_#09090b]"></span>
+            <div class="-mt-1.5 bg-base px-2">
+              <time class="text-xs/none font-black text-brandOrange uppercase tracking-widest">Phase 03</time>
+              <h3 class="text-lg md:text-2xl font-black text-textMain mt-2 uppercase">Challenge</h3>
+              <p class="mt-1 text-xs md:text-sm text-textMuted font-bold">Adaptive challenges verify your understanding.
+              </p>
+            </div>
+          </div>
+          <div aria-hidden="true"></div>
+        </li>
+
+        <!-- Phase 04 (Kanan) -->
+        <li class="group relative grid grid-cols-2 odd:-me-2 even:-ms-2">
+          <div
+            class="relative flex items-start gap-4 md:gap-8 group-odd:flex-row-reverse group-odd:text-right group-even:order-last">
+            <span
+              class="size-4 shrink-0 border-2 border-textMain bg-brandViolet mt-1.5 z-10 shadow-[4px_4px_0px_#09090b]"></span>
+            <div class="-mt-1.5 bg-base px-2">
+              <time class="text-xs/none font-black text-brandViolet uppercase tracking-widest">Phase 04</time>
+              <h3 class="text-lg md:text-2xl font-black text-textMain mt-2 uppercase">Score</h3>
+              <p class="mt-1 text-xs md:text-sm text-textMuted font-bold">Integrity score reflects your true learning.
+              </p>
+            </div>
+          </div>
+          <div aria-hidden="true"></div>
+        </li>
+
+        <!-- Phase 05 (Kiri) - Brutalist Ending -->
+        <li class="group relative grid grid-cols-2 odd:-me-2 even:-ms-2">
+          <div
+            class="relative flex items-start gap-4 md:gap-8 group-odd:flex-row-reverse group-odd:text-right group-even:order-last">
+            <!-- Efek shadow brutalist ditaruh di dot terakhir sebagai indikator finish -->
+            <span
+              class="size-4 shrink-0 border-2 border-textMain bg-brandOrange mt-1.5 z-10 shadow-[4px_4px_0px_#09090b]"></span>
+            <div class="-mt-1.5 bg-base px-2">
+              <time class="text-xs/none font-black text-brandOrange uppercase tracking-widest">Phase 05</time>
+              <h3 class="text-lg md:text-2xl font-black text-textMain mt-2 uppercase">Verify</h3>
+              <p class="mt-1 text-xs md:text-sm text-textMuted font-bold">Achievement recorded on blockchain.</p>
+            </div>
+          </div>
+          <div aria-hidden="true"></div>
+        </li>
+
+      </ol>
+    </div>
+  </section>
+
+  <footer class="py-10 bg-panel border-t-2 border-textMain text-center">
+    <p class="text-textMain font-bold text-sm uppercase tracking-widest">&copy; 2026 VerifyLearn. The Immutable
+      Ecosystem.</p>
   </footer>
+  <script src="./js/account.js"></script>
 
-  <script src="js/keystroke.js"></script>
 </body>
+
 </html>

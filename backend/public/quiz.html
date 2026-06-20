@@ -1,0 +1,328 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VerifyLearn | Quiz</title>
+    <link rel="stylesheet" href="/styles/tailwind.css">
+    <link rel="stylesheet" href="/styles/custom.css">
+</head>
+
+<body class="bg-white text-gray-900 font-sans h-screen flex overflow-hidden antialiased">
+
+    <div id="left-sidebars" class="flex h-full shrink-0 transition-all duration-300">
+        <aside class="w-64 flex flex-col border-r border-gray-200 h-full bg-white">
+            <div class="p-6">
+                <h1 class="text-2xl font-black tracking-tight uppercase flex items-center">
+                    VerifyLearn<span class="text-orange-500 text-3xl leading-none">.</span>
+                </h1>
+            </div>
+            <nav class="flex-1 px-4 space-y-1 overflow-y-auto">
+                <a href="landingPage.html"
+                    class="flex items-center gap-3 px-3 py-2 text-sm font-medium text-gray-600 rounded-lg hover:bg-gray-50 hover:text-gray-900 transition">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6">
+                        </path>
+                    </svg>
+                    DASHBOARD
+                </a>
+                <div class="pt-4 pb-1">
+                    <button
+                        class="w-full flex items-center justify-between px-3 py-2 text-sm font-bold text-gray-900 rounded-lg hover:bg-gray-50 transition">
+                        <div class="flex items-center gap-3">
+                            <svg class="w-5 h-5 text-gray-900" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253">
+                                </path>
+                            </svg>
+                            LEARNING
+                        </div>
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 15l7-7 7 7">
+                            </path>
+                        </svg>
+                    </button>
+                    <div class="pl-11 mt-1 space-y-1">
+                        <a href="#"
+                            class="block px-3 py-2 text-sm font-medium text-gray-500 rounded-lg hover:bg-gray-50 hover:text-gray-900 transition">My
+                            Path</a>
+                        <a href="materi.html"
+                            class="block px-3 py-2 text-sm font-medium text-gray-500 rounded-lg hover:bg-gray-50 hover:text-gray-900 transition">Materials</a>
+                        <a href="quiz.html"
+                            class="block px-3 py-2 text-sm font-bold text-orange-600 bg-orange-50 rounded-lg border-l-4 border-orange-500">Quizzes</a>
+                        <a href="#"
+                            class="block px-3 py-2 text-sm font-medium text-gray-500 rounded-lg hover:bg-gray-50 hover:text-gray-900 transition">Progress</a>
+                    </div>
+                </div>
+            </nav>
+            <div class="p-4 border-t border-gray-200">
+                <div class="bg-white border border-gray-200 rounded-xl p-4 shadow-sm">
+                    <p class="text-xs font-bold text-gray-500 mb-2">Integrity Score</p>
+                    <div class="flex items-baseline gap-1">
+                        <span class="text-2xl font-black">92</span><span class="text-sm font-medium text-gray-500">/
+                            100</span>
+                    </div>
+                    <div class="w-full bg-gray-200 rounded-full h-1.5 mt-3 mb-2">
+                        <div class="bg-orange-500 h-1.5 rounded-full" style="width: 92%"></div>
+                    </div>
+                    <p class="text-xs font-medium text-gray-500">Excellent</p>
+                </div>
+            </div>
+        </aside>
+    </div>
+
+    <div class="flex h-full shrink-0 transition-all duration-300">
+        <aside class="w-72 flex flex-col border-r border-gray-200 bg-gray-50/50 h-full">
+            <div class="p-6 border-b border-gray-200">
+                <div class="flex items-center gap-4">
+                    <button id="toggle-left-btn" class="p-2 text-gray-500 hover:bg-gray-100 rounded-lg transition"
+                        title="Toggle Navigation">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M4 6h16M4 12h16M4 18h7"></path>
+                        </svg>
+                    </button>
+                    <h2 class="font-bold text-gray-900">Frontend Developer Path</h2>
+                </div>
+                <div class="flex items-center justify-between mt-2">
+                    <span class="text-xs font-medium text-gray-500">Quiz Progress</span>
+                    <span class="text-xs font-bold text-gray-500">1 / 10</span>
+                </div>
+                <div class="w-full bg-gray-200 rounded-full h-1 mt-1">
+                    <div class="bg-orange-500 h-1 rounded-full" style="width: 10%"></div>
+                </div>
+            </div>
+            <div class="flex-1 overflow-y-auto p-4 space-y-1">
+                <a href="#"
+                    class="flex items-center gap-3 px-3 py-2 bg-orange-50 text-orange-700 font-bold rounded-lg border border-orange-100">
+                    <span
+                        class="w-6 h-6 flex items-center justify-center rounded-full bg-orange-500 text-white text-xs shrink-0">1</span>
+                    Question 1
+                </a>
+                <a href="#"
+                    class="flex items-center gap-3 px-3 py-2 text-gray-600 font-medium hover:bg-gray-100 rounded-lg">
+                    <span
+                        class="w-6 h-6 flex items-center justify-center rounded-full bg-gray-200 text-xs shrink-0">2</span>
+                    Question 2
+                </a>
+                <a href="#"
+                    class="flex items-center gap-3 px-3 py-2 text-gray-600 font-medium hover:bg-gray-100 rounded-lg">
+                    <span
+                        class="w-6 h-6 flex items-center justify-center rounded-full bg-gray-200 text-xs shrink-0">3</span>
+                    Question 3
+                </a>
+                <a href="#"
+                    class="flex items-center gap-3 px-3 py-2 text-gray-600 font-medium hover:bg-gray-100 rounded-lg">
+                    <span
+                        class="w-6 h-6 flex items-center justify-center rounded-full bg-gray-200 text-xs shrink-0">4</span>
+                    Question 4
+                </a>
+                <a href="#"
+                    class="flex items-center gap-3 px-3 py-2 text-gray-600 font-medium hover:bg-gray-100 rounded-lg">
+                    <span
+                        class="w-6 h-6 flex items-center justify-center rounded-full bg-gray-200 text-xs shrink-0">5</span>
+                    Question 5
+                </a>
+                <a href="#"
+                    class="flex items-center gap-3 px-3 py-2 text-gray-600 font-medium hover:bg-gray-100 rounded-lg">
+                    <span
+                        class="w-6 h-6 flex items-center justify-center rounded-full bg-gray-200 text-xs shrink-0">6</span>
+                    Question 6
+                </a>
+                <a href="#"
+                    class="flex items-center gap-3 px-3 py-2 text-gray-600 font-medium hover:bg-gray-100 rounded-lg">
+                    <span
+                        class="w-6 h-6 flex items-center justify-center rounded-full bg-gray-200 text-xs shrink-0">7</span>
+                    Question 7
+                </a>
+                <a href="#"
+                    class="flex items-center gap-3 px-3 py-2 text-gray-600 font-medium hover:bg-gray-100 rounded-lg">
+                    <span
+                        class="w-6 h-6 flex items-center justify-center rounded-full bg-gray-200 text-xs shrink-0">8</span>
+                    Question 8
+                </a>
+                <a href="#"
+                    class="flex items-center gap-3 px-3 py-2 text-gray-600 font-medium hover:bg-gray-100 rounded-lg">
+                    <span
+                        class="w-6 h-6 flex items-center justify-center rounded-full bg-gray-200 text-xs shrink-0">9</span>
+                    Question 9
+                </a>
+                <a href="#"
+                    class="flex items-center gap-3 px-3 py-2 text-gray-600 font-medium hover:bg-gray-100 rounded-lg">
+                    <span
+                        class="w-6 h-6 flex items-center justify-center rounded-full bg-gray-200 text-xs shrink-0">10</span>
+                    Question 10
+                </a>
+            </div>
+        </aside>
+    </div>
+
+    <main class="flex-1 flex flex-col h-full bg-white relative min-w-0">
+
+        <header class="h-16 border-b border-gray-200 flex items-center justify-between px-6 lg:px-10 shrink-0">
+            <div class="flex items-center gap-4 flex-1 max-w-md">
+                <div class="w-full">
+                    <p class="text-sm font-bold text-gray-900 mb-1">Question 1 of 10</p>
+                    <div class="w-full bg-gray-200 rounded-full h-1">
+                        <div class="bg-orange-500 h-1 rounded-full" style="width: 10%"></div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="flex items-center gap-4 font-bold text-sm">
+                <div><span class="text-gray-500">Time Left:</span> <span class="text-orange-500">14:32</span></div>
+            </div>
+        </header>
+
+        <div class="flex-1 flex overflow-hidden">
+            <article class="flex-1 overflow-y-auto p-10 lg:pl-12 lg:pr-16 max-w-4xl mx-auto w-full">
+                <h1 class="text-2xl font-bold text-gray-900 mb-8">What is the correct HTML tag for the largest heading?
+                </h1>
+                <form class="space-y-4">
+                    <label class="block cursor-pointer">
+                        <input type="radio" name="answer" checked>
+                        <div
+                            class="w-full flex items-center p-4 border border-orange-500 bg-orange-50/50 rounded-xl transition hover:border-orange-500">
+                            <div
+                                class="w-8 h-8 flex items-center justify-center rounded-full border border-orange-500 text-orange-600 font-bold shrink-0 bg-white">
+                                A</div>
+                            <span class="ml-4 font-medium text-orange-700 font-mono text-sm">&lt;h1&gt;</span>
+                        </div>
+                    </label>
+                    <label class="block cursor-pointer">
+                        <input type="radio" name="answer">
+                        <div
+                            class="w-full flex items-center p-4 border border-gray-200 rounded-xl transition hover:border-gray-300 bg-white">
+                            <div
+                                class="w-8 h-8 flex items-center justify-center rounded-full border border-gray-300 text-gray-500 font-bold shrink-0">
+                                B</div>
+                            <span class="ml-4 font-medium text-gray-700 font-mono text-sm">&lt;head&gt;</span>
+                        </div>
+                    </label>
+                    <label class="block cursor-pointer">
+                        <input type="radio" name="answer">
+                        <div
+                            class="w-full flex items-center p-4 border border-gray-200 rounded-xl transition hover:border-gray-300 bg-white">
+                            <div
+                                class="w-8 h-8 flex items-center justify-center rounded-full border border-gray-300 text-gray-500 font-bold shrink-0">
+                                C</div>
+                            <span class="ml-4 font-medium text-gray-700 font-mono text-sm">&lt;heading&gt;</span>
+                        </div>
+                    </label>
+                    <label class="block cursor-pointer">
+                        <input type="radio" name="answer">
+                        <div
+                            class="w-full flex items-center p-4 border border-gray-200 rounded-xl transition hover:border-gray-300 bg-white">
+                            <div
+                                class="w-8 h-8 flex items-center justify-center rounded-full border border-gray-300 text-gray-500 font-bold shrink-0">
+                                D</div>
+                            <span class="ml-4 font-medium text-gray-700 font-mono text-sm">&lt;h6&gt;</span>
+                        </div>
+                    </label>
+                    <div class="pt-6">
+                        <button type="button"
+                            class="px-8 py-3 bg-orange-500 text-white font-bold rounded-lg hover:bg-orange-600 transition shadow-sm">
+                            Next Question
+                        </button>
+                    </div>
+                </form>
+            </article>
+
+            <aside id="right-sidebar"
+                class="w-72 border-l border-gray-200 bg-gray-50/30 overflow-y-auto p-6 space-y-6 shrink-0 transition-all duration-300 hidden lg:block">
+
+                <div class="bg-white border border-gray-200 rounded-xl p-5 shadow-sm">
+                    <h3 class="font-bold text-gray-900 mb-4 text-sm">Quiz Overview</h3>
+                    <div class="grid grid-cols-5 gap-2 mb-6">
+                        <div
+                            class="w-8 h-8 flex items-center justify-center rounded bg-orange-500 text-white font-bold text-xs shadow-sm">
+                            1</div>
+                        <div
+                            class="w-8 h-8 flex items-center justify-center rounded border border-gray-200 text-gray-600 font-medium text-xs">
+                            2</div>
+                        <div
+                            class="w-8 h-8 flex items-center justify-center rounded border border-gray-200 text-gray-600 font-medium text-xs">
+                            3</div>
+                        <div
+                            class="w-8 h-8 flex items-center justify-center rounded border border-gray-200 text-gray-600 font-medium text-xs">
+                            4</div>
+                        <div
+                            class="w-8 h-8 flex items-center justify-center rounded border border-gray-200 text-gray-600 font-medium text-xs">
+                            5</div>
+                        <div
+                            class="w-8 h-8 flex items-center justify-center rounded border border-gray-200 text-gray-600 font-medium text-xs">
+                            6</div>
+                        <div
+                            class="w-8 h-8 flex items-center justify-center rounded border border-gray-200 text-gray-600 font-medium text-xs">
+                            7</div>
+                        <div
+                            class="w-8 h-8 flex items-center justify-center rounded border border-gray-200 text-gray-600 font-medium text-xs">
+                            8</div>
+                        <div
+                            class="w-8 h-8 flex items-center justify-center rounded border border-gray-200 text-gray-600 font-medium text-xs">
+                            9</div>
+                        <div
+                            class="w-8 h-8 flex items-center justify-center rounded border border-gray-200 text-gray-600 font-medium text-xs">
+                            10</div>
+                    </div>
+                    <div class="space-y-2 text-xs">
+                        <div class="flex items-center gap-2"><span
+                                class="w-2.5 h-2.5 rounded-full bg-orange-500"></span><span
+                                class="text-gray-600">Answered</span></div>
+                        <div class="flex items-center gap-2"><span
+                                class="w-2.5 h-2.5 rounded-full bg-gray-200 border border-gray-300"></span><span
+                                class="text-gray-500">Not Answered</span></div>
+                    </div>
+                </div>
+
+                <div class="bg-white border border-gray-200 rounded-xl p-5 shadow-sm">
+                    <div class="flex items-center justify-between mb-3">
+                        <div class="flex items-center gap-2 font-bold text-gray-900 text-sm">
+                            <svg class="w-5 h-5 text-orange-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z">
+                                </path>
+                            </svg>
+                            AI Hint
+                        </div>
+                        <span id="hint-counter"
+                            class="text-xs font-bold text-orange-600 bg-orange-50 px-2 py-1 rounded-md border border-orange-100">3
+                            Left</span>
+                    </div>
+                    <p class="text-xs text-gray-500 leading-relaxed mb-4">Stuck? Use AI to generate a contextual hint
+                        based on RAG. (Limit 3 per quiz).</p>
+
+                    <button id="use-hint-btn"
+                        class="w-full py-2 border border-orange-500 text-orange-600 font-bold rounded-lg hover:bg-orange-50 transition text-sm">
+                        Reveal Hint
+                    </button>
+
+                    <div id="hint-display" class="hidden mt-4 p-3 bg-gray-50 border border-gray-200 rounded-lg">
+                        <p class="text-xs text-gray-700 font-medium italic">"Remember what 'largest' means in HTML
+                            hierarchy. The smaller the number, the larger the default text size."</p>
+                    </div>
+                </div>
+
+                <div class="bg-white border border-gray-200 rounded-xl p-5 shadow-sm">
+                    <div class="flex items-center gap-2 font-bold text-gray-900 mb-3 text-sm">
+                        <svg class="w-5 h-5 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z">
+                            </path>
+                        </svg>
+                        Integrity Reminder
+                    </div>
+                    <p class="text-xs text-gray-500 leading-relaxed mb-2">This quiz uses Adaptive Integrity Testing to
+                        verify your real understanding.</p>
+                    <p class="text-xs text-gray-500 leading-relaxed font-medium">Stay focused and think critically!</p>
+                </div>
+            </aside>
+        </div>
+    </main>
+    <script src="./scripts/quiz.js"></script>
+
+</body>
+
+</html>

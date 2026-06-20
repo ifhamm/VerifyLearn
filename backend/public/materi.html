@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VerifyLearn | Materials</title>
+    <link rel="stylesheet" href="/styles/tailwind.css">
+    <link rel="stylesheet" href="/styles/custom.css">
+</head>
+
+<body class="bg-white text-gray-900 font-sans h-screen flex overflow-hidden antialiased">
+
+    <div id="left-sidebars" class="flex h-full shrink-0 transition-all duration-300">
+        <aside class="w-64 flex flex-col border-r border-gray-200 h-full bg-white">
+            <div class="p-6">
+                <h1 class="text-2xl font-black tracking-tight uppercase flex items-center">
+                    VerifyLearn<span class="text-orange-500 text-3xl leading-none">.</span>
+                </h1>
+            </div>
+            <nav class="flex-1 px-4 space-y-1 overflow-y-auto">
+                <a href="index.html"
+                    class="flex items-center gap-3 px-3 py-2 text-sm font-medium text-gray-600 rounded-lg hover:bg-gray-50 hover:text-gray-900 transition">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6">
+                        </path>
+                    </svg>
+                    DASHBOARD
+                </a>
+                <div class="pt-4 pb-1">
+                    <button
+                        class="w-full flex items-center justify-between px-3 py-2 text-sm font-bold text-gray-900 rounded-lg hover:bg-gray-50 transition">
+                        <div class="flex items-center gap-3">
+                            <svg class="w-5 h-5 text-gray-900" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253">
+                                </path>
+                            </svg>
+                            LEARNING
+                        </div>
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 15l7-7 7 7">
+                            </path>
+                        </svg>
+                    </button>
+                    <div class="pl-11 mt-1 space-y-1">
+                        <a href="#"
+                            class="block px-3 py-2 text-sm font-medium text-gray-500 rounded-lg hover:bg-gray-50 hover:text-gray-900 transition">My
+                            Path</a>
+                        <a href="materi.html"
+                            class="block px-3 py-2 text-sm font-bold text-orange-600 bg-orange-50 rounded-lg border-l-4 border-orange-500">Materials</a>
+                        <a href="quiz.html"
+                            class="block px-3 py-2 text-sm font-medium text-gray-500 rounded-lg hover:bg-gray-50 hover:text-gray-900 transition">Quizzes</a>
+                        <a href="#"
+                            class="block px-3 py-2 text-sm font-medium text-gray-500 rounded-lg hover:bg-gray-50 hover:text-gray-900 transition">Progress</a>
+                    </div>
+                </div>
+            </nav>
+            <div class="p-4 border-t border-gray-200">
+                <div class="bg-white border border-gray-200 rounded-xl p-4 shadow-sm">
+                    <p class="text-xs font-bold text-gray-500 mb-2">Integrity Score</p>
+                    <div class="flex items-baseline gap-1">
+                        <span class="text-2xl font-black">92</span><span class="text-sm font-medium text-gray-500">/
+                            100</span>
+                    </div>
+                    <div class="w-full bg-gray-200 rounded-full h-1.5 mt-3 mb-2">
+                        <div class="bg-orange-500 h-1.5 rounded-full" style="width: 92%"></div>
+                    </div>
+                    <p class="text-xs font-medium text-gray-500">Excellent</p>
+                </div>
+            </div>
+        </aside>
+    </div>
+
+    <div class="flex h-full shrink-0 transition-all duration-300">
+        <aside class="w-72 flex flex-col border-r border-gray-200 bg-gray-50/50 h-full">
+            <div class="p-6 border-b border-gray-200">
+                <div class="flex items-center gap-4">
+                    <button id="toggle-left-btn" class="p-2 text-gray-500 hover:bg-gray-100 rounded-lg transition"
+                        title="Toggle Navigation">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M4 6h16M4 12h16M4 18h7"></path>
+                        </svg>
+                    </button>
+                    <h2 class="font-bold text-gray-900">Frontend Developer Path</h2>
+                </div>
+                <div class="flex items-center justify-between mt-2">
+                    <span class="text-xs font-medium text-gray-500">Progress 32%</span>
+                </div>
+                <div class="w-full bg-gray-200 rounded-full h-1 mt-1">
+                    <div class="bg-orange-500 h-1 rounded-full" style="width: 32%"></div>
+                </div>
+            </div>
+            <div class="flex-1 overflow-y-auto p-4 space-y-6">
+                <div>
+                    <p class="text-xs font-bold text-gray-500 tracking-wider mb-1">MODULE 1</p>
+                    <h3 class="font-bold text-gray-900 mb-3">HTML Fundamentals</h3>
+                    <ul class="space-y-2">
+
+                        <li class="relative">
+                            <button id="toggle-dropdown-btn"
+                                class="w-full flex items-center justify-between px-3 py-2 bg-orange-50 text-orange-700 font-bold rounded-lg border border-orange-100 focus:outline-none hover:bg-orange-100 transition">
+                                <div class="flex items-center gap-3">
+                                    <span
+                                        class="w-6 h-6 flex items-center justify-center rounded-full bg-orange-500 text-white text-xs shrink-0">1</span>
+                                    <span class="text-sm">Introduction to HTML</span>
+                                </div>
+                                <svg id="dropdown-icon"
+                                    class="w-4 h-4 transform rotate-180 transition-transform duration-200" fill="none"
+                                    stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                        d="M19 9l-7 7-7-7"></path>
+                                </svg>
+                            </button>
+
+                            <div id="dropdown-menu" class="pl-12 pr-3 py-2 mt-1 space-y-3 block">
+                                <a href="#"
+                                    class="block text-sm text-orange-600 font-bold relative before:absolute before:-left-4 before:top-1/2 before:-translate-y-1/2 before:w-1.5 before:h-1.5 before:bg-orange-500 before:rounded-full">What
+                                    is HTML?</a>
+                                <a href="#"
+                                    class="block text-sm text-gray-500 font-medium hover:text-gray-900 transition relative before:absolute before:-left-4 before:top-1/2 before:-translate-y-1/2 before:w-1.5 before:h-1.5 before:bg-gray-300 before:rounded-full">HTML
+                                    Structure</a>
+                                <a href="#"
+                                    class="block text-sm text-gray-500 font-medium hover:text-gray-900 transition relative before:absolute before:-left-4 before:top-1/2 before:-translate-y-1/2 before:w-1.5 before:h-1.5 before:bg-gray-300 before:rounded-full">Basic
+                                    Elements</a>
+                                <a href="#"
+                                    class="block text-sm text-gray-500 font-medium hover:text-gray-900 transition relative before:absolute before:-left-4 before:top-1/2 before:-translate-y-1/2 before:w-1.5 before:h-1.5 before:bg-gray-300 before:rounded-full">Attributes</a>
+                            </div>
+                        </li>
+
+                        <li><a href="#"
+                                class="flex items-center gap-3 px-3 py-2 text-gray-600 font-medium hover:bg-gray-100 rounded-lg"><span
+                                    class="w-6 h-6 flex items-center justify-center rounded-full bg-gray-200 text-gray-600 text-xs shrink-0">2</span><span
+                                    class="text-sm">HTML Structure</span></a></li>
+                        <li><a href="#"
+                                class="flex items-center gap-3 px-3 py-2 text-gray-600 font-medium hover:bg-gray-100 rounded-lg"><span
+                                    class="w-6 h-6 flex items-center justify-center rounded-full bg-gray-200 text-gray-600 text-xs shrink-0">3</span><span
+                                    class="text-sm">Text and Headings</span></a></li>
+                        <li><a href="#"
+                                class="flex items-center gap-3 px-3 py-2 text-gray-600 font-medium hover:bg-gray-100 rounded-lg"><span
+                                    class="w-6 h-6 flex items-center justify-center rounded-full bg-gray-200 text-gray-600 text-xs shrink-0">4</span><span
+                                    class="text-sm">Practice Quiz</span></a></li>
+                    </ul>
+                </div>
+            </div>
+        </aside>
+    </div>
+
+    <main class="flex-1 flex flex-col h-full bg-white relative min-w-0">
+        <header class="h-16 border-b border-gray-200 flex items-center justify-between px-6 shrink-0 bg-white z-10">
+            <div class="flex items-center">
+                <button class="flex items-center gap-2 text-sm font-bold text-gray-600 hover:text-gray-900 transition">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M10 19l-7-7m0 0l7-7m-7 7h18"></path>
+                    </svg>
+                    Back to Path
+                </button>
+            </div>
+            <div class="flex items-center gap-3">
+                <button
+                    class="flex items-center gap-2 px-4 py-2 text-sm font-bold text-gray-600 hover:bg-gray-100 rounded-lg transition hidden sm:flex">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7">
+                        </path>
+                    </svg>
+                    Previous
+                </button>
+                <button
+                    class="flex items-center gap-2 px-6 py-2 text-sm font-bold text-white bg-orange-500 hover:bg-orange-600 rounded-lg transition">
+                    Next
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
+                    </svg>
+                </button>
+            </div>
+        </header>
+
+        <div class="flex-1 flex overflow-hidden">
+            <article class="flex-1 overflow-y-auto p-10 lg:pl-12 lg:pr-16 max-w-5xl mx-auto w-full">
+                <h1 class="text-4xl font-bold text-gray-900 mb-6">1. Introduction to HTML</h1>
+                <div class="prose prose-gray max-w-none">
+                    <p class="text-gray-600 text-lg mb-8 leading-relaxed">
+                        HTML (HyperText Markup Language) is the standard markup language for creating web pages and web
+                        applications.
+                    </p>
+                    <h2 class="text-2xl font-bold text-gray-900 mb-4 mt-8">What is HTML?</h2>
+                    <p class="text-gray-600 mb-6 leading-relaxed">
+                        HTML provides the structure of a webpage. It tells the browser how to display content such as
+                        headings, paragraphs, images, links, and more.
+                    </p>
+                    <div class="bg-gray-900 rounded-xl p-6 overflow-x-auto shadow-lg shadow-gray-200 mt-6">
+                        <pre class="text-sm font-mono leading-relaxed"><code class="text-gray-300"><span class="text-blue-400">&lt;!DOCTYPE html&gt;</span>
+<span class="text-blue-400">&lt;<span class="text-blue-300">html</span> <span class="text-green-300">lang</span>=<span class="text-yellow-300">"en"</span>&gt;</span>
+    <span class="text-blue-400">&lt;<span class="text-blue-300">head</span>&gt;</span>
+        <span class="text-blue-400">&lt;<span class="text-blue-300">title</span>&gt;</span>My First Page<span class="text-blue-400">&lt;/<span class="text-blue-300">title</span>&gt;</span>
+    <span class="text-blue-400">&lt;/<span class="text-blue-300">head</span>&gt;</span>
+    <span class="text-blue-400">&lt;<span class="text-blue-300">body</span>&gt;</span>
+        <span class="text-blue-400">&lt;<span class="text-blue-300">h1</span>&gt;</span>Hello, VerifyLearn!<span class="text-blue-400">&lt;/<span class="text-blue-300">h1</span>&gt;</span>
+<span class="text-blue-400">&lt;/<span class="text-blue-300">html</span>&gt;</span></code></pre>
+                    </div>
+                </div>
+            </article>
+
+            <aside id="right-sidebar"
+                class="w-72 border-l border-gray-200 bg-gray-50/30 overflow-y-auto p-6 space-y-6 shrink-0 transition-all duration-300 hidden lg:block">
+                <div class="bg-white border border-gray-200 rounded-xl p-5 shadow-sm">
+                    <h3 class="font-bold text-gray-900 mb-3 text-sm">Your Notes</h3>
+                    <textarea
+                        class="w-full h-24 bg-gray-50 border border-gray-200 rounded-lg p-3 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent transition"
+                        placeholder="Write your notes here..."></textarea>
+                    <button
+                        class="mt-3 w-full px-4 py-2 text-sm font-bold text-white bg-orange-500 hover:bg-orange-600 rounded-lg transition">Save
+                        Note
+                    </button>
+                </div>
+            </aside>
+        </div>
+    </main>
+
+    <script>
+        const leftSidebars = document.getElementById('left-sidebars');
+        const toggleLeftBtn = document.getElementById('toggle-left-btn');
+
+        // Fungsi buka/tutup Sidebar Kiri (Navigasi & Menu)
+        toggleLeftBtn.addEventListener('click', () => {
+            leftSidebars.classList.toggle('hidden');
+        });
+
+        const dropdownBtn = document.getElementById('toggle-dropdown-btn');
+        const dropdownMenu = document.getElementById('dropdown-menu');
+        const dropdownIcon = document.getElementById('dropdown-icon');
+
+        dropdownBtn.addEventListener('click', () => {
+            // Toggle visibility of the menu
+            dropdownMenu.classList.toggle('hidden');
+            dropdownMenu.classList.toggle('block');
+
+            // Toggle chevron icon rotation
+            dropdownIcon.classList.toggle('rotate-180');
+        });
+    </script>
+</body>
+
+</html>
