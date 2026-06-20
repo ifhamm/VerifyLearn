@@ -223,7 +223,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   // Setup Back Button
   if (backBtn) {
     backBtn.addEventListener('click', () => {
-      window.location.href = 'homePage.html';
+      window.location.href = 'myPath.html';
     });
   }
 

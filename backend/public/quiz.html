@@ -18,7 +18,7 @@
                     VerifyLearn<span class="text-orange-500 text-3xl leading-none">.</span>
                 </h1>
             </div>
-            <nav class="flex-1 px-4 space-y-1 overflow-y-auto">
+            <nav id="sidebarNav" class="flex-1 px-4 space-y-1 overflow-y-auto">
                 <a href="landingPage.html"
                     class="flex items-center gap-3 px-3 py-2 text-sm font-medium text-gray-600 rounded-lg hover:bg-gray-50 hover:text-gray-900 transition">
                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -138,41 +138,15 @@
 
                 <div class="bg-white border border-gray-200 rounded-xl p-5 shadow-sm">
                     <h3 class="font-bold text-gray-900 mb-4 text-sm">Quiz Overview</h3>
-                    <div class="grid grid-cols-5 gap-2 mb-6">
-                        <div
-                            class="w-8 h-8 flex items-center justify-center rounded bg-orange-500 text-white font-bold text-xs shadow-sm">
-                            1</div>
-                        <div
-                            class="w-8 h-8 flex items-center justify-center rounded border border-gray-200 text-gray-600 font-medium text-xs">
-                            2</div>
-                        <div
-                            class="w-8 h-8 flex items-center justify-center rounded border border-gray-200 text-gray-600 font-medium text-xs">
-                            3</div>
-                        <div
-                            class="w-8 h-8 flex items-center justify-center rounded border border-gray-200 text-gray-600 font-medium text-xs">
-                            4</div>
-                        <div
-                            class="w-8 h-8 flex items-center justify-center rounded border border-gray-200 text-gray-600 font-medium text-xs">
-                            5</div>
-                        <div
-                            class="w-8 h-8 flex items-center justify-center rounded border border-gray-200 text-gray-600 font-medium text-xs">
-                            6</div>
-                        <div
-                            class="w-8 h-8 flex items-center justify-center rounded border border-gray-200 text-gray-600 font-medium text-xs">
-                            7</div>
-                        <div
-                            class="w-8 h-8 flex items-center justify-center rounded border border-gray-200 text-gray-600 font-medium text-xs">
-                            8</div>
-                        <div
-                            class="w-8 h-8 flex items-center justify-center rounded border border-gray-200 text-gray-600 font-medium text-xs">
-                            9</div>
-                        <div
-                            class="w-8 h-8 flex items-center justify-center rounded border border-gray-200 text-gray-600 font-medium text-xs">
-                            10</div>
+                    <div id="quizOverviewGrid" class="grid grid-cols-5 gap-2 mb-6">
+                        <!-- Items generated via JS -->
                     </div>
                     <div class="space-y-2 text-xs">
                         <div class="flex items-center gap-2"><span
                                 class="w-2.5 h-2.5 rounded-full bg-orange-500"></span><span
+                                class="text-gray-600">Active</span></div>
+                        <div class="flex items-center gap-2"><span
+                                class="w-2.5 h-2.5 rounded-full bg-brandViolet"></span><span
                                 class="text-gray-600">Answered</span></div>
                         <div class="flex items-center gap-2"><span
                                 class="w-2.5 h-2.5 rounded-full bg-gray-200 border border-gray-300"></span><span
@@ -250,6 +224,40 @@
           <div class="flex gap-4">
               <button id="submitVoiceBtn" class="flex-1 py-3 bg-brandViolet text-white font-black uppercase border-2 border-textMain shadow-brutal-sm hover:bg-brandOrange transition disabled:opacity-50 disabled:cursor-not-allowed" disabled>
                   Submit Jawaban Suara
+              </button>
+          </div>
+      </div>
+  </div>
+
+  <!-- Navigation Warning Modal -->
+  <div id="navWarningModal" class="fixed inset-0 bg-gray-900/60 backdrop-blur-sm z-50 flex items-center justify-center hidden">
+      <div class="bg-white border-4 border-textMain max-w-md w-full p-8 shadow-brutal mx-4">
+          <div class="flex items-center gap-3 text-orange-500 font-black text-2xl uppercase tracking-tighter mb-4">
+              <span>⚠️</span> QUIZ IN PROGRESS
+          </div>
+          <p class="text-sm text-textMuted mb-6 leading-relaxed font-medium">
+              You are currently in an active quiz session. Please submit or finish the quiz before navigating to another page.
+          </p>
+          <div class="flex justify-end mt-4">
+              <button id="closeNavWarningBtn" class="w-full py-3 bg-orange-500 text-white font-black uppercase border-2 border-textMain shadow-brutal-sm hover:bg-orange-600 transition">
+                  UNDERSTOOD
+              </button>
+          </div>
+      </div>
+  </div>
+
+  <!-- Validation Modal -->
+  <div id="validationModal" class="fixed inset-0 bg-gray-900/60 backdrop-blur-sm z-50 flex items-center justify-center hidden">
+      <div class="bg-white border-4 border-textMain max-w-md w-full p-8 shadow-brutal mx-4">
+          <div class="flex items-center gap-3 text-red-600 font-black text-2xl uppercase tracking-tighter mb-4">
+              <span>⚠️</span> ACTION REQUIRED
+          </div>
+          <p id="validationModalText" class="text-sm text-textMuted mb-6 leading-relaxed font-medium">
+              Validation message goes here.
+          </p>
+          <div class="flex justify-end mt-4">
+              <button id="closeValidationBtn" class="w-full py-3 bg-red-500 text-white font-black uppercase border-2 border-textMain shadow-brutal-sm hover:bg-red-600 transition">
+                  OKAY
               </button>
           </div>
       </div>

@@ -60,7 +60,7 @@ document.addEventListener('DOMContentLoaded', () => {
   if (!role) role = 'backend';
   if (!slug) {
     alert('Silakan pilih materi belajar terlebih dahulu dari dashboard sebelum mengakses kuis.');
-    window.location.href = 'homePage.html';
+    window.location.href = 'myPath.html';
     return;
   }
 
@@ -79,6 +79,13 @@ document.addEventListener('DOMContentLoaded', () => {
   const questionProgressText = document.getElementById('questionProgressText');
   const questionProgressBar = document.getElementById('questionProgressBar');
   const timerDisplay = document.getElementById('timerDisplay');
+  const quizOverviewGrid = document.getElementById('quizOverviewGrid');
+  const sidebarNav = document.getElementById('sidebarNav');
+  const navWarningModal = document.getElementById('navWarningModal');
+  const closeNavWarningBtn = document.getElementById('closeNavWarningBtn');
+  const validationModal = document.getElementById('validationModal');
+  const validationModalText = document.getElementById('validationModalText');
+  const closeValidationBtn = document.getElementById('closeValidationBtn');
   
   const quizQuestionTitle = document.getElementById('quizQuestionTitle');
   const quizForm = document.getElementById('quizForm');
@@ -118,6 +125,39 @@ document.addEventListener('DOMContentLoaded', () => {
   // Initialize Page Header
   const roleLabel = role === 'frontend' ? 'Frontend Developer' : role === 'backend' ? 'Backend Developer' : 'Fullstack Developer';
   if (pathTitle) pathTitle.textContent = `${roleLabel} Path`;
+
+  // Disable Sidebar Navigation During Quiz
+  if (sidebarNav) {
+    const links = sidebarNav.querySelectorAll('a');
+    links.forEach(link => {
+      link.addEventListener('click', (e) => {
+        e.preventDefault();
+        if (navWarningModal) navWarningModal.classList.remove('hidden');
+      });
+      link.classList.add('opacity-50', 'cursor-not-allowed');
+    });
+  }
+
+  if (closeNavWarningBtn && navWarningModal) {
+    closeNavWarningBtn.addEventListener('click', () => {
+      navWarningModal.classList.add('hidden');
+    });
+  }
+
+  function showValidation(msg) {
+    if (validationModal && validationModalText) {
+      validationModalText.textContent = msg;
+      validationModal.classList.remove('hidden');
+    } else {
+      alert(msg);
+    }
+  }
+
+  if (closeValidationBtn && validationModal) {
+    closeValidationBtn.addEventListener('click', () => {
+      validationModal.classList.add('hidden');
+    });
+  }
 
   // Initialize Speech Recognition
   initSpeechRecognition();
@@ -366,17 +406,26 @@ document.addEventListener('DOMContentLoaded', () => {
     quizSubmitBtn.addEventListener('click', (e) => {
       e.preventDefault();
       
-      // Validate that question is answered
-      if (!userAnswers[currentIndex] || userAnswers[currentIndex].trim() === '') {
-        alert('Harap isi jawaban Anda terlebih dahulu!');
-        return;
-      }
+      // Removed validation per user request so users can skip to the next question
 
       if (currentIndex < questions.length - 1) {
         currentIndex++;
         renderQuestion();
         updateSidebarProgress();
       } else {
+        // Validate ALL questions are answered before submitting
+        const unansweredIndexes = [];
+        userAnswers.forEach((ans, idx) => {
+          if (!ans || ans.trim() === '') {
+            unansweredIndexes.push(idx + 1);
+          }
+        });
+        
+        if (unansweredIndexes.length > 0) {
+          showValidation(`Please complete all questions before submitting. Missing questions: ${unansweredIndexes.join(', ')}.`);
+          return;
+        }
+
         submitQuiz();
       }
     });
@@ -386,6 +435,10 @@ document.addEventListener('DOMContentLoaded', () => {
   function updateSidebarProgress() {
     if (!questionList) return;
     questionList.innerHTML = '';
+
+    if (quizOverviewGrid) {
+      quizOverviewGrid.innerHTML = '';
+    }
 
     const answeredCount = userAnswers.filter(a => a !== null && a.trim() !== '').length;
     progressText.textContent = `${answeredCount} / ${questions.length}`;
@@ -425,6 +478,29 @@ document.addEventListener('DOMContentLoaded', () => {
       });
 
       questionList.appendChild(link);
+
+      if (quizOverviewGrid) {
+        const gridItem = document.createElement('div');
+        gridItem.className = 'w-8 h-8 flex items-center justify-center rounded font-medium text-xs transition cursor-pointer';
+
+        if (isActive) {
+          gridItem.classList.add('bg-orange-500', 'text-white', 'font-bold', 'shadow-sm');
+        } else if (isAnswered) {
+          gridItem.classList.add('bg-brandViolet', 'text-white', 'font-bold', 'shadow-sm');
+        } else {
+          gridItem.classList.add('border', 'border-gray-200', 'text-gray-600', 'bg-white');
+        }
+
+        gridItem.textContent = idx + 1;
+        
+        gridItem.addEventListener('click', () => {
+          currentIndex = idx;
+          renderQuestion();
+          updateSidebarProgress();
+        });
+
+        quizOverviewGrid.appendChild(gridItem);
+      }
     });
   }
 
@@ -774,14 +850,15 @@ document.addEventListener('DOMContentLoaded', () => {
           <p>"${reason}"</p>
         </div>
 
-        <button id="finishQuizBtn" class="w-full py-4 bg-brandOrange text-white border-2 border-textMain font-black uppercase shadow-brutal hover:bg-textMain transition text-center">
+        <button type="button" id="finishQuizBtn" class="w-full py-4 bg-brandOrange text-white border-2 border-textMain font-black uppercase shadow-brutal hover:bg-textMain transition text-center">
           Selesai & Kembali Ke Dashboard
         </button>
       </div>
     `;
 
-    document.getElementById('finishQuizBtn').onclick = () => {
-      window.location.href = 'homePage.html';
+    document.getElementById('finishQuizBtn').onclick = (e) => {
+      e.preventDefault();
+      window.location.href = 'myPath.html';
     };
   }
 });
