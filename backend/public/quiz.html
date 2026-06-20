@@ -84,76 +84,17 @@
                                 d="M4 6h16M4 12h16M4 18h7"></path>
                         </svg>
                     </button>
-                    <h2 class="font-bold text-gray-900">Frontend Developer Path</h2>
+                    <h2 id="pathTitle" class="font-bold text-gray-900">Path</h2>
                 </div>
                 <div class="flex items-center justify-between mt-2">
                     <span class="text-xs font-medium text-gray-500">Quiz Progress</span>
-                    <span class="text-xs font-bold text-gray-500">1 / 10</span>
+                    <span id="progressText" class="text-xs font-bold text-gray-500">0 / 0</span>
                 </div>
                 <div class="w-full bg-gray-200 rounded-full h-1 mt-1">
-                    <div class="bg-orange-500 h-1 rounded-full" style="width: 10%"></div>
+                    <div id="progressBar" class="bg-orange-500 h-1 rounded-full" style="width: 0%"></div>
                 </div>
             </div>
-            <div class="flex-1 overflow-y-auto p-4 space-y-1">
-                <a href="#"
-                    class="flex items-center gap-3 px-3 py-2 bg-orange-50 text-orange-700 font-bold rounded-lg border border-orange-100">
-                    <span
-                        class="w-6 h-6 flex items-center justify-center rounded-full bg-orange-500 text-white text-xs shrink-0">1</span>
-                    Question 1
-                </a>
-                <a href="#"
-                    class="flex items-center gap-3 px-3 py-2 text-gray-600 font-medium hover:bg-gray-100 rounded-lg">
-                    <span
-                        class="w-6 h-6 flex items-center justify-center rounded-full bg-gray-200 text-xs shrink-0">2</span>
-                    Question 2
-                </a>
-                <a href="#"
-                    class="flex items-center gap-3 px-3 py-2 text-gray-600 font-medium hover:bg-gray-100 rounded-lg">
-                    <span
-                        class="w-6 h-6 flex items-center justify-center rounded-full bg-gray-200 text-xs shrink-0">3</span>
-                    Question 3
-                </a>
-                <a href="#"
-                    class="flex items-center gap-3 px-3 py-2 text-gray-600 font-medium hover:bg-gray-100 rounded-lg">
-                    <span
-                        class="w-6 h-6 flex items-center justify-center rounded-full bg-gray-200 text-xs shrink-0">4</span>
-                    Question 4
-                </a>
-                <a href="#"
-                    class="flex items-center gap-3 px-3 py-2 text-gray-600 font-medium hover:bg-gray-100 rounded-lg">
-                    <span
-                        class="w-6 h-6 flex items-center justify-center rounded-full bg-gray-200 text-xs shrink-0">5</span>
-                    Question 5
-                </a>
-                <a href="#"
-                    class="flex items-center gap-3 px-3 py-2 text-gray-600 font-medium hover:bg-gray-100 rounded-lg">
-                    <span
-                        class="w-6 h-6 flex items-center justify-center rounded-full bg-gray-200 text-xs shrink-0">6</span>
-                    Question 6
-                </a>
-                <a href="#"
-                    class="flex items-center gap-3 px-3 py-2 text-gray-600 font-medium hover:bg-gray-100 rounded-lg">
-                    <span
-                        class="w-6 h-6 flex items-center justify-center rounded-full bg-gray-200 text-xs shrink-0">7</span>
-                    Question 7
-                </a>
-                <a href="#"
-                    class="flex items-center gap-3 px-3 py-2 text-gray-600 font-medium hover:bg-gray-100 rounded-lg">
-                    <span
-                        class="w-6 h-6 flex items-center justify-center rounded-full bg-gray-200 text-xs shrink-0">8</span>
-                    Question 8
-                </a>
-                <a href="#"
-                    class="flex items-center gap-3 px-3 py-2 text-gray-600 font-medium hover:bg-gray-100 rounded-lg">
-                    <span
-                        class="w-6 h-6 flex items-center justify-center rounded-full bg-gray-200 text-xs shrink-0">9</span>
-                    Question 9
-                </a>
-                <a href="#"
-                    class="flex items-center gap-3 px-3 py-2 text-gray-600 font-medium hover:bg-gray-100 rounded-lg">
-                    <span
-                        class="w-6 h-6 flex items-center justify-center rounded-full bg-gray-200 text-xs shrink-0">10</span>
-                    Question 10
+            <div id="questionList" class="flex-1 overflow-y-auto p-4 space-y-1">
                 </a>
             </div>
         </aside>
@@ -164,65 +105,27 @@
         <header class="h-16 border-b border-gray-200 flex items-center justify-between px-6 lg:px-10 shrink-0">
             <div class="flex items-center gap-4 flex-1 max-w-md">
                 <div class="w-full">
-                    <p class="text-sm font-bold text-gray-900 mb-1">Question 1 of 10</p>
+                    <p id="questionProgressText" class="text-sm font-bold text-gray-900 mb-1">Question 0 of 0</p>
                     <div class="w-full bg-gray-200 rounded-full h-1">
-                        <div class="bg-orange-500 h-1 rounded-full" style="width: 10%"></div>
+                        <div id="questionProgressBar" class="bg-orange-500 h-1 rounded-full" style="width: 0%"></div>
                     </div>
                 </div>
             </div>
 
             <div class="flex items-center gap-4 font-bold text-sm">
-                <div><span class="text-gray-500">Time Left:</span> <span class="text-orange-500">14:32</span></div>
+                <div><span class="text-gray-500">Time Left:</span> <span id="timerDisplay" class="text-orange-500">10:00</span></div>
             </div>
         </header>
 
         <div class="flex-1 flex overflow-hidden">
-            <article class="flex-1 overflow-y-auto p-10 lg:pl-12 lg:pr-16 max-w-4xl mx-auto w-full">
-                <h1 class="text-2xl font-bold text-gray-900 mb-8">What is the correct HTML tag for the largest heading?
-                </h1>
-                <form class="space-y-4">
-                    <label class="block cursor-pointer">
-                        <input type="radio" name="answer" checked>
-                        <div
-                            class="w-full flex items-center p-4 border border-orange-500 bg-orange-50/50 rounded-xl transition hover:border-orange-500">
-                            <div
-                                class="w-8 h-8 flex items-center justify-center rounded-full border border-orange-500 text-orange-600 font-bold shrink-0 bg-white">
-                                A</div>
-                            <span class="ml-4 font-medium text-orange-700 font-mono text-sm">&lt;h1&gt;</span>
-                        </div>
-                    </label>
-                    <label class="block cursor-pointer">
-                        <input type="radio" name="answer">
-                        <div
-                            class="w-full flex items-center p-4 border border-gray-200 rounded-xl transition hover:border-gray-300 bg-white">
-                            <div
-                                class="w-8 h-8 flex items-center justify-center rounded-full border border-gray-300 text-gray-500 font-bold shrink-0">
-                                B</div>
-                            <span class="ml-4 font-medium text-gray-700 font-mono text-sm">&lt;head&gt;</span>
-                        </div>
-                    </label>
-                    <label class="block cursor-pointer">
-                        <input type="radio" name="answer">
-                        <div
-                            class="w-full flex items-center p-4 border border-gray-200 rounded-xl transition hover:border-gray-300 bg-white">
-                            <div
-                                class="w-8 h-8 flex items-center justify-center rounded-full border border-gray-300 text-gray-500 font-bold shrink-0">
-                                C</div>
-                            <span class="ml-4 font-medium text-gray-700 font-mono text-sm">&lt;heading&gt;</span>
-                        </div>
-                    </label>
-                    <label class="block cursor-pointer">
-                        <input type="radio" name="answer">
-                        <div
-                            class="w-full flex items-center p-4 border border-gray-200 rounded-xl transition hover:border-gray-300 bg-white">
-                            <div
-                                class="w-8 h-8 flex items-center justify-center rounded-full border border-gray-300 text-gray-500 font-bold shrink-0">
-                                D</div>
-                            <span class="ml-4 font-medium text-gray-700 font-mono text-sm">&lt;h6&gt;</span>
-                        </div>
-                    </label>
+             <article id="quizCard" class="flex-1 overflow-y-auto p-10 lg:pl-12 lg:pr-16 max-w-4xl mx-auto w-full">
+                <h1 id="quizQuestionTitle" class="text-2xl font-bold text-gray-900 mb-8">Memuat pertanyaan...</h1>
+                <form id="quizForm" class="space-y-4">
+                    <div id="quizOptionsList" class="space-y-4">
+                        <!-- Options or textarea render here -->
+                    </div>
                     <div class="pt-6">
-                        <button type="button"
+                        <button type="button" id="quizSubmitBtn"
                             class="px-8 py-3 bg-orange-500 text-white font-bold rounded-lg hover:bg-orange-600 transition shadow-sm">
                             Next Question
                         </button>
@@ -321,8 +224,38 @@
             </aside>
         </div>
     </main>
-    <script src="js/action.js"></script>
+  <!-- Voice Challenge Modal (Anti-Cheat Verification) -->
+  <div id="voiceModal" class="fixed inset-0 bg-gray-900/60 backdrop-blur-sm z-50 flex items-center justify-center hidden">
+      <div class="bg-white border-4 border-textMain max-w-xl w-full p-8 shadow-brutal mx-4">
+          <div class="flex items-center gap-3 text-red-600 font-black text-2xl uppercase tracking-tighter mb-4">
+              <span>⚠️</span> INTEGRITY VERIFICATION
+          </div>
+          <p class="text-sm text-textMuted mb-6 leading-relaxed">
+              Terdeteksi anomali pada pola ketikan Anda (indikasi copy-paste / bot). Untuk memverifikasi pemahaman Anda, harap jawab pertanyaan suara berikut dengan mic.
+          </p>
+          <div class="bg-gray-50 border-2 border-textMain p-4 rounded-xl mb-6">
+              <p class="text-xs font-bold text-textMuted uppercase mb-1">Pertanyaan Suara:</p>
+              <p id="voiceQuestionText" class="text-textMain font-black text-lg">Mempersiapkan pertanyaan...</p>
+          </div>
+          <div class="flex flex-col items-center justify-center p-6 border-2 border-dashed border-gray-300 rounded-xl mb-6 bg-gray-50">
+              <button id="recordBtn" class="w-16 h-16 rounded-full bg-orange-500 hover:bg-orange-600 text-white flex items-center justify-center shadow-lg transition-transform active:scale-95 focus:outline-none mb-3">
+                  <!-- Mic Icon -->
+                  <svg class="w-8 h-8" fill="currentColor" viewBox="0 0 20 20">
+                      <path fill-rule="evenodd" d="M7 4a3 3 0 016 0v4a3 3 0 11-6 0V4zm4 10.93A7.001 7.001 0 0017 8a1 1 0 10-2 0A5 5 0 015 8a1 1 0 00-2 0 7.001 7.001 0 006 6.93V17H6a1 1 0 100 2h8a1 1 0 100-2h-3v-2.07z" clip-rule="evenodd"></path>
+                  </svg>
+              </button>
+              <p id="recordStatus" class="text-sm font-bold text-gray-500 uppercase tracking-widest">Klik Tombol untuk Merekam</p>
+              <div id="transcriptArea" class="hidden mt-4 text-sm text-gray-700 italic border-t border-gray-200 pt-3 w-full text-center"></div>
+          </div>
+          <div class="flex gap-4">
+              <button id="submitVoiceBtn" class="flex-1 py-3 bg-brandViolet text-white font-black uppercase border-2 border-textMain shadow-brutal-sm hover:bg-brandOrange transition disabled:opacity-50 disabled:cursor-not-allowed" disabled>
+                  Submit Jawaban Suara
+              </button>
+          </div>
+      </div>
+  </div>
 
+  <script src="js/quiz.js"></script>
 </body>
 
 </html>

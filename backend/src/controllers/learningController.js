@@ -1,13 +1,28 @@
 const { getRolePlan, findMaterial, listMaterials } = require('../services/learningPathService');
+const aiService = require('../services/aiService');
 
 // Controller for learning logic and path generation
 
 exports.getLearningPath = async (req, res) => {
   try {
     const role = String(req.query.role || 'backend').toLowerCase();
-    const duration = parseInt(req.query.duration, 10) || 2;
+    const duration = parseInt(req.query.duration, 10) || 4; // duration in weeks
+    const level = String(req.query.level || 'beginner').toLowerCase();
+    const commitment = parseFloat(req.query.commitment || '2');
 
-    const plan = getRolePlan({ role, durationMonths: duration });
+    let plan;
+    try {
+      plan = await aiService.generateAdaptiveLearningPlan({
+        role,
+        level,
+        commitment,
+        duration
+      });
+      console.log(`[learningController] Dynamic adaptive plan generated successfully for role=${role}, level=${level}, commitment=${commitment}`);
+    } catch (aiError) {
+      console.error('[learningController] Dynamic plan generation failed, falling back to static generation:', aiError);
+      plan = getRolePlan({ role, durationWeeks: duration });
+    }
 
     res.json({
       message: 'Learning path fetched successfully',
@@ -16,7 +31,7 @@ exports.getLearningPath = async (req, res) => {
   } catch (error) {
     res.status(400).json({
       error: error.message,
-      help: 'Gunakan query params: ?role=backend&duration=2',
+      help: 'Gunakan query params: ?role=backend&duration=4&level=beginner&commitment=2',
     });
   }
 };

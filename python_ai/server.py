@@ -44,6 +44,12 @@ class MaterialInput(BaseModel):
     week_number: Optional[int] = None
     estimated_hours: Optional[float] = None
 
+class AdaptivePlanRequest(BaseModel):
+    role: str
+    level: str
+    commitment: float
+    duration_weeks: int
+
 class QuizRequest(BaseModel):
     material: MaterialInput
     n_pg: int = 4
@@ -60,6 +66,11 @@ class VoiceChallengeRequest(BaseModel):
 
 class FinalChallengeRequest(BaseModel):
     material: MaterialInput
+
+class VoiceVerifyRequest(BaseModel):
+    transcript: str
+    expected_keywords: List[str]
+    min_match_ratio: float = 0.6
 
 # ── Endpoints ────────────────────────────────────────────────────────────────
 
@@ -105,7 +116,7 @@ def verify_keystroke(payload: KeystrokePayload):
         delta = keydown_times[i] - keydown_times[i-1]
         deltas.append(delta)
         if delta < 5:  # kurang dari 5ms dianggap instan (copy-paste / bot injection)
-            instant_count += 1
+          instant_count += 1
             
     instant_ratio = instant_count / (len(keydown_times) - 1) if len(keydown_times) > 1 else 0
     
@@ -168,6 +179,22 @@ def verify_keystroke(payload: KeystrokePayload):
         }
     }
 
+@app.post("/api/generate-adaptive-plan")
+def generate_adaptive_plan(payload: AdaptivePlanRequest):
+    try:
+        plan = engine.generate_adaptive_learning_plan(
+            role=payload.role,
+            level=payload.level,
+            commitment=payload.commitment,
+            duration_weeks=payload.duration_weeks
+        )
+        return {
+            "status": "success",
+            "data": asdict(plan)
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
 @app.post("/api/generate-quiz")
 def generate_quiz(payload: QuizRequest):
     try:
@@ -224,6 +251,23 @@ def generate_final_challenge(payload: FinalChallengeRequest):
         return {
             "status": "success",
             "data": asdict(challenge)
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/api/verify-voice-answer")
+def verify_voice_answer(payload: VoiceVerifyRequest):
+    try:
+        from services.voice.verifier import VoiceVerifier
+        verifier = VoiceVerifier(use_semantic=False)
+        result = verifier.verify(
+            transcript=payload.transcript,
+            expected_keywords=payload.expected_keywords,
+            min_match_ratio=payload.min_match_ratio
+        )
+        return {
+            "status": "success",
+            "data": asdict(result)
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))

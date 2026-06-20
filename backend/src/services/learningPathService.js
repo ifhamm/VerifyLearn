@@ -1,7 +1,12 @@
 const fs = require('fs');
 const path = require('path');
 
-const DATA_DIR = path.join(__dirname, '../../../python_ai/data');
+let DATA_DIR = path.join(__dirname, '../../../python_ai/data');
+if (!fs.existsSync(DATA_DIR)) {
+  // Fallback for Docker container where python_ai is mounted inside backend folder /app
+  DATA_DIR = path.join(__dirname, '../../python_ai/data');
+}
+
 const KB_DIR = path.join(DATA_DIR, 'knowledge_base');
 const CONFIG_PATH = path.join(DATA_DIR, 'curriculum_config.json');
 
@@ -64,11 +69,15 @@ const listMaterials = (role) => {
   }));
 };
 
-const getHoursPerWeek = (durationMonths) => {
-  return HOURS_PER_WEEK[durationMonths] || 5;
+const getHoursPerWeek = (durationWeeks) => {
+  if (durationWeeks <= 1) return 10;
+  if (durationWeeks <= 2) return 8;
+  if (durationWeeks <= 4) return 8;
+  if (durationWeeks <= 12) return 6;
+  return 5;
 };
 
-const getRolePlan = ({ role, durationMonths }) => {
+const getRolePlan = ({ role, durationWeeks }) => {
   const config = loadConfig();
   const roleConfig = config[role];
   if (!roleConfig) {
@@ -101,22 +110,27 @@ const getRolePlan = ({ role, durationMonths }) => {
     }
   }
 
-  const totalWeeks = durationMonths * 4;
-  const hoursPerWeek = getHoursPerWeek(durationMonths);
+  const totalWeeks = durationWeeks;
+  const hoursPerWeek = getHoursPerWeek(durationWeeks);
   const hoursPerMaterial = 2;
   const slotsPerWeek = Math.max(1, Math.floor(hoursPerWeek / hoursPerMaterial));
   const totalSlots = totalWeeks * slotsPerWeek;
 
-  const selected = [...coreDocs];
-  let remaining = totalSlots - selected.length;
+  const selected = [];
+  if (totalSlots <= coreDocs.length) {
+    selected.push(...coreDocs.slice(0, totalSlots));
+  } else {
+    selected.push(...coreDocs);
+    let remaining = totalSlots - selected.length;
 
-  if (remaining > 0) {
-    selected.push(...advancedDocs.slice(0, remaining));
-    remaining = totalSlots - selected.length;
-  }
+    if (remaining > 0) {
+      selected.push(...advancedDocs.slice(0, remaining));
+      remaining = totalSlots - selected.length;
+    }
 
-  if (remaining > 0) {
-    selected.push(...otherDocs.slice(0, remaining));
+    if (remaining > 0) {
+      selected.push(...otherDocs.slice(0, remaining));
+    }
   }
 
   const materials = selected.map((doc, index) => {
@@ -146,24 +160,51 @@ const getRolePlan = ({ role, durationMonths }) => {
     }
   }
 
-  const coreCount = materials.filter((m) => m.priority === 'core').length;
-  const advancedCount = materials.filter((m) => m.priority === 'advanced').length;
+  const scheduledSlugs = new Set(materials.map(m => m.slug));
+  const allMaterialsList = rawDocs.map((doc, index) => {
+    const name = doc.topic_name;
+    const priority = coreNames.has(name) ? 'core' : advancedNames.has(name) ? 'advanced' : 'supplementary';
+    const isScheduled = scheduledSlugs.has(doc.slug);
+    
+    let status = isScheduled ? 'wajib' : 'pilihan';
+    if (!isScheduled && totalWeeks <= 2) {
+      status = 'dilewati';
+    }
+    
+    // Find the week number if scheduled
+    const matched = materials.find(m => m.slug === doc.slug);
+    const weekNumber = matched ? matched.week_number : null;
 
-  const paceNote = {
-    1: 'Intensif — 10 jam/minggu. Fokus penuh pada core materials.',
-    2: 'Moderat — 8 jam/minggu. Seimbang antara core dan advanced.',
-    3: 'Santai — 6 jam/minggu. Ada ruang untuk eksplorasi lebih dalam.',
-  }[durationMonths] || `${hoursPerWeek} jam/minggu, ${totalWeeks} minggu total.`;
+    return {
+      id: doc.doc_id || `${role}-${index + 1}`,
+      slug: doc.slug || `${name.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`,
+      title: name,
+      role,
+      topic_type: doc.topic_type || 'subtopic',
+      priority,
+      parent_topic: doc.parent_topic || '',
+      content_summary: (doc.content || '').slice(0, 300).trim(),
+      week_number: weekNumber,
+      estimated_hours: hoursPerMaterial,
+      status: status
+    };
+  });
+
+  const coreCount = allMaterialsList.filter((m) => m.priority === 'core').length;
+  const advancedCount = allMaterialsList.filter((m) => m.priority === 'advanced').length;
+
+  const paceNote = `${hoursPerWeek} hours/week, ${totalWeeks} weeks total.`;
 
   return {
     role,
-    duration_months: durationMonths,
+    duration_months: Math.ceil(durationWeeks / 4),
     total_weeks: totalWeeks,
     hours_per_week: hoursPerWeek,
-    total_materials: materials.length,
+    total_materials: allMaterialsList.length,
     core_materials: coreCount,
     advanced_materials: advancedCount,
     weekly_schedule: weeklySchedule,
+    materials: allMaterialsList,
     pace_note: paceNote,
   };
 };

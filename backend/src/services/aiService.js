@@ -120,3 +120,52 @@ exports.generateFinalChallenge = async (material) => {
   }
 };
 
+exports.verifyVoice = async (transcript, expectedKeywords) => {
+  try {
+    const response = await fetch(`${AI_SERVICE_URL}/api/verify-voice-answer`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ transcript, expected_keywords: expectedKeywords }),
+    });
+
+    if (!response.ok) {
+      throw new Error(`AI Service returned status ${response.status}`);
+    }
+
+    const json = await response.json();
+    return json.data;
+  } catch (error) {
+    console.error('Error calling AI Service /api/verify-voice-answer:', error);
+    throw error;
+  }
+};
+
+exports.generateAdaptiveLearningPlan = async ({ role, level, commitment, duration }) => {
+  try {
+    const response = await fetch(`${AI_SERVICE_URL}/api/generate-adaptive-plan`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        role,
+        level,
+        commitment: parseFloat(commitment),
+        duration_weeks: parseInt(duration, 10),
+      }),
+    });
+
+    if (!response.ok) {
+      throw new Error(`AI Service returned status ${response.status}`);
+    }
+
+    const json = await response.json();
+    return json.data;
+  } catch (error) {
+    console.error('Error calling AI Service /api/generate-adaptive-plan:', error);
+    throw error;
+  }
+};
+

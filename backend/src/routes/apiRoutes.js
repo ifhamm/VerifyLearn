@@ -21,6 +21,7 @@ router.post('/generate-quiz', aiController.generateQuiz);
 router.post('/generate-livecode', aiController.generateLivecode);
 router.post('/generate-voice-challenge', aiController.generateVoiceChallenge);
 router.post('/generate-final-challenge', aiController.generateFinalChallenge);
+router.post('/verify-voice', aiController.verifyVoice);
 
 module.exports = router;
 

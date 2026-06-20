@@ -33,6 +33,7 @@
         </div>
         <a
           href="#"
+          id="connectWalletBtn"
           class="px-6 py-2.5 text-sm font-bold text-white bg-textMain border-2 border-textMain hover:bg-brandOrange hover:border-brandOrange transition shadow-brutal"
         >
           SIGN IN
@@ -129,11 +130,12 @@
                 </label>
 
                 <select
+                  id="skillSelect"
                   class="w-full border-2 border-textMain px-5 py-4 bg-white font-bold"
                 >
-                  <option>Beginner</option>
-                  <option>Intermediate</option>
-                  <option>Advanced</option>
+                  <option value="beginner">Beginner</option>
+                  <option value="intermediate">Intermediate</option>
+                  <option value="advanced">Advanced</option>
                 </select>
               </div>
 
@@ -143,34 +145,54 @@
                 </label>
 
                 <select
+                  id="goalSelect"
                   class="w-full border-2 border-textMain px-5 py-4 bg-white font-bold"
                 >
-                  <option>Frontend Developer</option>
-                  <option>Backend Developer</option>
-                  <option>Fullstack Developer</option>
+                  <option value="frontend">Frontend Developer</option>
+                  <option value="backend">Backend Developer</option>
+                  <option value="fullstack">Fullstack Developer</option>
                 </select>
               </div>
 
               <div class="mb-8">
                 <label class="block text-sm font-black uppercase mb-2">
-                  Time Commitment
+                  Time Commitment (Hours / Day)
+                </label>
+
+                <input
+                  type="number"
+                  id="commitmentInput"
+                  min="1"
+                  max="24"
+                  value="2"
+                  class="w-full border-2 border-textMain px-5 py-4 bg-white font-bold"
+                  placeholder="E.g., 2"
+                />
+              </div>
+
+              <div class="mb-8">
+                <label class="block text-sm font-black uppercase mb-2">
+                  Berapa lama waktu yang ingin Anda alokasikan untuk menyelesaikan learning path ini?
                 </label>
 
                 <select
+                  id="durationSelect"
                   class="w-full border-2 border-textMain px-5 py-4 bg-white font-bold"
                 >
-                  <option>1 Hour / Day</option>
-                  <option>2 Hours / Day</option>
-                  <option>3 Hours / Day</option>
+                  <option value="1w">1 minggu</option>
+                  <option value="2w">2 minggu</option>
+                  <option value="1m" selected>1 bulan</option>
+                  <option value="3m">3 bulan</option>
+                  <option value="6m">6 bulan</option>
                 </select>
               </div>
 
-              <a
-                href="materi.html"
+              <button
+                id="generatePathBtn"
                 class="block w-full text-center bg-brandOrange text-white border-2 border-textMain py-4 font-black uppercase shadow-brutal hover:bg-textMain transition"
               >
                 Generate Learning Path
-              </a>
+              </button>
             </div>
 
             <!-- Dashboard -->
@@ -216,233 +238,22 @@
 
         document.getElementById("dashboardCard").classList.remove("hidden");
       }
-    </script>
-
-    <!-- <section class="py-24 bg-panel border-b-2 border-textMain">
+    </script>    <section id="roadmapSection" class="py-24 bg-panel border-b-2 border-textMain hidden">
       <div class="max-w-7xl mx-auto px-6">
         <div class="text-center mb-10">
-          <h2 class="text-5xl font-black uppercase">
-            Frontend Developer Roadmap
+          <h2 id="roadmapTitle" class="text-5xl font-black uppercase">
+            Learning Roadmap
           </h2>
-
           <p class="text-textMuted mt-4">
-            Follow your learning journey step by step.
+            Ikuti alur pembelajaran Anda langkah demi langkah.
           </p>
         </div>
 
-        <div class="max-w-4xl mx-auto">
-          Introduction
-          <div class="flex justify-center">
-            <div
-              class="bg-brandOrange text-white border-2 border-textMain px-8 py-5 rounded-2xl shadow-brutal font-black"
-            >
-              ✓ Introduction
-            </div>
-          </div>
-
-          <div class="flex justify-center py-4">
-            <div class="w-1 h-12 bg-textMain"></div>
-          </div>
-
-          Internet Fundamentals
-
-          <div class="flex justify-center">
-            <div
-              class="bg-brandOrange text-white border-2 border-textMain px-8 py-5 rounded-2xl shadow-brutal font-black"
-            >
-              ✓ Internet Fundamentals
-            </div>
-          </div>
-
-          Sub Topics
-
-          <div class="grid md:grid-cols-2 gap-4 mt-8">
-            <div
-              class="border-2 border-textMain bg-white p-4 rounded-xl font-bold"
-            >
-              ✓ How Internet Works
-            </div>
-
-            <div
-              class="border-2 border-textMain bg-white p-4 rounded-xl font-bold"
-            >
-              ✓ HTTP
-            </div>
-
-            <div
-              class="border-2 border-textMain bg-white p-4 rounded-xl font-bold"
-            >
-              ✓ DNS
-            </div>
-
-            <div
-              class="border-2 border-textMain bg-white p-4 rounded-xl font-bold"
-            >
-              ✓ Hosting
-            </div>
-          </div>
-
-          Connector
-
-          <div class="flex justify-center py-8">
-            <div class="w-1 h-16 bg-textMain"></div>
-          </div>
-
-          Frontend Basics
-
-          <div class="flex justify-center">
-            <div
-              class="bg-brandOrange text-white border-2 border-textMain px-8 py-5 rounded-2xl shadow-brutal font-black"
-            >
-              Frontend Basics
-            </div>
-          </div>
-
-          <div class="grid md:grid-cols-3 gap-4 mt-8">
-            <div
-              class="border-2 border-textMain bg-white p-5 rounded-xl font-bold text-center"
-            >
-              ✓ HTML
-            </div>
-
-            <div
-              class="border-2 border-textMain bg-white p-5 rounded-xl font-bold text-center"
-            >
-              ✓ CSS
-            </div>
-
-            <div
-              class="border-2 border-textMain bg-brandYellow p-5 rounded-xl font-bold text-center animate-pulse"
-            >
-              🔥 JavaScript
-            </div>
-          </div>
-
-          Connector
-
-          <div class="flex justify-center py-8">
-            <div class="w-1 h-16 bg-textMain"></div>
-          </div>
-
-          Git
-
-          <div class="flex justify-center">
-            <div
-              class="bg-white border-2 border-textMain px-8 py-5 rounded-2xl shadow-brutal font-black"
-            >
-              Version Control
-            </div>
-          </div>
-
-          <div class="grid md:grid-cols-2 gap-4 mt-8">
-            <div
-              class="border-2 border-textMain bg-white p-5 rounded-xl font-bold text-center"
-            >
-              Git
-            </div>
-
-            <div
-              class="border-2 border-textMain bg-white p-5 rounded-xl font-bold text-center"
-            >
-              GitHub
-            </div>
-          </div>
-
-          Connector
-
-          <div class="flex justify-center py-8">
-            <div class="w-1 h-16 bg-textMain"></div>
-          </div>
-
-          React
-
-          <div class="flex justify-center">
-            <div
-              class="bg-zinc-300 border-2 border-textMain px-8 py-5 rounded-2xl font-black"
-            >
-              React
-            </div>
-          </div>
-
-          <div class="flex justify-center py-8">
-            <div class="w-1 h-16 bg-textMain"></div>
-          </div>
-
-          Next
-
-          <div class="flex justify-center">
-            <div
-              class="bg-zinc-300 border-2 border-textMain px-8 py-5 rounded-2xl font-black"
-            >
-              Next.js
-            </div>
-          </div>
-
-          <div class="flex justify-center py-8">
-            <div class="w-1 h-16 bg-textMain"></div>
-          </div>
-
-          Portfolio
-
-          <div class="flex justify-center">
-            <div
-              class="bg-zinc-300 border-2 border-textMain px-8 py-5 rounded-2xl font-black"
-            >
-              Portfolio Project
-            </div>
-          </div>
+        <div id="roadmapContainer" class="max-w-4xl mx-auto w-full">
+          <!-- Dynamic schedule populated by dashboard.js -->
         </div>
       </div>
-    </section> -->
-
-    <!-- <section class="py-24 bg-white border-t-2 border-textMain">
-      <div class="max-w-7xl mx-auto px-6">
-        <div class="flex justify-between items-center mb-12">
-          <h2 class="text-5xl font-black uppercase">Recent Achievements</h2>
-
-          <button
-            class="px-6 py-3 border-2 border-textMain font-black uppercase shadow-brutal hover:bg-brandOrange hover:text-white transition"
-          >
-            View All →
-          </button>
-        </div>
-
-        <div class="grid md:grid-cols-3 gap-6">
-          Achievement 1
-          <div
-            class="bg-white border-2 border-textMain p-8 shadow-brutal text-center transition hover:-translate-y-2 hover:bg-brandOrange hover:text-white"
-          >
-            <div class="text-5xl mb-4">🏆</div>
-
-            <h3 class="font-black uppercase text-xl">React Basics</h3>
-
-            <p class="mt-2 text-sm">Integrity Score 93</p>
-          </div>
-
-          Achievement 2
-          <div
-            class="bg-white border-2 border-textMain p-8 shadow-brutal text-center transition hover:-translate-y-2 hover:bg-brandOrange hover:text-white"
-          >
-            <div class="text-5xl mb-4">⚡</div>
-
-            <h3 class="font-black uppercase text-xl">JavaScript</h3>
-
-            <p class="mt-2 text-sm">Integrity Score 95</p>
-          </div>
-
-          Achievement 3
-          <div
-            class="bg-white border-2 border-textMain p-8 shadow-brutal text-center transition hover:-translate-y-2 hover:bg-brandOrange hover:text-white"
-          >
-            <div class="text-5xl mb-4">🚀</div>
-
-            <h3 class="font-black uppercase text-xl">CSS Mastery</h3>
-
-            <p class="mt-2 text-sm">Integrity Score 98</p>
-          </div>
-        </div>
-      </div>
-    </section> -->
+    </section>
 
     <footer class="py-10 bg-panel border-t-2 border-textMain text-center">
       <p class="text-textMain font-bold text-sm uppercase tracking-widest">
@@ -451,12 +262,5 @@
     </footer>
   </body>
 
-  <script>
-    const hasPath = true;
-
-    document.getElementById("newUser").classList.toggle("hidden", hasPath);
-    document
-      .getElementById("existingUser")
-      .classList.toggle("hidden", !hasPath);
-  </script>
+  <script src="js/dashboard.js"></script>
 </html>

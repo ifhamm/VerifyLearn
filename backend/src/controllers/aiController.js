@@ -25,12 +25,28 @@ const resolveMaterial = (role, slug, material) => {
 
 exports.generateQuiz = async (req, res) => {
   try {
-    const { role, slug, material, n_pg, n_essay } = req.body;
+    const { role, slug, material, moduleMaterials, n_pg, n_essay } = req.body;
     let resolvedMaterial;
-    try {
-      resolvedMaterial = resolveMaterial(role, slug, material);
-    } catch (err) {
-      return res.status(400).json({ error: err.message });
+
+    // If moduleMaterials is provided, build a combined material for module quiz
+    if (moduleMaterials && Array.isArray(moduleMaterials) && moduleMaterials.length > 0) {
+      const titles = moduleMaterials.map(m => m.title).join(', ');
+      const summaries = moduleMaterials.map(m => `[${m.title}] ${m.content_summary || ''}`).join('\n');
+      resolvedMaterial = {
+        id: `module-quiz`,
+        slug: slug || moduleMaterials[0].slug,
+        title: `Kuis Modul (${titles})`,
+        role: role || 'backend',
+        topic_type: 'module_quiz',
+        parent_topic: '',
+        content_summary: summaries.slice(0, 600),
+      };
+    } else {
+      try {
+        resolvedMaterial = resolveMaterial(role, slug, material);
+      } catch (err) {
+        return res.status(400).json({ error: err.message });
+      }
     }
 
     const data = await aiService.generateQuiz(resolvedMaterial, n_pg, n_essay);
@@ -93,6 +109,20 @@ exports.generateFinalChallenge = async (req, res) => {
 
     const data = await aiService.generateFinalChallenge(resolvedMaterial);
     res.json({ message: 'Final challenge generated successfully', data });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+};
+
+exports.verifyVoice = async (req, res) => {
+  try {
+    const { transcript, expectedKeywords } = req.body;
+    if (!transcript || !expectedKeywords || !Array.isArray(expectedKeywords)) {
+      return res.status(400).json({ error: 'Harus menyertakan transcript dan expectedKeywords (array).' });
+    }
+
+    const data = await aiService.verifyVoice(transcript, expectedKeywords);
+    res.json({ message: 'Voice answer verified successfully', data });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }

@@ -33,8 +33,9 @@ class Material:
     priority: str
     parent_topic: str
     content_summary: str
-    week_number: int
+    week_number: Optional[int]
     estimated_hours: float
+    status: str = "wajib"
 
 
 @dataclass
@@ -47,6 +48,7 @@ class LearningPlan:
     core_materials: int
     advanced_materials: int
     weekly_schedule: List[dict]
+    materials: List[dict]
     pace_note: str
 
 
@@ -116,32 +118,48 @@ class RAGEngine:
 
     def _llm(self, prompt: str) -> str:
         """Call Groq API, return JSON string yang bersih."""
-        response = self.client.chat.completions.create(
-            model=self.LLM_MODEL,
-            messages=[
-                {
-                    "role": "system",
-                    "content": (
-                        "Kamu adalah AI assistant untuk platform pembelajaran VerifyLearn. "
-                        "PENTING: Selalu respond HANYA dengan JSON valid. "
-                        "Jangan tambahkan markdown, penjelasan, atau teks apapun di luar JSON. "
-                        "Output harus dimulai dengan { dan diakhiri dengan }."
-                    ),
-                },
-                {"role": "user", "content": prompt},
-            ],
-            temperature=0.3,
-            max_tokens=2048,
-            response_format={"type": "json_object"},  # paksa JSON output
-        )
-        raw = response.choices[0].message.content
-
-        # Sanitasi: ambil JSON murni
-        start = raw.find("{")
-        end   = raw.rfind("}") + 1
-        if start >= 0 and end > start:
-            raw = raw[start:end]
-        return raw
+        models_to_try = [
+            self.LLM_MODEL,
+            "llama-3.1-8b-instant",
+            "mixtral-8x7b-32768",
+        ]
+        
+        last_error = None
+        for model in models_to_try:
+            try:
+                print(f"[RAGEngine] Attempting LLM call using model: {model}")
+                response = self.client.chat.completions.create(
+                    model=model,
+                    messages=[
+                        {
+                            "role": "system",
+                            "content": (
+                                "Kamu adalah AI assistant untuk platform pembelajaran VerifyLearn. "
+                                "PENTING: Selalu respond HANYA dengan JSON valid. "
+                                "Jangan tambahkan markdown, penjelasan, atau teks apapun di luar JSON. "
+                                "Output harus dimulai dengan { dan diakhiri dengan }."
+                            ),
+                        },
+                        {"role": "user", "content": prompt},
+                    ],
+                    temperature=0.3,
+                    max_tokens=2048,
+                    response_format={"type": "json_object"},  # paksa JSON output
+                )
+                raw = response.choices[0].message.content
+                
+                # Sanitasi: ambil JSON murni
+                start = raw.find("{")
+                end   = raw.rfind("}") + 1
+                if start >= 0 and end > start:
+                    raw = raw[start:end]
+                return raw
+            except Exception as e:
+                print(f"[RAGEngine] Failed with model {model}: {e}")
+                last_error = e
+                continue
+                
+        raise last_error
 
     def _clean_json(self, text: str) -> str:
         text = re.sub(r"```json\s*", "", text)
@@ -171,8 +189,194 @@ class RAGEngine:
 
     # ── 1. Learning Plan ──────────────────────────────────────────────────────
 
-    def generate_learning_plan(self, role: str, duration_months: int) -> LearningPlan:
-        print(f"\n[RAGEngine] Generating plan: role={role}, duration={duration_months} bulan")
+    def generate_adaptive_learning_plan(self, role: str, level: str, commitment: float, duration_weeks: int) -> LearningPlan:
+        print(f"\n[RAGEngine] Generating adaptive plan: role={role}, level={level}, commitment={commitment} hrs/day, duration_weeks={duration_weeks}")
+
+        jsonl_path = Path(__file__).parent.parent.parent / "data" / "knowledge_base" / f"{role}.jsonl"
+        if not jsonl_path.exists():
+            raise FileNotFoundError(f"Knowledge base tidak ditemukan: {jsonl_path}")
+
+        all_docs = [json.loads(l) for l in open(jsonl_path, encoding="utf-8")]
+        core_names = self._get_core_names(role)
+        adv_names  = self._get_advanced_names(role)
+
+        # Build a structured list of available topics to pass to the LLM
+        available_materials = []
+        for d in all_docs:
+            name = d["topic_name"]
+            priority = "core" if name in core_names else ("advanced" if name in adv_names else "supplementary")
+            available_materials.append({
+                "slug": d["slug"],
+                "title": name,
+                "priority": priority,
+                "parent_topic": d.get("parent_topic", ""),
+                "summary": d["content"][:150].strip() + "..."
+            })
+
+        total_weeks = duration_weeks
+        # Assuming each material takes ~2 hours of study time:
+        # Weekly hours = commitment * 7
+        # Max materials per week = floor(weekly hours / 2)
+        slots_per_week = max(1, min(5, int((commitment * 7) / 2.0)))
+        total_slots = total_weeks * slots_per_week
+
+        prompt = f"""Kamu adalah pakar kurikulum pembelajaran IT. Rancanglah learning plan adaptif untuk peran {role} yang disesuaikan dengan profil pengguna berikut:
+- Tingkat Keahlian Saat Ini: {level}
+- Komitmen Belajar Harian: {commitment} jam/hari ({commitment * 7} jam/minggu)
+- Durasi Belajar: {total_weeks} minggu
+- Maksimal materi per minggu: {slots_per_week} materi (agar tidak menumpuk dan terlalu padat / "tidak seabrek")
+
+Berikut adalah daftar materi pembelajaran yang tersedia dalam basis pengetahuan kurikulum kami:
+{json.dumps(available_materials, indent=2)}
+
+TUGAS:
+1. Pilih materi dari daftar di atas yang paling relevan dengan profil pengguna.
+   - Jika pengguna adalah "beginner" (pemula): Fokuskan pada materi "core" (dasar). Hindari topik "advanced" yang sangat rumit kecuali jika diletakkan di akhir minggu terakhir. Urutkan dari konsep yang paling mendasar ke kompleks (misal: HTML/CSS dulu baru Framework, Internet dulu baru API).
+   - Jika pengguna adalah "intermediate" (menengah): Kompres materi dasar ke minggu-minggu awal, lalu berikan fokus lebih besar pada penerapan core-to-advanced.
+   - Jika pengguna adalah "advanced" (mahir): Lewati materi dasar yang sangat sederhana (misal: "How does the internet work", "HTML/CSS basics"), atau gabungkan dengan cepat di Week 1. Berikan porsi terbesar pada arsitektur, optimasi, scaling, dan topik advanced lainnya.
+2. Distribusikan materi yang dipilih ke dalam schedule mingguan (dari minggu 1 sampai minggu {total_weeks}). Setiap minggu maksimal berisi {slots_per_week} materi. Jangan memaksakan memasukkan semua materi jika tidak muat. Prioritaskan kualitas dan alur pembelajaran yang logis.
+3. Buat catatan pacing ("pace_note") personal dalam Bahasa Indonesia yang menjelaskan mengapa kurikulum ini disesuaikan seperti ini untuk level {level} dengan komitmen {commitment} jam/hari.
+
+Kembalikan hasil dalam format JSON persis seperti berikut:
+{{
+  "weekly_schedule": [
+    {{
+      "week": 1,
+      "materials": ["slug-materi-1", "slug-materi-2"]
+    }},
+    {{
+      "week": 2,
+      "materials": ["slug-materi-3"]
+    }}
+  ],
+  "pace_note": "Catatan penjelasan penyesuaian kurikulum di sini..."
+}}"""
+
+        try:
+            raw = self._llm(prompt)
+            data = json.loads(self._clean_json(raw))
+        except Exception as e:
+            print(f"[RAGEngine] AI plan generation or JSON parsing failed, using fallback plan: {e}")
+            return self.generate_learning_plan(role, duration_weeks)
+
+        # Resolve selected slugs to actual full material documents
+        doc_map = {d["slug"]: d for d in all_docs}
+        
+        materials: List[Material] = []
+        core_count = 0
+        adv_count = 0
+        scheduled_slugs = set()
+
+        for week_item in data.get("weekly_schedule", []):
+            week_num = int(week_item.get("week", 1))
+            if week_num < 1 or week_num > total_weeks:
+                continue
+            
+            week_slugs = week_item.get("materials", [])
+            for slug in week_slugs[:slots_per_week]:
+                if slug in doc_map and slug not in scheduled_slugs:
+                    scheduled_slugs.add(slug)
+                    d = doc_map[slug]
+                    name = d["topic_name"]
+                    priority = "core" if name in core_names else ("advanced" if name in adv_names else "supplementary")
+                    
+                    if priority == "core":
+                        core_count += 1
+                    elif priority == "advanced":
+                        adv_count += 1
+
+                    materials.append(Material(
+                        id=d["doc_id"],
+                        slug=d["slug"],
+                        title=name,
+                        role=role,
+                        topic_type=d["topic_type"],
+                        priority=priority,
+                        parent_topic=d.get("parent_topic", ""),
+                        content_summary=d["content"][:300].strip(),
+                        week_number=week_num,
+                        estimated_hours=2.0,
+                        status="wajib"
+                    ))
+
+        if not materials:
+            print("[RAGEngine] Resolved materials are empty, using fallback static plan.")
+            return self.generate_learning_plan(role, duration_weeks)
+
+        materials.sort(key=lambda m: m.week_number)
+
+        from collections import defaultdict
+        week_map = defaultdict(list)
+        for m in materials:
+            week_map[m.week_number].append(asdict(m))
+
+        weekly_schedule = [
+            {"week": w, "materials": week_map[w]}
+            for w in range(1, total_weeks + 1) if week_map[w]
+        ]
+
+        all_materials_list = []
+        for d in all_docs:
+            slug = d["slug"]
+            name = d["topic_name"]
+            priority = "core" if name in core_names else ("advanced" if name in adv_names else "supplementary")
+            
+            scheduled_material = next((m for m in materials if m.slug == slug), None)
+            
+            if scheduled_material:
+                status = "wajib"
+                week_number = scheduled_material.week_number
+            else:
+                week_number = None
+                if total_weeks <= 2:
+                    status = "dilewati"
+                elif level == "advanced":
+                    if priority == "core":
+                        status = "dilewati"
+                    else:
+                        status = "pilihan"
+                elif level == "intermediate":
+                    pos = d.get("position_in_roadmap", 999)
+                    if priority == "core" and pos <= 4:
+                        status = "dilewati"
+                    else:
+                        status = "pilihan"
+                else:
+                    status = "pilihan"
+            
+            all_materials_list.append({
+                "id": d["doc_id"],
+                "slug": slug,
+                "title": name,
+                "role": role,
+                "topic_type": d["topic_type"],
+                "priority": priority,
+                "parent_topic": d.get("parent_topic", ""),
+                "content_summary": d["content"][:300].strip(),
+                "week_number": week_number,
+                "estimated_hours": 2.0,
+                "status": status
+            })
+
+        pace_note = data.get("pace_note", f"Pacing disesuaikan untuk level {level} dengan komitmen {commitment} jam/hari.")
+
+        plan = LearningPlan(
+            role=role,
+            duration_months=int((total_weeks + 3) / 4),
+            total_weeks=total_weeks,
+            hours_per_week=commitment * 7.0,
+            total_materials=len(all_materials_list),
+            core_materials=sum(1 for m in all_materials_list if m["priority"] == "core"),
+            advanced_materials=sum(1 for m in all_materials_list if m["priority"] == "advanced"),
+            weekly_schedule=weekly_schedule,
+            materials=all_materials_list,
+            pace_note=pace_note
+        )
+        print(f"[RAGEngine] Adaptive plan generated: {len(weekly_schedule)} active weeks, {len(all_materials_list)} total materials")
+        return plan
+
+    def generate_learning_plan(self, role: str, duration_weeks: int) -> LearningPlan:
+        print(f"\n[RAGEngine] Generating plan: role={role}, duration_weeks={duration_weeks}")
 
         jsonl_path = Path(__file__).parent.parent.parent / "data" / "knowledge_base" / f"{role}.jsonl"
         if not jsonl_path.exists():
@@ -195,8 +399,18 @@ class RAGEngine:
         core_docs.sort(key=sort_key)
         adv_docs.sort(key=sort_key)
 
-        total_weeks        = duration_months * 4
-        hours_per_week     = self._hours_per_week(duration_months)
+        total_weeks = duration_weeks
+        if total_weeks <= 1:
+            hours_per_week = 10.0
+        elif total_weeks <= 2:
+            hours_per_week = 8.0
+        elif total_weeks <= 4:
+            hours_per_week = 8.0
+        elif total_weeks <= 12:
+            hours_per_week = 6.0
+        else:
+            hours_per_week = 5.0
+
         hours_per_material = 2.0
         slots_per_week     = max(1, int(hours_per_week / hours_per_material))
         total_slots        = total_weeks * slots_per_week
@@ -204,14 +418,18 @@ class RAGEngine:
         print(f"[RAGEngine] {total_weeks} minggu × {slots_per_week} materi/minggu = {total_slots} slot")
         print(f"[RAGEngine] Core: {len(core_docs)}, Advanced: {len(adv_docs)}, Other: {len(other_docs)}")
 
-        selected: List[dict] = list(core_docs)
-        remaining = total_slots - len(core_docs)
-        if remaining > 0:
-            take_adv = adv_docs[:remaining]
-            selected.extend(take_adv)
-            remaining -= len(take_adv)
-        if remaining > 0:
-            selected.extend(other_docs[:remaining])
+        selected: List[dict] = []
+        if total_slots <= len(core_docs):
+            selected = list(core_docs[:total_slots])
+        else:
+            selected = list(core_docs)
+            remaining = total_slots - len(core_docs)
+            if remaining > 0:
+                take_adv = adv_docs[:remaining]
+                selected.extend(take_adv)
+                remaining -= len(take_adv)
+            if remaining > 0:
+                selected.extend(other_docs[:remaining])
 
         materials: List[Material] = []
         for i, d in enumerate(selected):
@@ -239,21 +457,43 @@ class RAGEngine:
         core_count = sum(1 for m in materials if m.priority == "core")
         adv_count  = sum(1 for m in materials if m.priority == "advanced")
 
-        pace_msgs = {
-            1: "Intensif — 10 jam/minggu. Fokus penuh pada core materials.",
-            2: "Moderat — 8 jam/minggu. Seimbang antara core dan advanced.",
-            3: "Santai — 7 jam/minggu. Ada ruang untuk eksplorasi lebih dalam.",
-        }
-        pace_note = pace_msgs.get(duration_months, f"{hours_per_week} jam/minggu, {total_weeks} minggu total.")
+        pace_note = f"{hours_per_week} hours/week, {total_weeks} weeks total."
+
+        # Construct flat list of ALL materials with dynamic statuses for fallback
+        all_materials_list = []
+        scheduled_slugs_static = {m.slug for m in materials}
+        for d in all_docs:
+            slug = d["slug"]
+            name = d["topic_name"]
+            priority = "core" if name in core_names else ("advanced" if name in adv_names else "supplementary")
+            status = "wajib" if slug in scheduled_slugs_static else ("dilewati" if total_weeks <= 2 else "pilihan")
+            
+            scheduled_material = next((m for m in materials if m.slug == slug), None)
+            week_number = scheduled_material.week_number if scheduled_material else None
+            
+            all_materials_list.append({
+                "id": d["doc_id"],
+                "slug": slug,
+                "title": name,
+                "role": role,
+                "topic_type": d["topic_type"],
+                "priority": priority,
+                "parent_topic": d.get("parent_topic", ""),
+                "content_summary": d["content"][:300].strip(),
+                "week_number": week_number,
+                "estimated_hours": hours_per_material,
+                "status": status
+            })
 
         plan = LearningPlan(
-            role=role, duration_months=duration_months,
+            role=role, duration_months=int((total_weeks + 3) / 4),
             total_weeks=total_weeks, hours_per_week=hours_per_week,
-            total_materials=len(materials), core_materials=core_count,
+            total_materials=len(all_materials_list), core_materials=core_count,
             advanced_materials=adv_count, weekly_schedule=weekly_schedule,
+            materials=all_materials_list,
             pace_note=pace_note,
         )
-        print(f"[RAGEngine] ✓ {len(materials)} materi ({core_count} core, {adv_count} advanced)")
+        print(f"[RAGEngine] ✓ fallback plan: {len(all_materials_list)} total materials")
         return plan
 
     # ── 2. Quiz ───────────────────────────────────────────────────────────────
