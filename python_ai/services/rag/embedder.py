@@ -3,18 +3,20 @@ from typing import List
 import numpy as np
 
 
-class GeminiEmbedder:
+class LocalEmbedder:
     """
-    Drop-in replacement menggunakan sentence-transformers lokal.
+    Embedder lokal menggunakan sentence-transformers.
     Model 'all-MiniLM-L6-v2' ringan (80MB), cukup akurat untuk RAG,
-    dan tidak butuh API key apapun.
+    dan tidak butuh API key apapun — berjalan 100% offline.
+
+    Catatan: Dulu bernama GeminiEmbedder (nama lama, sudah tidak relevan).
     """
 
     DIMENSION = 384
     MODEL_NAME = "all-MiniLM-L6-v2"
 
     def __init__(self, api_key: str = ""):
-        # api_key diabaikan — kept for interface compatibility
+        # api_key diabaikan — kept for backward-compatibility
         print(f"[Embedder] Loading model '{self.MODEL_NAME}' (download ~80MB sekali)...")
         self.model = SentenceTransformer(self.MODEL_NAME)
         print(f"[Embedder] Model ready.")
@@ -34,3 +36,7 @@ class GeminiEmbedder:
         a, b = np.array(vec_a), np.array(vec_b)
         norm = np.linalg.norm(a) * np.linalg.norm(b)
         return float(np.dot(a, b) / norm) if norm > 0 else 0.0
+
+
+# Alias untuk backward-compatibility dengan import lama
+GeminiEmbedder = LocalEmbedder

@@ -9,6 +9,7 @@ venv/
 pip-log.txt
 pip-delete-this-directory.txt
 chroma_db/
+chroma_db_backup/
 .git
 .gitignore
 Dockerfile

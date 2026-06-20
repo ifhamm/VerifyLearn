@@ -10,7 +10,7 @@ from pydantic import BaseModel, Field
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, BASE_DIR)
 
-from services.rag.embedder import GeminiEmbedder
+from services.rag.embedder import LocalEmbedder
 from services.rag.vectorstore import VectorStore
 from services.rag.engine import RAGEngine
 
@@ -18,7 +18,7 @@ app = FastAPI(title="VerifyLearn AI Engine API", version="1.0.0")
 
 # Initialize global AI engines
 db_dir = os.path.join(BASE_DIR, "chroma_db")
-embedder = GeminiEmbedder()
+embedder = LocalEmbedder()
 vector_store = VectorStore(embedder=embedder, persist_dir=db_dir)
 engine = RAGEngine(vector_store=vector_store)
 

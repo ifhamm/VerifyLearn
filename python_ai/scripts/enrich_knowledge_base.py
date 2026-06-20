@@ -2,12 +2,18 @@
 import argparse
 import json
 import os
+import sys
 import time
 from pathlib import Path
 
-from build_knowledge_base import extract_urls, fetch_url_text, summarize_url_text
+# BASE_DIR menunjuk ke python_ai/ (bukan python_ai/scripts/)
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+# SCRIPTS_DIR dibutuhkan agar import build_knowledge_base bisa ditemukan
+SCRIPTS_DIR = os.path.dirname(os.path.abspath(__file__))
+sys.path.insert(0, BASE_DIR)
+sys.path.insert(0, SCRIPTS_DIR)
 
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+from build_knowledge_base import extract_urls, fetch_url_text, summarize_url_text
 ROLE_FILES = ["backend.jsonl", "frontend.jsonl", "fullstack.jsonl"]
 
 

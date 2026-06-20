@@ -6,11 +6,11 @@ Ekstrak konten dari roadmap.sh dan bangun knowledge base RAG
 yang terstruktur per role (backend, frontend, fullstack).
 
 Cara pakai:
-  # 1. Ekstrak dan bangun file knowledge base (tidak butuh API key)
-  python build_knowledge_base.py --roadmap-dir /path/to/developer-roadmap/src/data/roadmaps
+  # 1. Ekstrak dan bangun file knowledge base
+  python scripts/build_knowledge_base.py --roadmap-dir /path/to/developer-roadmap/src/data/roadmaps
 
-  # 2. Setelah extract, ingest ke ChromaDB (butuh Gemini API key)
-  python build_knowledge_base.py --roadmap-dir ... --ingest --api-key YOUR_KEY
+  # 2. Setelah extract, ingest ke ChromaDB
+  python scripts/build_knowledge_base.py --roadmap-dir ... --ingest
 
 Output:
   data/knowledge_base/backend.jsonl
@@ -34,7 +34,8 @@ from typing import List, Optional
 from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
 
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+# BASE_DIR menunjuk ke python_ai/ (bukan python_ai/scripts/)
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, BASE_DIR)
 
 
@@ -443,14 +444,14 @@ def build_knowledge_base(roadmap_dir: str, output_dir: str) -> dict:
 
 def ingest_to_chromadb(kb_dir: str, api_key: str, db_dir: str):
     """Ingest semua JSONL knowledge base ke ChromaDB."""
-    from services.rag.embedder import GeminiEmbedder
+    from services.rag.embedder import LocalEmbedder
     from services.rag.vectorstore import VectorStore
 
     print(f"\n{'='*50}")
     print("Ingesting ke ChromaDB...")
     print(f"{'='*50}")
 
-    embedder = GeminiEmbedder(api_key=api_key)
+    embedder = LocalEmbedder()
     vs = VectorStore(embedder=embedder, persist_dir=db_dir)
 
     for role_key in ["backend", "frontend", "fullstack"]:
@@ -549,9 +550,8 @@ def main():
     )
     args = parser.parse_args()
 
-    if args.ingest and not args.api_key:
-        print("Error: --ingest butuh --api-key")
-        sys.exit(1)
+    if args.ingest:
+        pass  # api_key tidak diperlukan — embedder berjalan lokal
 
     print("=" * 50)
     print("  VerifyLearn — Knowledge Base Builder")
