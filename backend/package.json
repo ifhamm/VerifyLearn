@@ -5,10 +5,16 @@
   "main": "src/app.js",
   "scripts": {
     "start": "node src/app.js",
-    "dev": "node src/app.js"
+    "build:css": "tailwindcss -i ./public/styles/input.css -o ./public/styles/tailwind.css --minify",
+    "watch:css": "tailwindcss -i ./public/styles/input.css -o ./public/styles/tailwind.css --watch",
+    "dev": "concurrently \"npm run watch:css\" \"node src/app.js\""
   },
   "dependencies": {
     "cors": "^2.8.5",
     "express": "^4.19.2"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2",
+    "tailwindcss": "^3.4.0"
   }
 }

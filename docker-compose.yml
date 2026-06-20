@@ -16,6 +16,7 @@ services:
       - ./backend:/app
       - ./python_ai:/app/python_ai:ro
       - /app/node_modules
+    command: npm run dev
     restart: always
 
   python_ai:
