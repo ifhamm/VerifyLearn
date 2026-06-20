@@ -1,0 +1,462 @@
+<!doctype html>
+<html lang="en" class="scroll-smooth">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>VerifyLearn | Prove Your Skills</title>
+    <link rel="stylesheet" href="/styles/tailwind.css" />
+    <link rel="stylesheet" href="/styles/custom.css" />
+  </head>
+  <body
+    class="bg-base text-textMain font-sans antialiased overflow-x-hidden selection:bg-brandOrange selection:text-white"
+  >
+    <header
+      class="fixed top-0 w-full bg-base/90 border-b-2 border-textMain z-50 backdrop-blur-md"
+    >
+      <div
+        class="max-w-7xl mx-auto px-6 py-4 flex justify-between items-center"
+      >
+        <div class="text-2xl font-black tracking-tighter uppercase">
+          Verify<span class="text-brandOrange">Learn.</span>
+        </div>
+        <div class="hidden md:flex gap-8">
+          <a
+            href="landingPageAgin.html"
+            class="text-sm font-bold text-textMuted hover:text-brandOrange transition"
+            >Black Theme</a
+          >
+          <a
+            href="#how-it-works"
+            class="text-sm font-bold text-textMuted hover:text-brandOrange transition"
+            >HOW IT WORKS</a
+          >
+        </div>
+        <a
+          href="#"
+          class="px-6 py-2.5 text-sm font-bold text-white bg-textMain border-2 border-textMain hover:bg-brandOrange hover:border-brandOrange transition shadow-brutal"
+        >
+          SIGN IN
+        </a>
+      </div>
+    </header>
+
+    <section
+      class="relative pt-40 pb-24 lg:pt-40 lg:pb-32 min-h-screen border-b-2 border-textMain overflow-hidden"
+    >
+      <div
+        class="absolute inset-0 bg-grid-pattern"
+        style="background-size: 32px 32px"
+      ></div>
+
+      <div class="relative z-10 max-w-7xl mx-auto px-6">
+        <div class="grid lg:grid-cols-2 gap-16 items-center">
+          <!-- LEFT SIDE -->
+
+          <div>
+            <div
+              class="inline-flex items-center gap-3 px-4 py-2 mb-8 border-2 border-textMain bg-white text-sm font-bold text-textMain uppercase tracking-widest shadow-brutal"
+            >
+              <span class="text-brandOrange">AI Powered</span>
+              <span class="w-1.5 h-1.5 bg-textMain"></span>
+              <span>Adaptive Integrity</span>
+              <span class="w-1.5 h-1.5 bg-textMain"></span>
+              <span class="text-brandViolet">Web3 Verified</span>
+            </div>
+
+            <h1
+              class="text-6xl md:text-6xl font-black tracking-tighter leading-[1] uppercase"
+            >
+              Choose Your Path.
+
+              <span class="block text-brandOrange mt-2">
+                Prove Your Skills.
+              </span>
+            </h1>
+
+            <p
+              class="text-lg md:text-2xl text-textMuted mt-8 max-w-2xl leading-relaxed"
+            >
+              Learn Frontend, Backend, or Fullstack development through
+              AI-powered learning paths, adaptive integrity verification, and
+              blockchain-backed achievements that showcase real skills.
+            </p>
+
+            <!-- QUICK STATS -->
+
+            <div class="grid grid-cols-3 gap-4 mt-8 max-w-xl">
+              <div class="border-2 border-textMain p-4 bg-white shadow-brutal">
+                <div class="text-3xl font-black">AI</div>
+
+                <div class="text-xs font-bold uppercase mt-1">
+                  Learning Paths
+                </div>
+              </div>
+
+              <div class="border-2 border-textMain p-4 bg-white shadow-brutal">
+                <div class="text-3xl font-black">24/7</div>
+
+                <div class="text-xs font-bold uppercase mt-1">Verification</div>
+              </div>
+
+              <div class="border-2 border-textMain p-4 bg-white shadow-brutal">
+                <div class="text-3xl font-black">WEB3</div>
+
+                <div class="text-xs font-bold uppercase mt-1">Achievement</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- RIGHT -->
+          <div>
+            <!-- Assessment -->
+
+            <div
+              id="assessmentCard"
+              class="bg-white border-2 border-textMain shadow-brutal p-10 max-w-xl ml-auto"
+            >
+              <h2 class="text-4xl font-black uppercase mb-3">
+                Start Your Journey
+              </h2>
+
+              <p class="text-textMuted mb-8">
+                Complete a quick assessment and generate your personalized
+                learning path.
+              </p>
+
+              <div class="mb-6">
+                <label class="block text-sm font-black uppercase mb-2">
+                  Current Skill
+                </label>
+
+                <select
+                  class="w-full border-2 border-textMain px-5 py-4 bg-white font-bold"
+                >
+                  <option>Beginner</option>
+                  <option>Intermediate</option>
+                  <option>Advanced</option>
+                </select>
+              </div>
+
+              <div class="mb-6">
+                <label class="block text-sm font-black uppercase mb-2">
+                  Learning Goal
+                </label>
+
+                <select
+                  class="w-full border-2 border-textMain px-5 py-4 bg-white font-bold"
+                >
+                  <option>Frontend Developer</option>
+                  <option>Backend Developer</option>
+                  <option>Fullstack Developer</option>
+                </select>
+              </div>
+
+              <div class="mb-8">
+                <label class="block text-sm font-black uppercase mb-2">
+                  Time Commitment
+                </label>
+
+                <select
+                  class="w-full border-2 border-textMain px-5 py-4 bg-white font-bold"
+                >
+                  <option>1 Hour / Day</option>
+                  <option>2 Hours / Day</option>
+                  <option>3 Hours / Day</option>
+                </select>
+              </div>
+
+              <a
+                href="materi.html"
+                class="block w-full text-center bg-brandOrange text-white border-2 border-textMain py-4 font-black uppercase shadow-brutal hover:bg-textMain transition"
+              >
+                Generate Learning Path
+              </a>
+            </div>
+
+            <!-- Dashboard -->
+
+            <div
+              id="dashboardCard"
+              class="hidden bg-white border-2 border-textMain p-8 shadow-brutal"
+            >
+              <h2 class="text-3xl font-black uppercase">Welcome Back 👋</h2>
+
+              <p class="text-textMuted mt-2">Frontend Developer Path</p>
+
+              <div class="grid grid-cols-2 gap-4 mt-8">
+                <div class="border-2 border-textMain p-4">
+                  <p class="text-xs uppercase font-bold">Integrity Score</p>
+
+                  <p class="text-5xl font-black text-brandOrange">93</p>
+                </div>
+
+                <div class="border-2 border-textMain p-4">
+                  <p class="text-xs uppercase font-bold">Progress</p>
+
+                  <p class="text-5xl font-black">33%</p>
+                </div>
+              </div>
+
+              <div class="mt-8">
+                <p class="text-xs uppercase font-bold mb-2">Current Module</p>
+
+                <div class="border-2 border-textMain p-4 font-black">
+                  React State Management
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <script>
+      function generatePath() {
+        document.getElementById("assessmentCard").classList.add("hidden");
+
+        document.getElementById("dashboardCard").classList.remove("hidden");
+      }
+    </script>
+
+    <!-- <section class="py-24 bg-panel border-b-2 border-textMain">
+      <div class="max-w-7xl mx-auto px-6">
+        <div class="text-center mb-10">
+          <h2 class="text-5xl font-black uppercase">
+            Frontend Developer Roadmap
+          </h2>
+
+          <p class="text-textMuted mt-4">
+            Follow your learning journey step by step.
+          </p>
+        </div>
+
+        <div class="max-w-4xl mx-auto">
+          Introduction
+          <div class="flex justify-center">
+            <div
+              class="bg-brandOrange text-white border-2 border-textMain px-8 py-5 rounded-2xl shadow-brutal font-black"
+            >
+              ✓ Introduction
+            </div>
+          </div>
+
+          <div class="flex justify-center py-4">
+            <div class="w-1 h-12 bg-textMain"></div>
+          </div>
+
+          Internet Fundamentals
+
+          <div class="flex justify-center">
+            <div
+              class="bg-brandOrange text-white border-2 border-textMain px-8 py-5 rounded-2xl shadow-brutal font-black"
+            >
+              ✓ Internet Fundamentals
+            </div>
+          </div>
+
+          Sub Topics
+
+          <div class="grid md:grid-cols-2 gap-4 mt-8">
+            <div
+              class="border-2 border-textMain bg-white p-4 rounded-xl font-bold"
+            >
+              ✓ How Internet Works
+            </div>
+
+            <div
+              class="border-2 border-textMain bg-white p-4 rounded-xl font-bold"
+            >
+              ✓ HTTP
+            </div>
+
+            <div
+              class="border-2 border-textMain bg-white p-4 rounded-xl font-bold"
+            >
+              ✓ DNS
+            </div>
+
+            <div
+              class="border-2 border-textMain bg-white p-4 rounded-xl font-bold"
+            >
+              ✓ Hosting
+            </div>
+          </div>
+
+          Connector
+
+          <div class="flex justify-center py-8">
+            <div class="w-1 h-16 bg-textMain"></div>
+          </div>
+
+          Frontend Basics
+
+          <div class="flex justify-center">
+            <div
+              class="bg-brandOrange text-white border-2 border-textMain px-8 py-5 rounded-2xl shadow-brutal font-black"
+            >
+              Frontend Basics
+            </div>
+          </div>
+
+          <div class="grid md:grid-cols-3 gap-4 mt-8">
+            <div
+              class="border-2 border-textMain bg-white p-5 rounded-xl font-bold text-center"
+            >
+              ✓ HTML
+            </div>
+
+            <div
+              class="border-2 border-textMain bg-white p-5 rounded-xl font-bold text-center"
+            >
+              ✓ CSS
+            </div>
+
+            <div
+              class="border-2 border-textMain bg-brandYellow p-5 rounded-xl font-bold text-center animate-pulse"
+            >
+              🔥 JavaScript
+            </div>
+          </div>
+
+          Connector
+
+          <div class="flex justify-center py-8">
+            <div class="w-1 h-16 bg-textMain"></div>
+          </div>
+
+          Git
+
+          <div class="flex justify-center">
+            <div
+              class="bg-white border-2 border-textMain px-8 py-5 rounded-2xl shadow-brutal font-black"
+            >
+              Version Control
+            </div>
+          </div>
+
+          <div class="grid md:grid-cols-2 gap-4 mt-8">
+            <div
+              class="border-2 border-textMain bg-white p-5 rounded-xl font-bold text-center"
+            >
+              Git
+            </div>
+
+            <div
+              class="border-2 border-textMain bg-white p-5 rounded-xl font-bold text-center"
+            >
+              GitHub
+            </div>
+          </div>
+
+          Connector
+
+          <div class="flex justify-center py-8">
+            <div class="w-1 h-16 bg-textMain"></div>
+          </div>
+
+          React
+
+          <div class="flex justify-center">
+            <div
+              class="bg-zinc-300 border-2 border-textMain px-8 py-5 rounded-2xl font-black"
+            >
+              React
+            </div>
+          </div>
+
+          <div class="flex justify-center py-8">
+            <div class="w-1 h-16 bg-textMain"></div>
+          </div>
+
+          Next
+
+          <div class="flex justify-center">
+            <div
+              class="bg-zinc-300 border-2 border-textMain px-8 py-5 rounded-2xl font-black"
+            >
+              Next.js
+            </div>
+          </div>
+
+          <div class="flex justify-center py-8">
+            <div class="w-1 h-16 bg-textMain"></div>
+          </div>
+
+          Portfolio
+
+          <div class="flex justify-center">
+            <div
+              class="bg-zinc-300 border-2 border-textMain px-8 py-5 rounded-2xl font-black"
+            >
+              Portfolio Project
+            </div>
+          </div>
+        </div>
+      </div>
+    </section> -->
+
+    <!-- <section class="py-24 bg-white border-t-2 border-textMain">
+      <div class="max-w-7xl mx-auto px-6">
+        <div class="flex justify-between items-center mb-12">
+          <h2 class="text-5xl font-black uppercase">Recent Achievements</h2>
+
+          <button
+            class="px-6 py-3 border-2 border-textMain font-black uppercase shadow-brutal hover:bg-brandOrange hover:text-white transition"
+          >
+            View All →
+          </button>
+        </div>
+
+        <div class="grid md:grid-cols-3 gap-6">
+          Achievement 1
+          <div
+            class="bg-white border-2 border-textMain p-8 shadow-brutal text-center transition hover:-translate-y-2 hover:bg-brandOrange hover:text-white"
+          >
+            <div class="text-5xl mb-4">🏆</div>
+
+            <h3 class="font-black uppercase text-xl">React Basics</h3>
+
+            <p class="mt-2 text-sm">Integrity Score 93</p>
+          </div>
+
+          Achievement 2
+          <div
+            class="bg-white border-2 border-textMain p-8 shadow-brutal text-center transition hover:-translate-y-2 hover:bg-brandOrange hover:text-white"
+          >
+            <div class="text-5xl mb-4">⚡</div>
+
+            <h3 class="font-black uppercase text-xl">JavaScript</h3>
+
+            <p class="mt-2 text-sm">Integrity Score 95</p>
+          </div>
+
+          Achievement 3
+          <div
+            class="bg-white border-2 border-textMain p-8 shadow-brutal text-center transition hover:-translate-y-2 hover:bg-brandOrange hover:text-white"
+          >
+            <div class="text-5xl mb-4">🚀</div>
+
+            <h3 class="font-black uppercase text-xl">CSS Mastery</h3>
+
+            <p class="mt-2 text-sm">Integrity Score 98</p>
+          </div>
+        </div>
+      </div>
+    </section> -->
+
+    <footer class="py-10 bg-panel border-t-2 border-textMain text-center">
+      <p class="text-textMain font-bold text-sm uppercase tracking-widest">
+        &copy; 2026 VerifyLearn. The Immutable Ecosystem.
+      </p>
+    </footer>
+  </body>
+
+  <script>
+    const hasPath = true;
+
+    document.getElementById("newUser").classList.toggle("hidden", hasPath);
+    document
+      .getElementById("existingUser")
+      .classList.toggle("hidden", !hasPath);
+  </script>
+</html>
