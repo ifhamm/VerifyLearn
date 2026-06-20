@@ -6,17 +6,18 @@ Membaca file JSONL knowledge base yang sudah ada di repository,
 membuat embeddings secara lokal, dan menyimpannya ke ChromaDB.
 
 Cara Pakai:
-  docker exec -it verify-learn-python-ai python ingest_kb.py
+  docker exec -it verify-learn-python-ai python scripts/ingest_kb.py
 """
 
 import os
 import sys
 import json
 
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+# BASE_DIR menunjuk ke python_ai/ (bukan python_ai/scripts/)
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, BASE_DIR)
 
-from services.rag.embedder import GeminiEmbedder
+from services.rag.embedder import LocalEmbedder
 from services.rag.vectorstore import VectorStore
 
 def main():
@@ -28,7 +29,7 @@ def main():
     db_dir = os.path.join(BASE_DIR, "chroma_db")
     kb_dir = os.path.join(BASE_DIR, "data", "knowledge_base")
     
-    embedder = GeminiEmbedder()
+    embedder = LocalEmbedder()
     vs = VectorStore(embedder=embedder, persist_dir=db_dir)
     collection = vs.collection
     

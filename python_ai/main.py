@@ -16,10 +16,22 @@ import sys
 import argparse
 import json
 
+# Reconfigure stdout/stderr to UTF-8 to avoid UnicodeEncodeError on Windows terminals
+if hasattr(sys.stdout, 'reconfigure'):
+    try:
+        sys.stdout.reconfigure(encoding='utf-8')
+    except Exception:
+        pass
+if hasattr(sys.stderr, 'reconfigure'):
+    try:
+        sys.stderr.reconfigure(encoding='utf-8')
+    except Exception:
+        pass
+
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, BASE_DIR)
 
-from services.rag.embedder import GeminiEmbedder
+from services.rag.embedder import LocalEmbedder
 from services.rag.vectorstore import VectorStore
 from services.rag.engine import RAGEngine
 
@@ -46,7 +58,7 @@ def main():
 
     # 1. Inisialisasi Embedder + VectorStore
     print("\n📦 1. Menghubungkan ke ChromaDB & Inisialisasi Embedder...")
-    embedder = GeminiEmbedder()  # api_key tidak diperlukan untuk sentence-transformers
+    embedder = LocalEmbedder()
     vector_store = VectorStore(embedder=embedder, persist_dir=args.db_dir)
     print(f"   Total dokumen di ChromaDB: {vector_store.count()}")
 
