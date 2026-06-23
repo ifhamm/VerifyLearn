@@ -134,10 +134,10 @@ class RAGEngine:
                         {
                             "role": "system",
                             "content": (
-                                "Kamu adalah AI assistant untuk platform pembelajaran VerifyLearn. "
-                                "PENTING: Selalu respond HANYA dengan JSON valid. "
-                                "Jangan tambahkan markdown, penjelasan, atau teks apapun di luar JSON. "
-                                "Output harus dimulai dengan { dan diakhiri dengan }."
+                                "You are an AI assistant for the VerifyLearn learning platform. "
+                                "IMPORTANT: Always respond ONLY with valid JSON. "
+                                "Do not add markdown, explanation, or any text outside the JSON. "
+                                "Output must start with { and end with }."
                             ),
                         },
                         {"role": "user", "content": prompt},
@@ -220,24 +220,24 @@ class RAGEngine:
         slots_per_week = max(1, min(5, int((commitment * 7) / 2.0)))
         total_slots = total_weeks * slots_per_week
 
-        prompt = f"""Kamu adalah pakar kurikulum pembelajaran IT. Rancanglah learning plan adaptif untuk peran {role} yang disesuaikan dengan profil pengguna berikut:
-- Tingkat Keahlian Saat Ini: {level}
-- Komitmen Belajar Harian: {commitment} jam/hari ({commitment * 7} jam/minggu)
-- Durasi Belajar: {total_weeks} minggu
-- Maksimal materi per minggu: {slots_per_week} materi (agar tidak menumpuk dan terlalu padat / "tidak seabrek")
+        prompt = f"""You are an IT learning curriculum expert. Design an adaptive learning plan for the role {role} tailored to the following user profile:
+- Current Skill Level: {level}
+- Daily Study Commitment: {commitment} hours/day ({commitment * 7} hours/week)
+- Study Duration: {total_weeks} weeks
+- Maximum materials per week: {slots_per_week} materials (so it is not overwhelming / crowded)
 
-Berikut adalah daftar materi pembelajaran yang tersedia dalam basis pengetahuan kurikulum kami:
+Here is the list of available learning materials in our curriculum knowledge base:
 {json.dumps(available_materials, indent=2)}
 
-TUGAS:
-1. Pilih materi dari daftar di atas yang paling relevan dengan profil pengguna.
-   - Jika pengguna adalah "beginner" (pemula): Fokuskan pada materi "core" (dasar). Hindari topik "advanced" yang sangat rumit kecuali jika diletakkan di akhir minggu terakhir. Urutkan dari konsep yang paling mendasar ke kompleks (misal: HTML/CSS dulu baru Framework, Internet dulu baru API).
-   - Jika pengguna adalah "intermediate" (menengah): Kompres materi dasar ke minggu-minggu awal, lalu berikan fokus lebih besar pada penerapan core-to-advanced.
-   - Jika pengguna adalah "advanced" (mahir): Lewati materi dasar yang sangat sederhana (misal: "How does the internet work", "HTML/CSS basics"), atau gabungkan dengan cepat di Week 1. Berikan porsi terbesar pada arsitektur, optimasi, scaling, dan topik advanced lainnya.
-2. Distribusikan materi yang dipilih ke dalam schedule mingguan (dari minggu 1 sampai minggu {total_weeks}). Setiap minggu maksimal berisi {slots_per_week} materi. Jangan memaksakan memasukkan semua materi jika tidak muat. Prioritaskan kualitas dan alur pembelajaran yang logis.
-3. Buat catatan pacing ("pace_note") personal dalam Bahasa Indonesia yang menjelaskan mengapa kurikulum ini disesuaikan seperti ini untuk level {level} dengan komitmen {commitment} jam/hari.
+TASK:
+1. Choose materials from the list above that are most relevant to the user profile.
+   - If user is "beginner": Focus on "core" (fundamental) materials. Avoid very complex "advanced" topics unless placed at the end of the final week. Sort from the most basic concepts to complex ones (e.g., HTML/CSS first, then Frameworks; Internet first, then APIs).
+   - If user is "intermediate": Compress basic materials into the early weeks, then place greater focus on core-to-advanced applications.
+   - If user is "advanced": Skip very simple basic materials (e.g., "How does the internet work", "HTML/CSS basics"), or combine them quickly in Week 1. Give the largest portion to architecture, optimization, scaling, and other advanced topics.
+2. Distribute the chosen materials into a weekly schedule (from week 1 to week {total_weeks}). Each week must contain at most {slots_per_week} materials. Do not force all materials in if they don't fit. Prioritize quality and a logical learning flow.
+3. Create a personalized pacing note ("pace_note") in English explaining why this curriculum is tailored this way for the {level} level with a commitment of {commitment} hours/day.
 
-Kembalikan hasil dalam format JSON persis seperti berikut:
+Return the result in JSON format exactly like this:
 {{
   "weekly_schedule": [
     {{
@@ -249,7 +249,7 @@ Kembalikan hasil dalam format JSON persis seperti berikut:
       "materials": ["slug-materi-3"]
     }}
   ],
-  "pace_note": "Catatan penjelasan penyesuaian kurikulum di sini..."
+  "pace_note": "tailored curriculum explanation notes here..."
 }}"""
 
         try:
@@ -502,35 +502,36 @@ Kembalikan hasil dalam format JSON persis seperti berikut:
         print(f"[RAGEngine] Generating quiz: {material['title']}")
         context = self._retrieve_context(material["title"], material["role"], n=4)
 
-        prompt = f"""Buat soal quiz untuk materi backend development: {material['title']}
+        prompt = f"""Create quiz questions for the learning material: {material['title']}
 
-Konten:
+Content:
 {material.get('content_summary', '')[:400]}
 
-Referensi:
+Reference:
 {context[:600]}
 
-Tugas:
-1. Buat {n_pg} soal pilihan ganda dengan 4 opsi (A/B/C/D)
-2. Buat {n_essay} soal essay terbuka (TANPA options, TANPA correct_answer)
+Task:
+1. Create {n_pg} multiple-choice questions with 4 options (A/B/C/D)
+2. Create {n_essay} open-ended essay questions (WITHOUT options, WITHOUT correct_answer)
+IMPORTANT: All questions, multiple choice options, correct answers, explanations, and grading criteria MUST be written entirely in English.
 
-Format JSON (ikuti PERSIS struktur ini):
+JSON format (follow this structure EXACTLY):
 {{
   "questions": [
     {{
       "type": "multiple_choice",
-      "question": "Apa fungsi utama dari HTTP dalam komunikasi web?",
-      "options": ["A. Menyimpan data", "B. Transfer hypertext antara client dan server", "C. Mengenkripsi koneksi", "D. Mengelola database"],
+      "question": "What is the primary function of HTTP in web communication?",
+      "options": ["A. Store data", "B. Transfer hypertext between client and server", "C. Encrypt connections", "D. Manage database"],
       "correct_answer": "B",
-      "explanation": "HTTP adalah protokol untuk transfer hypertext antara client dan server",
+      "explanation": "HTTP is the protocol used to transfer hypertext between client and server",
       "difficulty": "easy"
     }},
     {{
       "type": "essay",
-      "question": "Jelaskan perbedaan antara HTTP dan HTTPS beserta kapan sebaiknya digunakan",
+      "question": "Explain the difference between HTTP and HTTPS and when each should be used.",
       "options": null,
       "correct_answer": null,
-      "explanation": "Jawaban harus mencakup: enkripsi SSL/TLS, keamanan data, penggunaan di production",
+      "explanation": "Answer should cover: SSL/TLS encryption, data security, production usage",
       "difficulty": "medium"
     }}
   ]
@@ -554,29 +555,30 @@ Format JSON (ikuti PERSIS struktur ini):
         context  = self._retrieve_context(material["title"], material["role"], n=3)
         role     = material["role"]
         lang_hint = {
-            "backend":   "Go atau Python",
-            "frontend":  "JavaScript atau TypeScript",
-            "fullstack": "JavaScript/TypeScript atau Node.js",
-        }.get(role, "sesuai materi")
+            "backend":   "Go or Python",
+            "frontend":  "JavaScript or TypeScript",
+            "fullstack": "JavaScript/TypeScript or Node.js",
+        }.get(role, "appropriate for the topic")
         mins = 20 if difficulty == "normal" else 35
 
-        prompt = f"""Buat tantangan coding untuk materi: {material['title']}
-Bahasa: {lang_hint}
-Estimasi waktu: {mins} menit
-Level: {"standar — buktikan pemahaman dasar konsep" if difficulty == "normal" else "kompleks — butuh pemahaman mendalam, tidak bisa diselesaikan dengan copy-paste"}
+        prompt = f"""Create a coding challenge for the material: {material['title']}
+Language: {lang_hint}
+Estimated time: {mins} minutes
+Level: {"standard — demonstrate basic conceptual understanding" if difficulty == "normal" else "complex — requires deep understanding, cannot be solved by copy-pasting"}
 
-Referensi materi:
+Material reference:
 {context[:500]}
 
-Starter code HARUS berisi kode nyata (fungsi/class dengan TODO), bukan URL atau teks biasa.
+Starter code MUST contain actual code (functions/classes with TODO comment), not a URL or plain text.
+All text descriptions, title, description, expected_behavior, and hints MUST be written in English.
 
-Respond dengan JSON:
+Respond with JSON:
 {{
-  "title": "judul singkat tantangan",
-  "description": "deskripsi soal: apa yang harus diimplementasikan, contoh input dan output yang diharapkan",
-  "starter_code": "# Implementasikan fungsi berikut\\ndef solve(input_data):\\n    # TODO: tulis implementasimu di sini\\n    pass",
-  "expected_behavior": "deskripsi output yang benar saat kode dijalankan dengan benar",
-  "hints": ["hint teknikal konkret 1", "hint teknikal konkret 2"],
+  "title": "short challenge title",
+  "description": "problem description: what to implement, expected input and output examples",
+  "starter_code": "# Implement the following function\\ndef solve(input_data):\\n    # TODO: write your implementation here\\n    pass",
+  "expected_behavior": "description of the correct output when the code runs successfully",
+  "hints": ["concrete technical hint 1", "concrete technical hint 2"],
   "difficulty": "{difficulty}",
   "estimated_minutes": {mins}
 }}"""
@@ -597,27 +599,28 @@ Respond dengan JSON:
     ) -> VoiceChallenge:
         print(f"[RAGEngine] Generating voice challenge — trigger: {trigger_reason}")
 
-        prompt = f"""Kamu adalah interviewer teknikal yang mendeteksi anomali.
+        prompt = f"""You are a technical interviewer detecting anomalies.
 
-Situasi: {trigger_reason}
-Materi yang dikerjakan: {material['title']}
+Situation: {trigger_reason}
+Material being worked on: {material['title']}
 
-Kode yang ditulis user:
+Code written by user:
 ---
 {user_code_or_text[:800]}
 ---
 
-Buat 1 pertanyaan verifikasi suara yang:
-- Menanyakan SPESIFIK tentang baris kode tertentu yang ditulis user
-- Menyebut nama fungsi/variabel/konsep konkret dari kode di atas
-- Tidak bisa dijawab dengan jawaban umum/generik
-- Memaksa user menjelaskan MENGAPA kode tersebut bekerja seperti itu
+Create 1 voice verification question that:
+- Asks SPECIFICALLY about a certain line of code written by the user
+- Mentions a concrete function/variable/concept from the code above
+- Cannot be answered with a general/generic answer
+- Forces the user to explain WHY the code works that way
+- Both the question, context, and expected_keywords MUST be written in English.
 
-Respond dengan JSON:
+Respond with JSON:
 {{
-  "question": "pertanyaan spesifik yang menyebut nama fungsi atau variabel dari kode user",
-  "context": "alasan kenapa pertanyaan ini diajukan berdasarkan kode user",
-  "expected_keywords": ["keyword teknikal 1", "keyword teknikal 2", "keyword teknikal 3"],
+  "question": "specific question mentioning the function or variable name from user code",
+  "context": "reason why this question is being asked based on user code",
+  "expected_keywords": ["technical keyword 1", "technical keyword 2", "technical keyword 3"],
   "time_limit_seconds": 120
 }}"""
 
@@ -635,18 +638,19 @@ Respond dengan JSON:
         print(f"[RAGEngine] Generating final challenge: {material['title']}")
         livecode = self.generate_livecode_challenge(material, difficulty="hard")
 
-        prompt = f"""Buat instruksi voice explanation untuk tantangan coding berikut:
-Materi: {material['title']}
-Judul tantangan: {livecode.title}
-Deskripsi: {livecode.description}
+        prompt = f"""Create a voice explanation instruction for the following coding challenge:
+Material: {material['title']}
+Challenge Title: {livecode.title}
+Description: {livecode.description}
 
-Buat kalimat instruksi yang meminta user menjelaskan kode yang baru ditulis via suara.
-Gunakan bahasa seperti interviewer sungguhan — spesifik, tidak generik.
+Create an instruction sentence asking the user to explain their newly written code via voice.
+Use the language of a real interviewer — specific, not generic.
+IMPORTANT: The instruction sentence (voice_prompt) and expected_keywords MUST be written in English.
 
-Respond dengan JSON:
+Respond with JSON:
 {{
-  "voice_prompt": "kalimat instruksi spesifik untuk user menjelaskan kodenya",
-  "expected_keywords": ["keyword teknikal 1", "keyword teknikal 2", "keyword teknikal 3", "keyword teknikal 4", "keyword teknikal 5"]
+  "voice_prompt": "specific instruction sentence for the user to explain their code",
+  "expected_keywords": ["technical keyword 1", "technical keyword 2", "technical keyword 3", "technical keyword 4", "technical keyword 5"]
 }}"""
 
         raw  = self._llm(prompt)

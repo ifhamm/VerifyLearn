@@ -98,7 +98,7 @@ class VoiceVerifier:
                 score=0.0,
                 matched_keywords=[],
                 missing_keywords=list(expected_keywords),
-                feedback="Tidak ada jawaban yang terdeteksi.",
+                feedback="No answer detected.",
             )
 
         matched = []
@@ -114,11 +114,11 @@ class VoiceVerifier:
         passed = score >= min_match_ratio
 
         if passed:
-            feedback = f"Jawaban diterima. {len(matched)}/{total} konsep penting disebutkan."
+            feedback = f"Answer accepted. {len(matched)}/{total} important concepts mentioned."
         else:
             feedback = (
-                f"Jawaban kurang lengkap. {len(matched)}/{total} konsep disebutkan. "
-                f"Konsep yang terlewat: {', '.join(missing)}."
+                f"Answer incomplete. {len(matched)}/{total} concepts mentioned. "
+                f"Missing concepts: {', '.join(missing)}."
             )
 
         return VoiceVerifyResult(

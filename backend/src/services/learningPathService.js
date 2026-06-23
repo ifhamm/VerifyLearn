@@ -24,6 +24,39 @@ const loadConfig = () => {
   return JSON.parse(raw);
 };
 
+const cleanText = (text) => {
+  if (!text) return '';
+  let cleaned = text;
+
+  // Remove gtag consent block
+  cleaned = cleaned.replace(/window\.dataLayer\s*=\s*window\.dataLayer\s*\|\|\s*\[\];\s*(?:function\s+gtag\s*\(\s*\)\s*\{[^}]*\}\s*)?gtag\(\s*["']consent["'][\s\S]*?\)\s*;?/gi, '');
+
+  // Remove standard GTM block
+  cleaned = cleaned.replace(/\(function\(w,d,s,l,i\)[\s\S]*?\(window,\s*document,\s*["']script["'],\s*["']dataLayer["'],\s*["']GTM-[A-Z0-9]+["']\)\s*;?/gi, '');
+
+  // Remove window.dataLayer.push category block
+  cleaned = cleaned.replace(/window\.dataLayer\s*=\s*window\.dataLayer\s*\|\|\s*\[\];\s*window\.dataLayer\.push\([\s\S]*?\)\s*;?/gi, '');
+
+  // Remove standalone dataLayer checks
+  cleaned = cleaned.replace(/window\.dataLayer\s*=\s*window\.dataLayer\s*\|\|\s*\[\];?/gi, '');
+
+  // Remove lemonSqueezy & Analytics config
+  cleaned = cleaned.replace(/window\.lemonSqueezyAffiliateConfig[\s\S]*?gtag\(['"]config['"],\s*['"]G-[A-Z0-9]+['"]\)\s*;?/gi, '');
+  cleaned = cleaned.replace(/gtag\(['"]js['"],\s*new\s+Date\(\)\)\s*;?\s*gtag\(['"]config['"],\s*['"]G-[A-Z0-9]+['"]\)\s*;?/gi, '');
+  cleaned = cleaned.replace(/gtag\(\s*['"]config['"],\s*['"]G-[A-Z0-9]+['"]\s*\)\s*;?/gi, '');
+
+  // Remove theme/nop console checks
+  cleaned = cleaned.replace(/try\s*\{\s*document\.documentElement\.dataset\.theme[\s\S]*?console\.warn\([\s\S]*?\);\s*\}/gi, '');
+  cleaned = cleaned.replace(/try\s*\{\s*if\s*\(\s*localStorage\.getItem\(['"]nop['"]\)[\s\S]*?console\.warn\([\s\S]*?\);\s*\}/gi, '');
+
+  // Remove GTM self-invoking function block
+  cleaned = cleaned.replace(/\(function\(\)\s*\{\s*try\s*\{[\s\S]*?\}\s*\}\)\(\)\s*;?/gi, '');
+
+  // Clean up double/multiple empty newlines
+  cleaned = cleaned.replace(/\n\s*\n\s*\n+/g, '\n\n');
+  return cleaned.trim();
+};
+
 const loadKnowledgeBase = (role) => {
   const filePath = path.join(KB_DIR, `${role}.jsonl`);
   if (!fs.existsSync(filePath)) {
@@ -38,7 +71,9 @@ const loadKnowledgeBase = (role) => {
     const doc = JSON.parse(line);
     return {
       ...doc,
-      expanded_content: doc.expanded_content || doc.content,
+      content: cleanText(doc.content || ""),
+      content_with_links: cleanText(doc.content_with_links || ""),
+      expanded_content: cleanText(doc.expanded_content || doc.content || ""),
     };
   });
 };

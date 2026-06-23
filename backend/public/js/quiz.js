@@ -13,6 +13,14 @@
 });
 
 document.addEventListener('DOMContentLoaded', () => {
+  // Check login state
+  const sessionToken = localStorage.getItem('sessionToken');
+  if (!sessionToken) {
+    alert('Akses ditolak. Silakan login terlebih dahulu.');
+    window.location.replace('index.html');
+    return;
+  }
+
   // Parse Query Parameters
   const params = new URLSearchParams(window.location.search);
   let role = params.get('role');
@@ -59,7 +67,7 @@ document.addEventListener('DOMContentLoaded', () => {
   // Final fallbacks for role and slug
   if (!role) role = 'backend';
   if (!slug) {
-    alert('Silakan pilih materi belajar terlebih dahulu dari dashboard sebelum mengakses kuis.');
+    alert('Please select learning material first from the dashboard before accessing the quiz.');
     window.location.href = 'myPath.html';
     return;
   }
@@ -167,11 +175,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // ── 1. Load Quiz via API ──
   async function loadQuiz() {
-    quizQuestionTitle.textContent = 'Meminta AI membuat kuis untuk Anda... 🤖';
+    quizQuestionTitle.textContent = 'Asking AI to generate a quiz for you... 🤖';
     quizOptionsList.innerHTML = `
       <div class="flex items-center gap-3 p-6 border-2 border-textMain bg-panel font-bold shadow-brutal-sm">
         <span class="animate-spin text-xl">⏳</span>
-        <span>AI sedang menganalisis materi dan menyusun kuis kustom menggunakan RAG... Harap tunggu (~5-10 detik).</span>
+        <span>AI is analyzing the material and composing a custom quiz using RAG... Please wait (~5-10 seconds).</span>
       </div>
     `;
     if (useHintBtn) useHintBtn.disabled = true;
@@ -225,12 +233,13 @@ document.addEventListener('DOMContentLoaded', () => {
       const response = await fetch('/api/v1/generate-quiz', {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json'
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer ' + sessionToken
         },
         body: JSON.stringify(requestBody)
       });
 
-      if (!response.ok) throw new Error('Gagal memuat kuis dari server');
+      if (!response.ok) throw new Error('Failed to load quiz from server');
 
       const body = await response.json();
       questions = body.data || [];
@@ -252,9 +261,9 @@ document.addEventListener('DOMContentLoaded', () => {
       if (useHintBtn) useHintBtn.disabled = false;
     } catch (err) {
       console.error('Quiz loading error:', err);
-      quizQuestionTitle.textContent = 'Gagal Memuat Kuis';
+      quizQuestionTitle.textContent = 'Failed to Load Quiz';
       quizOptionsList.innerHTML = `<p class="text-red-500 font-bold">Error: ${err.message}</p>
-      <a href="materi.html?role=${role}&slug=${slug}" class="inline-block mt-4 px-6 py-2 bg-brandOrange text-white border-2 border-textMain font-bold">Kembali ke Materi</a>`;
+      <a href="materi.html?role=${role}&slug=${slug}" class="inline-block mt-4 px-6 py-2 bg-brandOrange text-white border-2 border-textMain font-bold">Back to Material</a>`;
     }
   }
 
@@ -266,7 +275,7 @@ document.addEventListener('DOMContentLoaded', () => {
       if (timeLeftSeconds <= 0) {
         clearInterval(timerInterval);
         timeLeftSeconds = 0;
-        alert('Waktu habis! Kuis akan dikirim otomatis.');
+        alert('Time is up! The quiz will be submitted automatically.');
         submitQuiz();
       }
 
@@ -334,7 +343,7 @@ document.addEventListener('DOMContentLoaded', () => {
       const textarea = document.createElement('textarea');
       textarea.id = 'typingArea';
       textarea.rows = 6;
-      textarea.placeholder = 'Tuliskan jawaban Anda secara detail di sini (minimal 30 kata untuk analisis ritme ketikan)...';
+      textarea.placeholder = 'Write your answer in detail here (minimum 30 words for typing rhythm analysis)...';
       textarea.className = 'w-full border-2 border-textMain p-4 text-textMain placeholder-gray-400 font-bold focus:outline-none focus:border-brandOrange shadow-brutal-sm resize-none bg-white';
       textarea.value = userAnswers[currentIndex] || '';
 
@@ -527,12 +536,12 @@ document.addEventListener('DOMContentLoaded', () => {
     clearInterval(timerInterval);
 
     // Show Loading View
-    quizQuestionTitle.textContent = 'Memverifikasi Jawaban & Menguji Pola Integritas... 🔍';
+    quizQuestionTitle.textContent = 'Verifying Answers & Testing Integrity Pattern... 🔍';
     quizOptionsList.innerHTML = `
       <div class="flex flex-col items-center justify-center p-12 border-2 border-textMain bg-panel font-bold shadow-brutal-sm text-center">
         <span class="animate-spin text-4xl mb-4">⚙️</span>
         <h3 class="text-xl font-black mb-2 uppercase">Integrity Analysis In Progress</h3>
-        <p class="text-sm text-textMuted max-w-md">Mengirimkan rekaman biometrik ketikan Anda ke AI Anomaly Engine untuk dianalisis...</p>
+        <p class="text-sm text-textMuted max-w-md">Submitting your typing biometric records to the AI Anomaly Engine for analysis...</p>
       </div>
     `;
     quizSubmitBtn.style.display = 'none';
@@ -554,7 +563,8 @@ document.addEventListener('DOMContentLoaded', () => {
       const response = await fetch('/api/v1/verify-keystroke', {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json'
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer ' + sessionToken
         },
         body: JSON.stringify({ keystrokes })
       });
@@ -564,7 +574,7 @@ document.addEventListener('DOMContentLoaded', () => {
       // Jika copy-paste terdeteksi lokal, paksa non-verified
       if (hasPasted) {
         keyResult.verified = false;
-        keyResult.message = "Pola anomali: Terdeteksi tindakan Copy-Paste pada isian jawaban.";
+        keyResult.message = "Anomaly pattern: Copy-Paste action detected in the response field.";
       }
 
       if (keyResult.verified === false) {
@@ -577,13 +587,13 @@ document.addEventListener('DOMContentLoaded', () => {
     } catch (err) {
       console.error('Integrity checks failed:', err);
       // Fallback: anggap lulus jika jaringan gagal demi kelancaran demo
-      saveQuizSuccess(correctCount, totalPg, { verified: true, message: 'Verifikasi dilewati karena gangguan jaringan.' });
+      saveQuizSuccess(correctCount, totalPg, { verified: true, message: 'Verification bypassed due to network issue.' });
     }
   }
 
   // ── 8. Trigger Voice Challenge Modal ──
   async function triggerVoiceChallenge(reason) {
-    voiceQuestionText.textContent = 'Membangun pertanyaan suara oleh AI... 🎙️';
+    voiceQuestionText.textContent = 'Generating voice question by AI... 🎙️';
     voiceModal.classList.remove('hidden');
 
     const essayIndex = questions.findIndex(q => q.type === 'essay');
@@ -593,7 +603,8 @@ document.addEventListener('DOMContentLoaded', () => {
       const response = await fetch('/api/v1/generate-voice-challenge', {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json'
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer ' + sessionToken
         },
         body: JSON.stringify({
           role,
@@ -603,7 +614,7 @@ document.addEventListener('DOMContentLoaded', () => {
         })
       });
 
-      if (!response.ok) throw new Error('Gagal membuat pertanyaan suara');
+      if (!response.ok) throw new Error('Failed to generate voice question');
 
       const body = await response.json();
       const challenge = body.data;
@@ -612,7 +623,7 @@ document.addEventListener('DOMContentLoaded', () => {
       expectedKeywords = challenge.expected_keywords || [];
     } catch (err) {
       console.error('Voice challenge error:', err);
-      voiceQuestionText.textContent = 'Dapatkah Anda menjelaskan konsep utama dari jawaban tertulis Anda?';
+      voiceQuestionText.textContent = 'Can you explain the main concept of your written answer?';
       expectedKeywords = ['html', 'css', 'javascript', 'backend', 'web'];
     }
   }
@@ -623,11 +634,11 @@ document.addEventListener('DOMContentLoaded', () => {
     if (SpeechRecognition) {
       speechRecognition = new SpeechRecognition();
       speechRecognition.continuous = false;
-      speechRecognition.lang = 'id-ID'; // Set bahasa Indonesia
+      speechRecognition.lang = 'en-US'; // Set speech recognition language to English
       speechRecognition.interimResults = false;
 
       speechRecognition.onstart = () => {
-        recordStatus.textContent = 'Merekam... Silakan Bicara 🔴';
+        recordStatus.textContent = 'Recording... Please speak 🔴';
         recordStatus.className = 'text-red-500 font-black animate-pulse uppercase tracking-widest';
         recordBtn.classList.remove('bg-orange-500');
         recordBtn.classList.add('bg-red-500', 'scale-110');
@@ -642,12 +653,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
       speechRecognition.onerror = (e) => {
         console.error('Speech error:', e);
-        recordStatus.textContent = 'Gagal Merekam ❌';
+        recordStatus.textContent = 'Recording Failed ❌';
         recordStatus.className = 'text-gray-500 font-bold uppercase';
       };
 
       speechRecognition.onend = () => {
-        recordStatus.textContent = 'Perekaman Selesai';
+        recordStatus.textContent = 'Recording Complete';
         recordStatus.className = 'text-green-500 font-black uppercase tracking-widest';
         recordBtn.classList.remove('bg-red-500', 'scale-110');
         recordBtn.classList.add('bg-orange-500');
@@ -672,11 +683,11 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     } else {
       if (recordStatus) {
-        recordStatus.textContent = 'Web Speech API tidak didukung pada browser ini ⚠️';
+        recordStatus.textContent = 'Web Speech API is not supported on this browser ⚠️';
         recordStatus.className = 'text-yellow-600 font-bold text-center';
         recordBtn.disabled = true;
         // Buka text input fallback
-        transcriptArea.innerHTML = `<input type="text" id="voiceFallbackInput" placeholder="Tuliskan penjelasan suara Anda di sini (fallback browser)..." class="w-full border p-2 mt-2 font-bold focus:outline-none">`;
+        transcriptArea.innerHTML = `<input type="text" id="voiceFallbackInput" placeholder="Write your voice explanation here (fallback browser)..." class="w-full border p-2 mt-2 font-bold focus:outline-none">`;
         transcriptArea.classList.remove('hidden');
         submitVoiceBtn.disabled = false;
       }
@@ -695,18 +706,19 @@ document.addEventListener('DOMContentLoaded', () => {
       }
 
       if (!finalTranscript) {
-        alert('Tulis/ucapkan jawaban Anda terlebih dahulu!');
+        alert('Please write/speak your answer first!');
         return;
       }
 
       submitVoiceBtn.disabled = true;
-      submitVoiceBtn.textContent = 'MENGEVALUASI SUARA...';
+      submitVoiceBtn.textContent = 'EVALUATING VOICE...';
 
       try {
         const response = await fetch('/api/v1/verify-voice', {
           method: 'POST',
           headers: {
-            'Content-Type': 'application/json'
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer ' + sessionToken
           },
           body: JSON.stringify({
             transcript: finalTranscript,
@@ -734,16 +746,16 @@ document.addEventListener('DOMContentLoaded', () => {
 
         if (voiceResult.passed) {
           // Lolos tantangan suara!
-          saveQuizSuccess(correctCount, totalPg, { verified: true, message: 'Integritas dipulihkan via Verifikasi Suara.' });
+          saveQuizSuccess(correctCount, totalPg, { verified: true, message: 'Integrity restored via Voice Verification.' });
         } else {
           // Gagal tantangan suara!
           saveQuizFailed(correctCount, totalPg, voiceResult.feedback);
         }
       } catch (err) {
         console.error('Voice verify error:', err);
-        alert('Terjadi kesalahan jaringan saat mengevaluasi suara.');
+        alert('A network error occurred while evaluating voice.');
         voiceModal.classList.add('hidden');
-        saveQuizFailed(0, 4, 'Verifikasi suara terlewat / gagal.');
+        saveQuizFailed(0, 4, 'Voice verification bypassed / failed.');
       }
     });
   }
@@ -815,15 +827,15 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   function renderResultView(passed, correct, total, reason, finalScore) {
-    quizQuestionTitle.textContent = 'Hasil Evaluasi Kuis';
+    quizQuestionTitle.textContent = 'Quiz Evaluation Result';
     
     let heading = passed 
-      ? '<h2 class="text-3xl font-black text-green-600 uppercase mb-2">🎉 INTEGRITAS TERVERIFIKASI</h2>' 
-      : '<h2 class="text-3xl font-black text-red-600 uppercase mb-2">❌ INTEGRITAS GAGAL</h2>';
+      ? '<h2 class="text-3xl font-black text-green-600 uppercase mb-2">🎉 INTEGRITY VERIFIED</h2>' 
+      : '<h2 class="text-3xl font-black text-red-600 uppercase mb-2">❌ INTEGRITY FAILED</h2>';
 
     let message = passed
-      ? 'Selamat! Anda menyelesaikan modul ini secara otentik.'
-      : 'Perhatian: Kami mendeteksi anomali integritas yang tidak lolos pembuktian suara.';
+      ? 'Congratulations! You completed this module authentically.'
+      : 'Attention: We detected an integrity anomaly that did not pass the voice verification.';
 
     quizOptionsList.innerHTML = `
       <div class="border-4 border-textMain p-8 bg-white shadow-brutal w-full text-left">
@@ -846,12 +858,12 @@ document.addEventListener('DOMContentLoaded', () => {
         </div>
 
         <div class="border-2 border-textMain p-4 rounded-lg bg-gray-50 text-xs font-mono text-gray-700 leading-relaxed mb-6">
-          <p class="font-bold text-textMain uppercase mb-1">Catatan Analisis Integritas:</p>
+          <p class="font-bold text-textMain uppercase mb-1">Integrity Analysis Notes:</p>
           <p>"${reason}"</p>
         </div>
 
         <button type="button" id="finishQuizBtn" class="w-full py-4 bg-brandOrange text-white border-2 border-textMain font-black uppercase shadow-brutal hover:bg-textMain transition text-center">
-          Selesai & Kembali Ke Dashboard
+          Finish & Return to Dashboard
         </button>
       </div>
     `;

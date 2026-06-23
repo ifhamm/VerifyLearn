@@ -92,7 +92,7 @@ def verify_keystroke(payload: KeystrokePayload):
         return {
             "verified": False,
             "confidence": 0.0,
-            "message": "Data ketikan terlalu sedikit untuk dianalisis (min. 5 tombol).",
+            "message": "Typing data too short to analyze (min. 5 keys).",
             "metrics": {
                 "wpm": 0,
                 "instant_ratio": 0,
@@ -148,24 +148,24 @@ def verify_keystroke(payload: KeystrokePayload):
     if instant_ratio > 0.25:
         verified = False
         confidence = 0.1
-        reasons.append("Terdeteksi copy-paste instan.")
+        reasons.append("Instant copy-paste detected.")
         
     # Deteksi Bot (Kecepatan terlalu tinggi)
     if wpm > 220:
         verified = False
         confidence = 0.15
-        reasons.append(f"Kecepatan ketikan tidak normal ({wpm:.1f} WPM).")
+        reasons.append(f"Abnormal typing speed ({wpm:.1f} WPM).")
     elif wpm < 8:
         confidence = 0.6
-        reasons.append(f"Kecepatan ketikan sangat lambat ({wpm:.1f} WPM).")
+        reasons.append(f"Extremely slow typing speed ({wpm:.1f} WPM).")
         
     # Deteksi Bot Konsisten Sempurna (Ketikan mesin dengan interval seragam)
     if len(deltas) >= 8 and std_delta < 4.0:
         verified = False
         confidence = 0.2
-        reasons.append("Ritme ketikan terlalu konsisten (kemungkinan bot peniru ketikan).")
+        reasons.append("Typing rhythm is too consistent (possible typing bot mimic).")
         
-    message = "Pola ketikan terverifikasi aman." if verified else "Terdeteksi anomali integritas: " + ", ".join(reasons)
+    message = "Typing pattern verified secure." if verified else "Integrity anomaly detected: " + ", ".join(reasons)
     
     return {
         "verified": verified,

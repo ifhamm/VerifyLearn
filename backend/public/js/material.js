@@ -13,6 +13,14 @@
 });
 
 document.addEventListener('DOMContentLoaded', async () => {
+  // Check login state
+  const sessionToken = localStorage.getItem('sessionToken');
+  if (!sessionToken) {
+    alert('Akses ditolak. Silakan login terlebih dahulu.');
+    window.location.replace('index.html');
+    return;
+  }
+
   // Parse Query Parameters
   const params = new URLSearchParams(window.location.search);
   const role = params.get('role') || 'backend';
@@ -46,7 +54,11 @@ document.addEventListener('DOMContentLoaded', async () => {
   if (!plan) {
     // If user opened page directly, fetch default path so it does not crash
     try {
-      const res = await fetch(`/api/v1/learning-path?role=${role}&duration=2`);
+      const res = await fetch(`/api/v1/learning-path?role=${role}&duration=2`, {
+        headers: {
+          'Authorization': 'Bearer ' + sessionToken
+        }
+      });
       const body = await res.json();
       plan = body.data;
       localStorage.setItem('learningPlan', JSON.stringify(plan));

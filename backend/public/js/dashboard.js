@@ -31,62 +31,226 @@ document.addEventListener('DOMContentLoaded', () => {
   const roadmapContainer = document.getElementById('roadmapContainer');
   const roadmapTitle = document.getElementById('roadmapTitle');
 
+  // Neo-Brutalist Auth Elements
+  const loginModal = document.getElementById('loginModal');
+  const closeLoginModalBtn = document.getElementById('closeLoginModalBtn');
+  const metaMaskLoginBtn = document.getElementById('metaMaskLoginBtn');
+  const mockLoginBtn = document.getElementById('mockLoginBtn');
+  const mockUsernameInput = document.getElementById('mockUsernameInput');
+  const dashboardLoginBtn = document.getElementById('dashboardLoginBtn');
+  const loginRequiredCard = document.getElementById('loginRequiredCard');
+
   // Initialize page state
   initPage();
 
-  // ── Wallet Connection ──
-  if (connectWalletBtn) {
-    // Check if already connected
-    const savedWallet = localStorage.getItem('walletAddress');
-    if (savedWallet) {
-      updateWalletUI(savedWallet);
-    }
+  // --- Modal Helpers ---
+  function showModal() {
+    if (loginModal) loginModal.classList.remove('hidden');
+  }
 
-    connectWalletBtn.addEventListener('click', async (e) => {
+  function hideModal() {
+    if (loginModal) loginModal.classList.add('hidden');
+  }
+
+  if (closeLoginModalBtn) {
+    closeLoginModalBtn.addEventListener('click', hideModal);
+  }
+
+  if (loginModal) {
+    loginModal.addEventListener('click', (e) => {
+      if (e.target === loginModal) hideModal();
+    });
+  }
+
+  if (dashboardLoginBtn) {
+    dashboardLoginBtn.addEventListener('click', (e) => {
       e.preventDefault();
-      if (localStorage.getItem('walletAddress')) {
-        // Disconnect
-        localStorage.removeItem('walletAddress');
-        connectWalletBtn.textContent = 'SIGN IN';
-        connectWalletBtn.classList.remove('bg-brandOrange');
-        connectWalletBtn.classList.add('bg-textMain');
-        alert('Wallet disconnected.');
+      showModal();
+    });
+  }
+
+  // ── Wallet / Auth Event Listeners ──
+  if (connectWalletBtn) {
+    connectWalletBtn.addEventListener('click', (e) => {
+      e.preventDefault();
+      if (localStorage.getItem('sessionToken')) {
+        if (confirm('Apakah Anda yakin ingin keluar (Sign Out)?')) {
+          logout();
+        }
         return;
       }
+      showModal();
+    });
+  }
 
+  // Real MetaMask Login
+  if (metaMaskLoginBtn) {
+    metaMaskLoginBtn.addEventListener('click', async () => {
       if (window.ethereum) {
         try {
+          metaMaskLoginBtn.disabled = true;
+          metaMaskLoginBtn.textContent = 'MENGHUBUNGKAN...';
+
           const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
           const address = accounts[0];
-          localStorage.setItem('walletAddress', address);
-          updateWalletUI(address);
+
+          const timestamp = Date.now();
+          const message = `Welcome to VerifyLearn! Please sign this message to verify your wallet ownership. Timestamp: ${timestamp}`;
+          
+          const signature = await window.ethereum.request({
+            method: 'personal_sign',
+            params: [message, address]
+          });
+
+          const response = await fetch('/api/v1/auth/login', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ address, signature, message, isMock: false })
+          });
+
+          const data = await response.json();
+
+          if (!response.ok) {
+            throw new Error(data.error || 'Verifikasi login gagal.');
+          }
+
+          localStorage.setItem('sessionToken', data.token);
+          localStorage.setItem('walletAddress', data.walletAddress);
+          localStorage.setItem('username', data.username);
+
+          hideModal();
+          alert('Berhasil masuk dengan wallet Web3!');
+          initPage();
+
         } catch (err) {
-          console.error('Wallet connection error:', err);
-          simulateWalletConnection();
+          console.error('MetaMask error in dashboard:', err);
+          alert('Gagal menghubungkan wallet: ' + err.message);
+        } finally {
+          metaMaskLoginBtn.disabled = false;
+          metaMaskLoginBtn.textContent = 'Hubungkan MetaMask';
         }
       } else {
-        simulateWalletConnection();
+        alert('MetaMask tidak terdeteksi. Silakan gunakan opsi Akun Simulasi.');
       }
     });
   }
 
-  function simulateWalletConnection() {
-    const mockAddress = '0x71C7656EC7ab88b098defB751B7401B5f6d8976F';
-    localStorage.setItem('walletAddress', mockAddress);
-    updateWalletUI(mockAddress);
-    alert('Web3 wallet extension tidak terdeteksi. Menggunakan akun Web3 simulasi: ' + mockAddress);
+  // Simulated Login
+  if (mockLoginBtn) {
+    mockLoginBtn.addEventListener('click', async () => {
+      const usernameVal = mockUsernameInput ? mockUsernameInput.value.trim() : '';
+      if (!usernameVal) {
+        alert('Silakan masukkan nama/username simulasi Anda.');
+        return;
+      }
+
+      try {
+        mockLoginBtn.disabled = true;
+        mockLoginBtn.textContent = 'MASUK...';
+
+        const mockAddress = '0x71C7656EC7ab88b098defB751B7401B5f6d8976F';
+        
+        const response = await fetch('/api/v1/auth/login', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            address: mockAddress,
+            signature: 'mock-signature',
+            username: usernameVal,
+            isMock: true
+          })
+        });
+
+        const data = await response.json();
+
+        if (!response.ok) {
+          throw new Error(data.error || 'Login simulasi gagal.');
+        }
+
+        localStorage.setItem('sessionToken', data.token);
+        localStorage.setItem('walletAddress', data.walletAddress);
+        localStorage.setItem('username', data.username);
+
+        hideModal();
+        alert(`Selamat datang, ${data.username}! Anda masuk menggunakan Akun Simulasi.`);
+        initPage();
+
+      } catch (err) {
+        console.error('Simulated login error:', err);
+        alert('Gagal login simulasi: ' + err.message);
+      } finally {
+        mockLoginBtn.disabled = false;
+        mockLoginBtn.textContent = 'Masuk dengan Akun Simulasi';
+      }
+    });
   }
 
-  function updateWalletUI(address) {
+  // Logout Function
+  async function logout() {
+    const token = localStorage.getItem('sessionToken');
+    if (token) {
+      try {
+        await fetch('/api/v1/auth/logout', {
+          method: 'POST',
+          headers: {
+            'Authorization': 'Bearer ' + token
+          }
+        });
+      } catch (err) {
+        console.error('Logout error:', err);
+      }
+    }
+
+    localStorage.removeItem('sessionToken');
+    localStorage.removeItem('walletAddress');
+    localStorage.removeItem('username');
+    localStorage.removeItem('learningPlan');
+    localStorage.removeItem('completedSlugs');
+    localStorage.removeItem('selectedLanguage');
+
+    alert('Anda telah keluar.');
+    initPage();
+  }
+
+  function updateWalletUI(name) {
     if (connectWalletBtn) {
-      connectWalletBtn.textContent = address.slice(0, 6) + '...' + address.slice(-4);
-      connectWalletBtn.classList.remove('bg-textMain');
-      connectWalletBtn.classList.add('bg-brandOrange');
+      if (!name) {
+        connectWalletBtn.textContent = 'SIGN IN';
+        connectWalletBtn.classList.remove('bg-brandOrange', 'text-white');
+        connectWalletBtn.classList.add('bg-white', 'text-textMain');
+        return;
+      }
+      const displayVal = name.startsWith('0x') && name.length > 12 
+        ? `${name.slice(0, 6)}...${name.slice(-4)}`
+        : name;
+
+      connectWalletBtn.textContent = displayVal.toUpperCase();
+      connectWalletBtn.classList.remove('bg-white', 'text-textMain');
+      connectWalletBtn.classList.add('bg-brandOrange', 'text-white');
     }
   }
 
   // ── Initialization & Dashboard Rendering ──
   function initPage() {
+    const sessionToken = localStorage.getItem('sessionToken');
+    
+    if (!sessionToken) {
+      // Show login required, hide the rest
+      if (loginRequiredCard) loginRequiredCard.classList.remove('hidden');
+      if (assessmentCard) assessmentCard.classList.add('hidden');
+      if (dashboardCard) dashboardCard.classList.add('hidden');
+      if (roadmapSection) roadmapSection.classList.add('hidden');
+      
+      updateWalletUI('');
+      return;
+    }
+
+    if (loginRequiredCard) loginRequiredCard.classList.add('hidden');
+
     const savedPlan = localStorage.getItem('learningPlan');
     let plan = null;
     
@@ -100,17 +264,21 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     
     if (plan) {
-      assessmentCard.classList.add('hidden');
-      dashboardCard.classList.remove('hidden');
-      roadmapSection.classList.remove('hidden');
+      if (assessmentCard) assessmentCard.classList.add('hidden');
+      if (dashboardCard) dashboardCard.classList.remove('hidden');
+      if (roadmapSection) roadmapSection.classList.remove('hidden');
       
       renderDashboard(plan);
       renderRoadmap(plan);
     } else {
-      assessmentCard.classList.remove('hidden');
-      dashboardCard.classList.add('hidden');
-      roadmapSection.classList.add('hidden');
+      if (assessmentCard) assessmentCard.classList.remove('hidden');
+      if (dashboardCard) dashboardCard.classList.add('hidden');
+      if (roadmapSection) roadmapSection.classList.add('hidden');
     }
+
+    const username = localStorage.getItem('username');
+    const walletAddress = localStorage.getItem('walletAddress');
+    updateWalletUI(username || walletAddress);
   }
 
   // Generate Learning Path trigger
@@ -129,7 +297,6 @@ document.addEventListener('DOMContentLoaded', () => {
         return;
       }
       
-      // Get duration in weeks from selection dropdown
       const durationKey = durationSelect ? durationSelect.value : '1m';
       const durationMap = {
         '1w': 1,
@@ -143,26 +310,28 @@ document.addEventListener('DOMContentLoaded', () => {
       generatePathBtn.disabled = true;
       generatePathBtn.textContent = 'GENERATING PATH...';
 
-      // Clear previous customization choices
       localStorage.removeItem('selectedLanguage');
 
       try {
-        const response = await fetch(`/api/v1/learning-path?role=${role}&level=${skill}&commitment=${commitment}&duration=${duration}`);
+        const token = localStorage.getItem('sessionToken');
+        const response = await fetch(`/api/v1/learning-path?role=${role}&level=${skill}&commitment=${commitment}&duration=${duration}`, {
+          headers: {
+            'Authorization': 'Bearer ' + token
+          }
+        });
         if (!response.ok) {
-          throw new Error('Failed to fetch learning path from API');
+          throw new Error('Failed to fetch learning path from API (Pastikan Anda sudah login)');
         }
         
         const body = await response.json();
         const plan = body.data;
 
-        // Save state
         localStorage.setItem('learningPlan', JSON.stringify(plan));
         localStorage.setItem('completedSlugs', JSON.stringify([]));
         if (!localStorage.getItem('integrityScore')) {
           localStorage.setItem('integrityScore', '100');
         }
 
-        // Render Page
         initPage();
       } catch (err) {
         console.error('Error generating path:', err);
@@ -245,7 +414,7 @@ document.addEventListener('DOMContentLoaded', () => {
       if (!isQuizDone && mod.items.length > 0) {
         activeModuleIndex = i;
         const romanNumerals = ['I', 'II', 'III', 'IV'];
-        activeTopicTitle = `Kuis Modul ${romanNumerals[i] || (i + 1)}`;
+        activeTopicTitle = `Module ${romanNumerals[i] || (i + 1)} Quiz`;
         const lastItem = mod.items[mod.items.length - 1];
         activeTopicSlug = lastItem.slug;
         isQuizLink = true;
@@ -287,13 +456,13 @@ document.addEventListener('DOMContentLoaded', () => {
         </div>
 
         <div class="border-2 border-textMain p-4 bg-white shadow-brutal-sm">
-          <p class="text-xs uppercase font-bold text-textMuted">Progress Modul ${activeModRoman}</p>
+          <p class="text-xs uppercase font-bold text-textMuted">Module ${activeModRoman} Progress</p>
           <p class="text-5xl font-black mt-1">${progressPercent}%</p>
         </div>
       </div>
 
       <div class="mt-8">
-        <p class="text-xs uppercase font-bold mb-2 text-textMuted">Active Topic (Modul ${activeModRoman})</p>
+        <p class="text-xs uppercase font-bold mb-2 text-textMuted">Active Topic (Module ${activeModRoman})</p>
         <div class="border-2 border-textMain p-4 font-black flex justify-between items-center bg-white shadow-brutal-sm">
           <span>${activeTopicTitle}</span>
           ${isStudyLink ? `<a href="materi.html?role=${plan.role}&slug=${activeTopicSlug}" class="px-4 py-1.5 bg-brandOrange text-white text-xs font-black uppercase border border-textMain shadow-brutal-sm hover:bg-brandViolet transition">Study →</a>` : ''}
@@ -422,8 +591,8 @@ document.addEventListener('DOMContentLoaded', () => {
             <span class="px-2 py-0.5 border text-[10px] font-black uppercase rounded bg-brandViolet text-white border-brandViolet">QUIZ</span>
             <span class="text-xs uppercase font-black text-brandViolet">Module verification</span>
           </div>
-          <div class="text-lg text-textMain font-black tracking-tight leading-snug group-hover:text-brandOrange transition">Quiz Modul ${romanNumerals[modIdx] || (modIdx + 1)}</div>
-          <p class="text-xs font-medium text-textMuted mt-2">Selesaikan kuis ini untuk memverifikasi pemahaman Anda tentang konsep modul ini.</p>
+          <div class="text-lg text-textMain font-black tracking-tight leading-snug group-hover:text-brandOrange transition">Module ${romanNumerals[modIdx] || (modIdx + 1)} Quiz</div>
+          <p class="text-xs font-medium text-textMuted mt-2">Complete this quiz to verify your understanding of this module's concepts.</p>
         `;
         materialsGrid.appendChild(quizCard);
       }
