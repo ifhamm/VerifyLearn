@@ -33,6 +33,7 @@ from dataclasses import dataclass, asdict
 from typing import List, Optional
 from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
+from bs4 import BeautifulSoup
 
 # BASE_DIR menunjuk ke python_ai/ (bukan python_ai/scripts/)
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -135,7 +136,7 @@ class SimpleHTMLTextExtractor(HTMLParser):
 
 
 def fetch_url_text(url: str, timeout: int = 8) -> str:
-    """Fetch URL dan ambil teks sederhana dari HTML."""
+    """Fetch URL dan ambil teks bersih dari HTML (tanpa JS/CSS)."""
     headers = {"User-Agent": "Mozilla/5.0 (compatible; VerifyLearnBot/1.0)"}
     req = Request(url, headers=headers)
     try:
@@ -148,18 +149,27 @@ def fetch_url_text(url: str, timeout: int = 8) -> str:
     except Exception:
         return ""
 
-    parser = SimpleHTMLTextExtractor()
-    parser.feed(raw_html)
-    text = parser.get_text()
-    text = re.sub(r"\n{3,}", "\n\n", text).strip()
-
-    # Filter out known JS variable blocks and inline script leftovers.
-    text = re.sub(r"window\.dataLayer\s*=\s*window\.dataLayer\s*\|\|\s*\[\];", "", text)
-    text = re.sub(r"gtag\([^\)]*\);", "", text)
-    text = re.sub(r"console\.warn\([^\)]*\);", "", text)
-    text = re.sub(r"try \{[^\}]*\}\s*catch \([^\)]*\) \{[^\}]*\}", "", text, flags=re.DOTALL)
+    # BERSIHKAN HTML DENGAN BEAUTIFULSOUP
+    soup = BeautifulSoup(raw_html, 'html.parser')
+    
+    # Hapus tag yang tidak diperlukan
+    for tag in soup(['script', 'style', 'noscript', 'nav', 'footer', 'header', 'aside', 'iframe', 'svg', 'form', 'button', 'input']):
+        tag.decompose()
+    
+    # Ambil text bersih
+    text = soup.get_text(separator='\n', strip=True)
+    
+    # Bersihkan sisa JS patterns
+    text = re.sub(r"window\.dataLayer\s*=\s*window\.dataLayer\s*\|\|\s*\[\];?", "", text)
+    text = re.sub(r"function\s+gtag\s*\(.*?\)\s*\{.*?\}", "", text, flags=re.DOTALL)
+    text = re.sub(r"gtag\s*\([^\)]*\);?", "", text)
+    text = re.sub(r"console\.warn\s*\([^\)]*\);?", "", text)
+    text = re.sub(r"try\s*\{.*?\}\s*catch\s*\(.*?\)\s*\{.*?\}", "", text, flags=re.DOTALL)
+    text = re.sub(r"document\.documentElement[\s\S]*?}", "", text)
+    text = re.sub(r"localStorage\.getItem[\s\S]*?}", "", text)
     text = re.sub(r"[\t ]{2,}", " ", text)
     text = re.sub(r"\n{3,}", "\n\n", text).strip()
+    
     return text
 
 
@@ -168,7 +178,18 @@ def summarize_url_text(text: str, max_chars: int = 1500) -> str:
     if not text:
         return ""
 
+    # BERSIHKAN SISA JS/HTML SEBELUM SUMMARIZE
     text = text.replace("\r", "\n")
+    # Hapus patterns JS yang sering lolos
+    text = re.sub(r"window\.dataLayer[\s\S]*?;", "", text)
+    text = re.sub(r"function\s+\w+\s*\(.*?\)\s*\{[\s\S]*?\}", "", text)
+    text = re.sub(r"try\s*\{[\s\S]*?\}\s*catch\s*\([\s\S]*?\)\s*\{[\s\S]*?\}", "", text)
+    text = re.sub(r"console\.\w+\s*\([^\)]*\);?", "", text)
+    text = re.sub(r"gtag\s*\([^\)]*\);?", "", text)
+    text = re.sub(r"document\.[\s\S]*?}", "", text)
+    text = re.sub(r"localStorage\.[\s\S]*?}", "", text)
+    text = re.sub(r"[\t ]{2,}", " ", text)
+    
     chunks = [chunk.strip() for chunk in text.split("\n\n") if chunk.strip()]
     summary_parts = []
     total = 0
@@ -179,7 +200,6 @@ def summarize_url_text(text: str, max_chars: int = 1500) -> str:
         total += len(chunk)
 
     return "\n\n".join(summary_parts).strip()
-
 
 def build_topic_hierarchy(nodes: list) -> dict:
     """
