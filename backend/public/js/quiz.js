@@ -16,8 +16,14 @@ document.addEventListener('DOMContentLoaded', () => {
   // Check login state
   const sessionToken = localStorage.getItem('sessionToken');
   if (!sessionToken) {
-    alert('Akses ditolak. Silakan login terlebih dahulu.');
-    window.location.replace('index.html');
+    Swal.fire({
+      title: 'Access Denied',
+      text: 'Please sign in first to access the quiz.',
+      icon: 'error',
+      confirmButtonColor: '#8a2be2'
+    }).then(() => {
+      window.location.replace('index.html');
+    });
     return;
   }
 
@@ -67,8 +73,14 @@ document.addEventListener('DOMContentLoaded', () => {
   // Final fallbacks for role and slug
   if (!role) role = 'backend';
   if (!slug) {
-    alert('Please select learning material first from the dashboard before accessing the quiz.');
-    window.location.href = 'myPath.html';
+    Swal.fire({
+      title: 'Select Material',
+      text: 'Please select learning material first from the dashboard before accessing the quiz.',
+      icon: 'info',
+      confirmButtonColor: '#8a2be2'
+    }).then(() => {
+      window.location.href = 'myPath.html';
+    });
     return;
   }
 
@@ -153,17 +165,11 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   function showValidation(msg) {
-    if (validationModal && validationModalText) {
-      validationModalText.textContent = msg;
-      validationModal.classList.remove('hidden');
-    } else {
-      alert(msg);
-    }
-  }
-
-  if (closeValidationBtn && validationModal) {
-    closeValidationBtn.addEventListener('click', () => {
-      validationModal.classList.add('hidden');
+    Swal.fire({
+      title: 'Action Required',
+      text: msg,
+      icon: 'warning',
+      confirmButtonColor: '#ff4500'
     });
   }
 
@@ -275,8 +281,14 @@ document.addEventListener('DOMContentLoaded', () => {
       if (timeLeftSeconds <= 0) {
         clearInterval(timerInterval);
         timeLeftSeconds = 0;
-        alert('Time is up! The quiz will be submitted automatically.');
-        submitQuiz();
+        Swal.fire({
+          title: 'Time is Up!',
+          text: 'Your time is up! The quiz will be submitted automatically.',
+          icon: 'warning',
+          confirmButtonColor: '#ff4500'
+        }).then(() => {
+          submitQuiz();
+        });
       }
 
       const mins = Math.floor(timeLeftSeconds / 60);
@@ -706,7 +718,12 @@ document.addEventListener('DOMContentLoaded', () => {
       }
 
       if (!finalTranscript) {
-        alert('Please write/speak your answer first!');
+        Swal.fire({
+          title: 'Answer Required',
+          text: 'Please write/speak your answer first!',
+          icon: 'info',
+          confirmButtonColor: '#8a2be2'
+        });
         return;
       }
 
@@ -729,7 +746,12 @@ document.addEventListener('DOMContentLoaded', () => {
         const body = await response.json();
         const voiceResult = body.data;
 
-        alert(voiceResult.feedback);
+        Swal.fire({
+          title: 'Voice Evaluation',
+          text: voiceResult.feedback,
+          icon: voiceResult.passed ? 'success' : 'error',
+          confirmButtonColor: voiceResult.passed ? '#ff4500' : '#8a2be2'
+        });
         voiceModal.classList.add('hidden');
 
         // Grade PG
@@ -753,7 +775,12 @@ document.addEventListener('DOMContentLoaded', () => {
         }
       } catch (err) {
         console.error('Voice verify error:', err);
-        alert('A network error occurred while evaluating voice.');
+        Swal.fire({
+          title: 'Network Error',
+          text: 'A network error occurred while evaluating voice.',
+          icon: 'error',
+          confirmButtonColor: '#8a2be2'
+        });
         voiceModal.classList.add('hidden');
         saveQuizFailed(0, 4, 'Voice verification bypassed / failed.');
       }
@@ -790,7 +817,39 @@ document.addEventListener('DOMContentLoaded', () => {
     score = Math.min(100, score + 4);
     localStorage.setItem('integrityScore', score.toString());
 
-    // 3. Render Output Hasil
+    // 3. Sync to DB
+    const token = localStorage.getItem('sessionToken');
+    fetch('/api/v1/user/sync', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer ' + token
+      },
+      body: JSON.stringify({
+        completedSlugs: completed,
+        integrityScore: score
+      })
+    }).catch(err => console.error('Error syncing progress:', err));
+
+    fetch('/api/v1/quiz/result', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer ' + token
+      },
+      body: JSON.stringify({
+        materialSlug: keyToSave,
+        quizType: moduleId ? 'module_quiz' : 'quiz',
+        score: (correct / (total || 1)) * 100,
+        totalQuestions: total,
+        correctAnswers: correct,
+        details: { questions, userAnswers, integrityMessage: integrityData.message },
+        keystrokeVerified: true,
+        keystrokeScore: null
+      })
+    }).catch(err => console.error('Error saving quiz result:', err));
+
+    // 4. Render Output Hasil
     renderResultView(true, correct, total, integrityData.message, score);
   }
 
@@ -822,6 +881,38 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     score = Math.max(0, score - 15);
     localStorage.setItem('integrityScore', score.toString());
+
+    // 3. Sync to DB
+    const token = localStorage.getItem('sessionToken');
+    fetch('/api/v1/user/sync', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer ' + token
+      },
+      body: JSON.stringify({
+        completedSlugs: completed,
+        integrityScore: score
+      })
+    }).catch(err => console.error('Error syncing progress:', err));
+
+    fetch('/api/v1/quiz/result', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer ' + token
+      },
+      body: JSON.stringify({
+        materialSlug: keyToSave,
+        quizType: moduleId ? 'module_quiz' : 'quiz',
+        score: (correct / (total || 1)) * 100,
+        totalQuestions: total,
+        correctAnswers: correct,
+        details: { questions, userAnswers, feedback },
+        keystrokeVerified: false,
+        keystrokeScore: null
+      })
+    }).catch(err => console.error('Error saving quiz result:', err));
 
     renderResultView(false, correct, total, feedback, score);
   }

@@ -31,7 +31,7 @@ exports.getLearningPath = async (req, res) => {
   } catch (error) {
     res.status(400).json({
       error: error.message,
-      help: 'Gunakan query params: ?role=backend&duration=4&level=beginner&commitment=2',
+      help: 'Use query parameters: ?role=backend&duration=4&level=beginner&commitment=2',
     });
   }
 };
@@ -53,7 +53,7 @@ exports.getMaterial = async (req, res) => {
     if (!material) {
       return res.status(404).json({
         error: 'Material not found',
-        help: 'Pastikan parameter slug benar atau gunakan endpoint tanpa slug untuk daftar materi',
+        help: 'Make sure the slug parameter is correct or use the endpoint without a slug for the material list',
       });
     }
 

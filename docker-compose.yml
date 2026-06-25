@@ -12,11 +12,27 @@ services:
       - PORT=3000
       - NODE_ENV=development
       - AI_SERVICE_URL=http://python_ai:8000
+      - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/verify_learn
+    depends_on:
+      - postgres
     volumes:
       - ./backend:/app
       - ./python_ai:/app/python_ai:ro
       - /app/node_modules
     command: npm run dev
+    restart: always
+
+  postgres:
+    image: postgres:15-alpine
+    container_name: verify-learn-db
+    ports:
+      - "5433:5432"
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_DB=verify_learn
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
     restart: always
 
   python_ai:
@@ -36,5 +52,8 @@ services:
     extra_hosts:
       - "host.docker.internal:host-gateway"
     restart: always
+
+volumes:
+  postgres_data:
 
 

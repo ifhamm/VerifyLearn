@@ -5,6 +5,7 @@ const integrityController = require('../controllers/integrityController');
 const aiController = require('../controllers/aiController');
 const authController = require('../controllers/authController');
 const walletAuth = require('../middlewares/walletAuth');
+const userController = require('../controllers/userController');
 
 // Status route
 router.get('/status', (req, res) => {
@@ -15,6 +16,11 @@ router.get('/status', (req, res) => {
 router.post('/auth/login', authController.login);
 router.post('/auth/logout', authController.logout);
 router.get('/auth/session', authController.checkSession);
+
+// User progress & DB Sync routes
+router.post('/user/sync', walletAuth, userController.syncProgress);
+router.post('/quiz/result', walletAuth, userController.saveQuizResult);
+
 
 // Learning routes
 router.get('/learning-path', walletAuth, learningController.getLearningPath);

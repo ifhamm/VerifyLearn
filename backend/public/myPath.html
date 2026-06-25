@@ -6,6 +6,7 @@
     <title>VerifyLearn | Prove Your Skills</title>
     <link rel="stylesheet" href="/styles/tailwind.css" />
     <link rel="stylesheet" href="/styles/custom.css" />
+    <script src="/vendor/sweetalert2/sweetalert2.all.min.js"></script>
   </head>
   <body
     class="bg-base text-textMain font-sans antialiased overflow-x-hidden selection:bg-brandOrange selection:text-white"
@@ -108,7 +109,7 @@
                 Login Required
               </h2>
               <p class="text-textMuted mb-8 font-bold">
-                Hubungkan Web3 wallet Anda atau gunakan Akun Simulasi untuk mulai mengakses dashboard pembelajaran.
+                Connect your Web3 wallet or use a Simulated Account to start accessing the learning dashboard.
               </p>
               <button
                 id="dashboardLoginBtn"
@@ -181,18 +182,18 @@
 
               <div class="mb-8">
                 <label class="block text-sm font-black uppercase mb-2">
-                  Berapa lama waktu yang ingin Anda alokasikan untuk menyelesaikan learning path ini?
+                  How much duration would you like to allocate to complete this learning path?
                 </label>
 
                 <select
                   id="durationSelect"
                   class="w-full border-2 border-textMain px-5 py-4 bg-white font-bold"
                 >
-                  <option value="1w">1 minggu</option>
-                  <option value="2w">2 minggu</option>
-                  <option value="1m" selected>1 bulan</option>
-                  <option value="3m">3 bulan</option>
-                  <option value="6m">6 bulan</option>
+                  <option value="1w">1 week</option>
+                  <option value="2w">2 weeks</option>
+                  <option value="1m" selected>1 month</option>
+                  <option value="3m">3 months</option>
+                  <option value="6m">6 months</option>
                 </select>
               </div>
 
@@ -254,7 +255,7 @@
             Learning Roadmap
           </h2>
           <p class="text-textMuted mt-4">
-            Ikuti alur pembelajaran Anda langkah demi langkah.
+            Follow your learning roadmap step-by-step.
           </p>
         </div>
 
@@ -276,7 +277,7 @@
         </div>
         
         <p class="text-sm text-textMuted mb-6 leading-relaxed font-bold">
-          Selamat datang di VerifyLearn! Platform kami menggunakan autentikasi Web3 berbasis Wallet. Silakan pilih metode masuk Anda di bawah ini.
+          Welcome to VerifyLearn! Our platform utilizes Web3 Wallet-based authentication. Please choose your sign-in method below.
         </p>
         
         <!-- Option 1: Web3 Wallet -->
@@ -288,25 +289,25 @@
               <path d="M29.5 15.5L18.5 25.5V17L25.5 18L29.5 15.5Z" fill="#E2761B" stroke="#09090B" stroke-width="1.5" stroke-linejoin="round"/>
               <path d="M13.5 25.5L16 29.5L18.5 25.5H13.5Z" fill="#E2761B" stroke="#09090B" stroke-width="1.5" stroke-linejoin="round"/>
             </svg>
-            Hubungkan MetaMask
+            Connect MetaMask
           </button>
         </div>
         
         <div class="relative flex py-2 items-center">
           <div class="flex-grow border-t-2 border-textMain"></div>
-          <span class="flex-shrink mx-4 text-xs font-black uppercase text-textMuted">atau</span>
+          <span class="flex-shrink mx-4 text-xs font-black uppercase text-textMuted">or</span>
           <div class="flex-grow border-t-2 border-textMain"></div>
         </div>
         
         <!-- Option 2: Mock Login / Simulation -->
         <div class="mt-4">
           <label for="mockUsernameInput" class="block text-xs font-black uppercase mb-2 text-textMain">
-            Simulasi Akun (Tanpa MetaMask)
+            Account Simulation (No MetaMask)
           </label>
-          <input type="text" id="mockUsernameInput" placeholder="Masukkan Username Anda..." 
+          <input type="text" id="mockUsernameInput" placeholder="Enter Your Username..." 
             class="w-full border-2 border-textMain px-4 py-3 bg-white font-bold text-sm mb-4 focus:outline-none focus:ring-2 focus:ring-brandViolet transition placeholder-gray-400" />
           <button id="mockLoginBtn" class="w-full py-3 bg-brandViolet text-white font-black uppercase border-2 border-textMain shadow-brutal-sm hover:bg-brandOrange transition">
-            Masuk dengan Akun Simulasi
+            Sign In with Simulated Account
           </button>
         </div>
       </div>

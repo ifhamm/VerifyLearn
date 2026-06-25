@@ -16,8 +16,14 @@ document.addEventListener('DOMContentLoaded', async () => {
   // Check login state
   const sessionToken = localStorage.getItem('sessionToken');
   if (!sessionToken) {
-    alert('Akses ditolak. Silakan login terlebih dahulu.');
-    window.location.replace('index.html');
+    Swal.fire({
+      title: 'Access Denied',
+      text: 'Please sign in first to access learning materials.',
+      icon: 'error',
+      confirmButtonColor: '#8a2be2'
+    }).then(() => {
+      window.location.replace('index.html');
+    });
     return;
   }
 
@@ -129,8 +135,14 @@ document.addEventListener('DOMContentLoaded', async () => {
   // Set up global selection helper for Pick a Language
   window.selectLanguage = (langSlug) => {
     localStorage.setItem('selectedLanguage', langSlug);
-    alert('Bahasa pemrograman berhasil dipilih: ' + langSlug.toUpperCase() + '. Kurikulum Anda telah disesuaikan!');
-    window.location.reload();
+    Swal.fire({
+      title: 'Language Selected',
+      text: 'Programming language successfully selected: ' + langSlug.toUpperCase() + '. Your curriculum has been adjusted!',
+      icon: 'success',
+      confirmButtonColor: '#ff4500'
+    }).then(() => {
+      window.location.reload();
+    });
   };
 
   // Group filtered list into 4 modules
@@ -278,7 +290,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       }
     }
 
-    function markCurrentCompleted() {
+    async function markCurrentCompleted() {
       if (!currentSlug) return;
       let completed = [];
       const saved = localStorage.getItem('completedSlugs');
@@ -293,6 +305,21 @@ document.addEventListener('DOMContentLoaded', async () => {
         completed.push(currentSlug);
         localStorage.setItem('completedSlugs', JSON.stringify(completed));
       }
+
+      // Sync to DB
+      const token = localStorage.getItem('sessionToken');
+      const score = localStorage.getItem('integrityScore') || '100';
+      await fetch('/api/v1/user/sync', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer ' + token
+        },
+        body: JSON.stringify({
+          completedSlugs: completed,
+          integrityScore: parseInt(score, 10)
+        })
+      }).catch(err => console.error('Error syncing progress to DB:', err));
     }
 
     // Next Button

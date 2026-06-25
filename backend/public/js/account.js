@@ -33,9 +33,20 @@ document.addEventListener('DOMContentLoaded', () => {
       
       // If already logged in, click triggers sign out confirmation
       if (localStorage.getItem('sessionToken')) {
-        if (confirm('Apakah Anda yakin ingin keluar (Sign Out)?')) {
-          logout();
-        }
+        Swal.fire({
+          title: 'Sign Out?',
+          text: 'Are you sure you want to sign out?',
+          icon: 'warning',
+          showCancelButton: true,
+          confirmButtonColor: '#ff4500',
+          cancelButtonColor: '#8a2be2',
+          confirmButtonText: 'Yes, Sign Out!',
+          cancelButtonText: 'Cancel'
+        }).then((result) => {
+          if (result.isConfirmed) {
+            logout();
+          }
+        });
         return;
       }
       
@@ -62,7 +73,7 @@ document.addEventListener('DOMContentLoaded', () => {
       if (window.ethereum) {
         try {
           metaMaskLoginBtn.disabled = true;
-          metaMaskLoginBtn.textContent = 'MENGHUBUNGKAN...';
+          metaMaskLoginBtn.textContent = 'CONNECTING...';
 
           // Request account
           const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
@@ -94,27 +105,51 @@ document.addEventListener('DOMContentLoaded', () => {
           const data = await response.json();
 
           if (!response.ok) {
-            throw new Error(data.error || 'Verifikasi login gagal di server.');
+            throw new Error(data.error || 'Login verification failed on the server.');
           }
 
           // Save session
           localStorage.setItem('sessionToken', data.token);
           localStorage.setItem('walletAddress', data.walletAddress);
           localStorage.setItem('username', data.username);
+          if (data.integrityScore !== undefined) {
+            localStorage.setItem('integrityScore', data.integrityScore);
+          }
+          if (data.learningPlan) {
+            localStorage.setItem('learningPlan', JSON.stringify(data.learningPlan));
+          }
+          if (data.completedSlugs) {
+            localStorage.setItem('completedSlugs', JSON.stringify(data.completedSlugs));
+          }
 
           updateWalletUI(data.username);
           hideModal();
-          alert('Berhasil masuk menggunakan wallet Web3!');
+          Swal.fire({
+            title: 'Welcome!',
+            text: 'Authenticated successfully with Web3 Wallet!',
+            icon: 'success',
+            confirmButtonColor: '#ff4500'
+          });
 
         } catch (err) {
           console.error('MetaMask connection or signature error:', err);
-          alert('Gagal menghubungkan wallet: ' + err.message);
+          Swal.fire({
+            title: 'Authentication Failed',
+            text: 'Failed to connect wallet: ' + err.message,
+            icon: 'error',
+            confirmButtonColor: '#8a2be2'
+          });
         } finally {
           metaMaskLoginBtn.disabled = false;
-          metaMaskLoginBtn.textContent = 'Hubungkan MetaMask';
+          metaMaskLoginBtn.textContent = 'Connect MetaMask';
         }
       } else {
-        alert('MetaMask tidak terdeteksi. Silakan gunakan opsi Akun Simulasi di bawah untuk mencoba aplikasi.');
+        Swal.fire({
+          title: 'MetaMask Not Detected',
+          text: 'MetaMask is not detected. Please use the Account Simulation option below to try the app.',
+          icon: 'warning',
+          confirmButtonColor: '#8a2be2'
+        });
       }
     });
   }
@@ -124,13 +159,18 @@ document.addEventListener('DOMContentLoaded', () => {
     mockLoginBtn.addEventListener('click', async () => {
       const usernameVal = mockUsernameInput ? mockUsernameInput.value.trim() : '';
       if (!usernameVal) {
-        alert('Silakan masukkan nama/username simulasi Anda terlebih dahulu.');
+        Swal.fire({
+          title: 'Required Field',
+          text: 'Please enter your simulated username first.',
+          icon: 'info',
+          confirmButtonColor: '#8a2be2'
+        });
         return;
       }
 
       try {
         mockLoginBtn.disabled = true;
-        mockLoginBtn.textContent = 'MASUK...';
+        mockLoginBtn.textContent = 'SIGNING IN...';
 
         const mockAddress = '0x71C7656EC7ab88b098defB751B7401B5f6d8976F';
         
@@ -151,24 +191,43 @@ document.addEventListener('DOMContentLoaded', () => {
         const data = await response.json();
 
         if (!response.ok) {
-          throw new Error(data.error || 'Login simulasi gagal.');
+          throw new Error(data.error || 'Simulated login failed.');
         }
 
         // Save session
         localStorage.setItem('sessionToken', data.token);
         localStorage.setItem('walletAddress', data.walletAddress);
         localStorage.setItem('username', data.username);
+        if (data.integrityScore !== undefined) {
+          localStorage.setItem('integrityScore', data.integrityScore);
+        }
+        if (data.learningPlan) {
+          localStorage.setItem('learningPlan', JSON.stringify(data.learningPlan));
+        }
+        if (data.completedSlugs) {
+          localStorage.setItem('completedSlugs', JSON.stringify(data.completedSlugs));
+        }
 
         updateWalletUI(data.username);
         hideModal();
-        alert(`Selamat datang, ${data.username}! Anda masuk menggunakan Akun Simulasi.`);
+        Swal.fire({
+          title: 'Welcome!',
+          text: `Welcome, ${data.username}! You are logged in with a Simulated Account.`,
+          icon: 'success',
+          confirmButtonColor: '#ff4500'
+        });
 
       } catch (err) {
         console.error('Mock login error:', err);
-        alert('Gagal login simulasi: ' + err.message);
+        Swal.fire({
+          title: 'Login Failed',
+          text: 'Simulated login failed: ' + err.message,
+          icon: 'error',
+          confirmButtonColor: '#8a2be2'
+        });
       } finally {
         mockLoginBtn.disabled = false;
-        mockLoginBtn.textContent = 'Masuk dengan Akun Simulasi';
+        mockLoginBtn.textContent = 'Sign In with Simulated Account';
       }
     });
   }
@@ -179,8 +238,14 @@ document.addEventListener('DOMContentLoaded', () => {
       const token = localStorage.getItem('sessionToken');
       if (!token) {
         e.preventDefault();
-        alert('Silakan masuk (Sign In) terlebih dahulu menggunakan wallet Web3 atau Akun Simulasi untuk mulai belajar.');
-        showModal();
+        Swal.fire({
+          title: 'Sign In Required',
+          text: 'Please sign in first using your Web3 wallet or a Simulated Account to start learning.',
+          icon: 'warning',
+          confirmButtonColor: '#8a2be2'
+        }).then(() => {
+          showModal();
+        });
       }
     });
   }
@@ -212,7 +277,12 @@ document.addEventListener('DOMContentLoaded', () => {
       connectWalletBtn.classList.remove('bg-brandOrange');
       connectWalletBtn.classList.add('bg-white', 'text-textMain');
     }
-    alert('Anda telah keluar (Signed Out).');
+    Swal.fire({
+      title: 'Signed Out',
+      text: 'You have been signed out successfully.',
+      icon: 'success',
+      confirmButtonColor: '#ff4500'
+    });
   }
 
   // --- UI Updates ---

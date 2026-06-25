@@ -5,11 +5,11 @@ const { findMaterial } = require('../services/learningPathService');
 const resolveMaterial = (role, slug, material) => {
   if (material) return material;
   if (!role || !slug) {
-    throw new Error('Harus menyertakan objek material atau parameter (role dan slug).');
+    throw new Error('Must include material object or parameters (role and slug).');
   }
   const found = findMaterial(role, slug);
   if (!found) {
-    throw new Error(`Material tidak ditemukan untuk role: ${role}, slug: ${slug}`);
+    throw new Error(`Material not found for role: ${role}, slug: ${slug}`);
   }
   // Convert JSONL structure to the structure expected by python_ai server
   return {
@@ -35,7 +35,7 @@ exports.generateQuiz = async (req, res) => {
       resolvedMaterial = {
         id: `module-quiz`,
         slug: slug || moduleMaterials[0].slug,
-        title: `Kuis Modul (${titles})`,
+        title: `Module Quiz (${titles})`,
         role: role || 'backend',
         topic_type: 'module_quiz',
         parent_topic: '',
@@ -80,7 +80,7 @@ exports.generateVoiceChallenge = async (req, res) => {
     const reason = triggerReason || trigger_reason;
 
     if (!code || !reason) {
-      return res.status(400).json({ error: 'Harus menyertakan parameter code/text user dan alasan trigger (triggerReason).' });
+      return res.status(400).json({ error: 'Must include user code/text parameter and trigger reason (triggerReason).' });
     }
 
     let resolvedMaterial;
@@ -118,7 +118,7 @@ exports.verifyVoice = async (req, res) => {
   try {
     const { transcript, expectedKeywords } = req.body;
     if (!transcript || !expectedKeywords || !Array.isArray(expectedKeywords)) {
-      return res.status(400).json({ error: 'Harus menyertakan transcript dan expectedKeywords (array).' });
+      return res.status(400).json({ error: 'Must include transcript and expectedKeywords (array).' });
     }
 
     const data = await aiService.verifyVoice(transcript, expectedKeywords);

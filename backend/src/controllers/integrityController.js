@@ -4,7 +4,7 @@ exports.verifyKeystroke = async (req, res) => {
   try {
     const keystrokes = req.body.keystrokes || req.body.keystrokePattern;
     if (!keystrokes || !Array.isArray(keystrokes)) {
-      return res.status(400).json({ error: 'Format keystrokes tidak valid atau kosong.' });
+      return res.status(400).json({ error: 'Invalid or empty keystroke format.' });
     }
 
     const result = await aiService.analyzeKeystrokes(keystrokes);

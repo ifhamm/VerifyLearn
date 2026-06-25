@@ -74,9 +74,20 @@ document.addEventListener('DOMContentLoaded', () => {
     connectWalletBtn.addEventListener('click', (e) => {
       e.preventDefault();
       if (localStorage.getItem('sessionToken')) {
-        if (confirm('Apakah Anda yakin ingin keluar (Sign Out)?')) {
-          logout();
-        }
+        Swal.fire({
+          title: 'Sign Out?',
+          text: 'Are you sure you want to sign out?',
+          icon: 'warning',
+          showCancelButton: true,
+          confirmButtonColor: '#ff4500',
+          cancelButtonColor: '#8a2be2',
+          confirmButtonText: 'Yes, Sign Out!',
+          cancelButtonText: 'Cancel'
+        }).then((result) => {
+          if (result.isConfirmed) {
+            logout();
+          }
+        });
         return;
       }
       showModal();
@@ -89,7 +100,7 @@ document.addEventListener('DOMContentLoaded', () => {
       if (window.ethereum) {
         try {
           metaMaskLoginBtn.disabled = true;
-          metaMaskLoginBtn.textContent = 'MENGHUBUNGKAN...';
+          metaMaskLoginBtn.textContent = 'CONNECTING...';
 
           const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
           const address = accounts[0];
@@ -113,26 +124,50 @@ document.addEventListener('DOMContentLoaded', () => {
           const data = await response.json();
 
           if (!response.ok) {
-            throw new Error(data.error || 'Verifikasi login gagal.');
+            throw new Error(data.error || 'Login verification failed.');
           }
 
           localStorage.setItem('sessionToken', data.token);
           localStorage.setItem('walletAddress', data.walletAddress);
           localStorage.setItem('username', data.username);
+          if (data.integrityScore !== undefined) {
+            localStorage.setItem('integrityScore', data.integrityScore);
+          }
+          if (data.learningPlan) {
+            localStorage.setItem('learningPlan', JSON.stringify(data.learningPlan));
+          }
+          if (data.completedSlugs) {
+            localStorage.setItem('completedSlugs', JSON.stringify(data.completedSlugs));
+          }
 
           hideModal();
-          alert('Berhasil masuk dengan wallet Web3!');
+          Swal.fire({
+            title: 'Welcome!',
+            text: 'Authenticated successfully with Web3 Wallet!',
+            icon: 'success',
+            confirmButtonColor: '#ff4500'
+          });
           initPage();
 
         } catch (err) {
           console.error('MetaMask error in dashboard:', err);
-          alert('Gagal menghubungkan wallet: ' + err.message);
+          Swal.fire({
+            title: 'Authentication Failed',
+            text: 'Failed to connect wallet: ' + err.message,
+            icon: 'error',
+            confirmButtonColor: '#8a2be2'
+          });
         } finally {
           metaMaskLoginBtn.disabled = false;
-          metaMaskLoginBtn.textContent = 'Hubungkan MetaMask';
+          metaMaskLoginBtn.textContent = 'Connect MetaMask';
         }
       } else {
-        alert('MetaMask tidak terdeteksi. Silakan gunakan opsi Akun Simulasi.');
+        Swal.fire({
+          title: 'MetaMask Not Detected',
+          text: 'MetaMask is not detected. Please use the Account Simulation option.',
+          icon: 'warning',
+          confirmButtonColor: '#8a2be2'
+        });
       }
     });
   }
@@ -142,7 +177,12 @@ document.addEventListener('DOMContentLoaded', () => {
     mockLoginBtn.addEventListener('click', async () => {
       const usernameVal = mockUsernameInput ? mockUsernameInput.value.trim() : '';
       if (!usernameVal) {
-        alert('Silakan masukkan nama/username simulasi Anda.');
+        Swal.fire({
+          title: 'Required Field',
+          text: 'Please enter your simulated username.',
+          icon: 'info',
+          confirmButtonColor: '#8a2be2'
+        });
         return;
       }
 
@@ -168,23 +208,42 @@ document.addEventListener('DOMContentLoaded', () => {
         const data = await response.json();
 
         if (!response.ok) {
-          throw new Error(data.error || 'Login simulasi gagal.');
+          throw new Error(data.error || 'Simulated login failed.');
         }
 
         localStorage.setItem('sessionToken', data.token);
         localStorage.setItem('walletAddress', data.walletAddress);
         localStorage.setItem('username', data.username);
+        if (data.integrityScore !== undefined) {
+          localStorage.setItem('integrityScore', data.integrityScore);
+        }
+        if (data.learningPlan) {
+          localStorage.setItem('learningPlan', JSON.stringify(data.learningPlan));
+        }
+        if (data.completedSlugs) {
+          localStorage.setItem('completedSlugs', JSON.stringify(data.completedSlugs));
+        }
 
         hideModal();
-        alert(`Selamat datang, ${data.username}! Anda masuk menggunakan Akun Simulasi.`);
+        Swal.fire({
+          title: 'Welcome!',
+          text: `Welcome, ${data.username}! You are logged in with a Simulated Account.`,
+          icon: 'success',
+          confirmButtonColor: '#ff4500'
+        });
         initPage();
 
       } catch (err) {
         console.error('Simulated login error:', err);
-        alert('Gagal login simulasi: ' + err.message);
+        Swal.fire({
+          title: 'Login Failed',
+          text: 'Simulated login failed: ' + err.message,
+          icon: 'error',
+          confirmButtonColor: '#8a2be2'
+        });
       } finally {
         mockLoginBtn.disabled = false;
-        mockLoginBtn.textContent = 'Masuk dengan Akun Simulasi';
+        mockLoginBtn.textContent = 'Sign In with Simulated Account';
       }
     });
   }
@@ -212,7 +271,12 @@ document.addEventListener('DOMContentLoaded', () => {
     localStorage.removeItem('completedSlugs');
     localStorage.removeItem('selectedLanguage');
 
-    alert('Anda telah keluar.');
+    Swal.fire({
+      title: 'Signed Out',
+      text: 'You have been signed out successfully.',
+      icon: 'success',
+      confirmButtonColor: '#ff4500'
+    });
     initPage();
   }
 
@@ -293,7 +357,12 @@ document.addEventListener('DOMContentLoaded', () => {
       
       const commitment = parseFloat(commitmentVal);
       if (isNaN(commitment) || commitment <= 0 || commitment > 24) {
-        alert('Please enter a valid daily hours commitment (between 1 and 24 hours per day).');
+        Swal.fire({
+          title: 'Invalid Commitment',
+          text: 'Please enter a valid daily hours commitment (between 1 and 24 hours per day).',
+          icon: 'warning',
+          confirmButtonColor: '#8a2be2'
+        });
         return;
       }
       
@@ -332,10 +401,29 @@ document.addEventListener('DOMContentLoaded', () => {
           localStorage.setItem('integrityScore', '100');
         }
 
+        // Sync generated path to DB
+        await fetch('/api/v1/user/sync', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer ' + token
+          },
+          body: JSON.stringify({
+            learningPlan: plan,
+            completedSlugs: [],
+            integrityScore: 100
+          })
+        }).catch(err => console.error('Error syncing path to DB:', err));
+
         initPage();
       } catch (err) {
         console.error('Error generating path:', err);
-        alert('Failed to generate learning path: ' + err.message);
+        Swal.fire({
+          title: 'Generation Failed',
+          text: 'Failed to generate learning path: ' + err.message,
+          icon: 'error',
+          confirmButtonColor: '#8a2be2'
+        });
       } finally {
         generatePathBtn.disabled = false;
         generatePathBtn.textContent = 'GENERATE LEARNING PATH';
@@ -476,13 +564,36 @@ document.addEventListener('DOMContentLoaded', () => {
     `;
 
     // Bind reset
-    document.getElementById('resetPathBtn').addEventListener('click', () => {
-      if (confirm('Are you sure you want to reset your learning path? All progress will be lost.')) {
-        localStorage.removeItem('learningPlan');
-        localStorage.removeItem('completedSlugs');
-        localStorage.removeItem('selectedLanguage');
-        initPage();
-      }
+    document.getElementById('resetPathBtn').addEventListener('click', async () => {
+      Swal.fire({
+        title: 'Reset Learning Path?',
+        text: 'Are you sure you want to reset your learning path? All progress will be lost.',
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#ff4500',
+        cancelButtonColor: '#8a2be2',
+        confirmButtonText: 'Yes, reset it!',
+        cancelButtonText: 'Cancel'
+      }).then(async (result) => {
+        if (result.isConfirmed) {
+          const token = localStorage.getItem('sessionToken');
+          localStorage.removeItem('learningPlan');
+          localStorage.removeItem('completedSlugs');
+          localStorage.removeItem('selectedLanguage');
+          
+          // Sync reset to DB
+          await fetch('/api/v1/user/sync', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': 'Bearer ' + token
+            },
+            body: JSON.stringify({ resetProgress: true, integrityScore: 100 })
+          }).catch(err => console.error('Error resetting path on DB:', err));
+          
+          initPage();
+        }
+      });
     });
   }
 

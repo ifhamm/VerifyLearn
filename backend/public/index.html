@@ -7,6 +7,7 @@
   <title>VerifyLearn | Prove Your Skills</title>
   <link rel="stylesheet" href="/styles/tailwind.css">
   <link rel="stylesheet" href="/styles/custom.css">
+  <script src="/vendor/sweetalert2/sweetalert2.all.min.js"></script>
 </head>
 
 <body
@@ -213,7 +214,7 @@
       </div>
       
       <p class="text-sm text-textMuted mb-6 leading-relaxed font-bold">
-        Selamat datang di VerifyLearn! Platform kami menggunakan autentikasi Web3 berbasis Wallet. Silakan pilih metode masuk Anda di bawah ini.
+        Welcome to VerifyLearn! Our platform utilizes Web3 Wallet-based authentication. Please choose your sign-in method below.
       </p>
       
       <!-- Option 1: Web3 Wallet -->
@@ -225,25 +226,25 @@
             <path d="M29.5 15.5L18.5 25.5V17L25.5 18L29.5 15.5Z" fill="#E2761B" stroke="#09090B" stroke-width="1.5" stroke-linejoin="round"/>
             <path d="M13.5 25.5L16 29.5L18.5 25.5H13.5Z" fill="#E2761B" stroke="#09090B" stroke-width="1.5" stroke-linejoin="round"/>
           </svg>
-          Hubungkan MetaMask
+          Connect MetaMask
         </button>
       </div>
       
       <div class="relative flex py-2 items-center">
         <div class="flex-grow border-t-2 border-textMain"></div>
-        <span class="flex-shrink mx-4 text-xs font-black uppercase text-textMuted">atau</span>
+        <span class="flex-shrink mx-4 text-xs font-black uppercase text-textMuted">or</span>
         <div class="flex-grow border-t-2 border-textMain"></div>
       </div>
       
       <!-- Option 2: Mock Login / Simulation -->
       <div class="mt-4">
         <label for="mockUsernameInput" class="block text-xs font-black uppercase mb-2 text-textMain">
-          Simulasi Akun (Tanpa MetaMask)
+          Account Simulation (No MetaMask)
         </label>
-        <input type="text" id="mockUsernameInput" placeholder="Masukkan Username Anda..." 
+        <input type="text" id="mockUsernameInput" placeholder="Enter Your Username..." 
           class="w-full border-2 border-textMain px-4 py-3 bg-white font-bold text-sm mb-4 focus:outline-none focus:ring-2 focus:ring-brandViolet transition placeholder-gray-400" />
         <button id="mockLoginBtn" class="w-full py-3 bg-brandViolet text-white font-black uppercase border-2 border-textMain shadow-brutal-sm hover:bg-brandOrange transition">
-          Masuk dengan Akun Simulasi
+          Sign In with Simulated Account
         </button>
       </div>
     </div>
