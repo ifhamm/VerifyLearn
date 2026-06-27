@@ -22,7 +22,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const assessmentCard = document.getElementById('assessmentCard');
   const dashboardCard = document.getElementById('dashboardCard');
   const generatePathBtn = document.getElementById('generatePathBtn');
-  
+
   const skillSelect = document.getElementById('skillSelect');
   const goalSelect = document.getElementById('goalSelect');
   const commitmentInput = document.getElementById('commitmentInput');
@@ -75,14 +75,22 @@ document.addEventListener('DOMContentLoaded', () => {
       e.preventDefault();
       if (localStorage.getItem('sessionToken')) {
         Swal.fire({
-          title: 'Sign Out?',
+          title: 'SIGN OUT?',
           text: 'Are you sure you want to sign out?',
-          icon: 'warning',
           showCancelButton: true,
-          confirmButtonColor: '#ff4500',
-          cancelButtonColor: '#8a2be2',
-          confirmButtonText: 'Yes, Sign Out!',
-          cancelButtonText: 'Cancel'
+          confirmButtonText: 'YES, SIGN OUT!',
+          cancelButtonText: 'CANCEL',
+          buttonsStyling: false,
+          customClass: {
+            popup: 'bg-white border-4 border-textMain shadow-brutal rounded-none p-6 md:p-8',
+            title: 'text-2xl md:text-3xl font-black text-brandOrange uppercase tracking-tighter flex items-center justify-center gap-3',
+            htmlContainer: 'text-base md:text-lg text-textMuted font-bold mt-4 mb-8',
+            actions: 'w-full flex gap-4 justify-center',
+            // Tombol konfirmasi warna oranye
+            confirmButton: 'flex-1 py-3 bg-brandOrange text-white font-black text-sm md:text-base uppercase tracking-wider border-4 border-textMain shadow-[4px_4px_0px_#09090b] hover:bg-brandOrange/90 hover:translate-y-[2px] hover:translate-x-[2px] hover:shadow-[2px_2px_0px_#09090b] transition-all',
+            // Tombol batal warna ungu
+            cancelButton: 'flex-1 py-3 bg-brandViolet text-white font-black text-sm md:text-base uppercase tracking-wider border-4 border-textMain shadow-[4px_4px_0px_#09090b] hover:bg-brandViolet/90 hover:translate-y-[2px] hover:translate-x-[2px] hover:shadow-[2px_2px_0px_#09090b] transition-all'
+          }
         }).then((result) => {
           if (result.isConfirmed) {
             logout();
@@ -107,7 +115,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
           const timestamp = Date.now();
           const message = `Welcome to VerifyLearn! Please sign this message to verify your wallet ownership. Timestamp: ${timestamp}`;
-          
+
           const signature = await window.ethereum.request({
             method: 'personal_sign',
             params: [message, address]
@@ -142,20 +150,34 @@ document.addEventListener('DOMContentLoaded', () => {
 
           hideModal();
           Swal.fire({
-            title: 'Welcome!',
+            title: 'WELCOME!',
             text: 'Authenticated successfully with Web3 Wallet!',
-            icon: 'success',
-            confirmButtonColor: '#ff4500'
+            confirmButtonText: 'CONTINUE',
+            buttonsStyling: false,
+            customClass: {
+              popup: 'bg-white border-4 border-textMain shadow-brutal rounded-none p-6 md:p-8',
+              title: 'text-2xl md:text-3xl font-black text-green-600 uppercase tracking-tighter flex items-center justify-center gap-3',
+              htmlContainer: 'text-base md:text-lg text-textMuted font-bold mt-4 mb-8',
+              actions: 'w-full flex justify-center',
+              confirmButton: 'w-full md:w-auto md:px-12 py-3 bg-brandOrange text-white font-black text-lg uppercase tracking-wider border-4 border-textMain shadow-[4px_4px_0px_#09090b] hover:bg-brandOrange/90 hover:translate-y-[2px] hover:translate-x-[2px] hover:shadow-[2px_2px_0px_#09090b] transition-all'
+            }
           });
           initPage();
 
         } catch (err) {
           console.error('MetaMask error in dashboard:', err);
           Swal.fire({
-            title: 'Authentication Failed',
+            title: 'AUTH FAILED',
             text: 'Failed to connect wallet: ' + err.message,
-            icon: 'error',
-            confirmButtonColor: '#8a2be2'
+            confirmButtonText: 'TRY AGAIN',
+            buttonsStyling: false,
+            customClass: {
+              popup: 'bg-white border-4 border-textMain shadow-brutal rounded-none p-6 md:p-8',
+              title: 'text-2xl md:text-3xl font-black text-red-600 uppercase tracking-tighter flex items-center justify-center gap-3',
+              htmlContainer: 'text-base md:text-lg text-textMuted font-bold mt-4 mb-8',
+              actions: 'w-full flex justify-center',
+              confirmButton: 'w-full md:w-auto md:px-12 py-3 bg-brandViolet text-white font-black text-lg uppercase tracking-wider border-4 border-textMain shadow-[4px_4px_0px_#09090b] hover:bg-brandViolet/90 hover:translate-y-[2px] hover:translate-x-[2px] hover:shadow-[2px_2px_0px_#09090b] transition-all'
+            }
           });
         } finally {
           metaMaskLoginBtn.disabled = false;
@@ -163,10 +185,17 @@ document.addEventListener('DOMContentLoaded', () => {
         }
       } else {
         Swal.fire({
-          title: 'MetaMask Not Detected',
+          title: 'NO METAMASK',
           text: 'MetaMask is not detected. Please use the Account Simulation option.',
-          icon: 'warning',
-          confirmButtonColor: '#8a2be2'
+          confirmButtonText: 'UNDERSTOOD',
+          buttonsStyling: false,
+          customClass: {
+            popup: 'bg-white border-4 border-textMain shadow-brutal rounded-none p-6 md:p-8',
+            title: 'text-2xl md:text-3xl font-black text-brandOrange uppercase tracking-tighter flex items-center justify-center gap-3',
+            htmlContainer: 'text-base md:text-lg text-textMuted font-bold mt-4 mb-8',
+            actions: 'w-full flex justify-center',
+            confirmButton: 'w-full md:w-auto md:px-12 py-3 bg-brandViolet text-white font-black text-lg uppercase tracking-wider border-4 border-textMain shadow-[4px_4px_0px_#09090b] hover:bg-brandViolet/90 hover:translate-y-[2px] hover:translate-x-[2px] hover:shadow-[2px_2px_0px_#09090b] transition-all'
+          }
         });
       }
     });
@@ -178,10 +207,17 @@ document.addEventListener('DOMContentLoaded', () => {
       const usernameVal = mockUsernameInput ? mockUsernameInput.value.trim() : '';
       if (!usernameVal) {
         Swal.fire({
-          title: 'Required Field',
-          text: 'Please enter your simulated username.',
-          icon: 'info',
-          confirmButtonColor: '#8a2be2'
+          title: 'REQUIRED FIELD',
+          text: 'Please enter your simulated username first.',
+          confirmButtonText: 'OK',
+          buttonsStyling: false,
+          customClass: {
+            popup: 'bg-white border-4 border-textMain shadow-brutal rounded-none p-6 md:p-8',
+            title: 'text-2xl md:text-3xl font-black text-brandOrange uppercase tracking-tighter flex items-center justify-center gap-3',
+            htmlContainer: 'text-base md:text-lg text-textMuted font-bold mt-4 mb-8',
+            actions: 'w-full flex justify-center',
+            confirmButton: 'w-full md:w-auto md:px-12 py-3 bg-brandViolet text-white font-black text-lg uppercase tracking-wider border-4 border-textMain shadow-[4px_4px_0px_#09090b] hover:bg-brandViolet/90 hover:translate-y-[2px] hover:translate-x-[2px] hover:shadow-[2px_2px_0px_#09090b] transition-all'
+          }
         });
         return;
       }
@@ -191,7 +227,7 @@ document.addEventListener('DOMContentLoaded', () => {
         mockLoginBtn.textContent = 'MASUK...';
 
         const mockAddress = '0x71C7656EC7ab88b098defB751B7401B5f6d8976F';
-        
+
         const response = await fetch('/api/v1/auth/login', {
           method: 'POST',
           headers: {
@@ -226,20 +262,35 @@ document.addEventListener('DOMContentLoaded', () => {
 
         hideModal();
         Swal.fire({
-          title: 'Welcome!',
+          title: 'WELCOME!',
           text: `Welcome, ${data.username}! You are logged in with a Simulated Account.`,
-          icon: 'success',
-          confirmButtonColor: '#ff4500'
+          confirmButtonText: 'CONTINUE',
+          buttonsStyling: false,
+          customClass: {
+            popup: 'bg-white border-4 border-textMain shadow-brutal rounded-none p-6 md:p-8',
+            title: 'text-2xl md:text-3xl font-black text-green-600 uppercase tracking-tighter flex items-center justify-center gap-3',
+            htmlContainer: 'text-base md:text-lg text-textMuted font-bold mt-4 mb-8',
+            actions: 'w-full flex justify-center',
+            confirmButton: 'w-full md:w-auto md:px-12 py-3 bg-brandOrange text-white font-black text-lg uppercase tracking-wider border-4 border-textMain shadow-[4px_4px_0px_#09090b] hover:bg-brandOrange/90 hover:translate-y-[2px] hover:translate-x-[2px] hover:shadow-[2px_2px_0px_#09090b] transition-all'
+          }
         });
+
         initPage();
 
       } catch (err) {
         console.error('Simulated login error:', err);
         Swal.fire({
-          title: 'Login Failed',
+          title: 'LOGIN FAILED',
           text: 'Simulated login failed: ' + err.message,
-          icon: 'error',
-          confirmButtonColor: '#8a2be2'
+          confirmButtonText: 'TRY AGAIN',
+          buttonsStyling: false,
+          customClass: {
+            popup: 'bg-white border-4 border-textMain shadow-brutal rounded-none p-6 md:p-8',
+            title: 'text-2xl md:text-3xl font-black text-red-600 uppercase tracking-tighter flex items-center justify-center gap-3',
+            htmlContainer: 'text-base md:text-lg text-textMuted font-bold mt-4 mb-8',
+            actions: 'w-full flex justify-center',
+            confirmButton: 'w-full md:w-auto md:px-12 py-3 bg-brandViolet text-white font-black text-lg uppercase tracking-wider border-4 border-textMain shadow-[4px_4px_0px_#09090b] hover:bg-brandViolet/90 hover:translate-y-[2px] hover:translate-x-[2px] hover:shadow-[2px_2px_0px_#09090b] transition-all'
+          }
         });
       } finally {
         mockLoginBtn.disabled = false;
@@ -272,10 +323,17 @@ document.addEventListener('DOMContentLoaded', () => {
     localStorage.removeItem('selectedLanguage');
 
     Swal.fire({
-      title: 'Signed Out',
+      title: 'SIGNED OUT',
       text: 'You have been signed out successfully.',
-      icon: 'success',
-      confirmButtonColor: '#ff4500'
+      confirmButtonText: 'OK',
+      buttonsStyling: false,
+      customClass: {
+        popup: 'bg-white border-4 border-textMain shadow-brutal rounded-none p-6 md:p-8',
+        title: 'text-2xl md:text-3xl font-black text-green-600 uppercase tracking-tighter flex items-center justify-center gap-3',
+        htmlContainer: 'text-base md:text-lg text-textMuted font-bold mt-4 mb-8',
+        actions: 'w-full flex justify-center',
+        confirmButton: 'w-full md:w-auto md:px-12 py-3 bg-brandOrange text-white font-black text-lg uppercase tracking-wider border-4 border-textMain shadow-[4px_4px_0px_#09090b] hover:bg-brandOrange/90 hover:translate-y-[2px] hover:translate-x-[2px] hover:shadow-[2px_2px_0px_#09090b] transition-all'
+      }
     });
     initPage();
   }
@@ -288,7 +346,7 @@ document.addEventListener('DOMContentLoaded', () => {
         connectWalletBtn.classList.add('bg-white', 'text-textMain');
         return;
       }
-      const displayVal = name.startsWith('0x') && name.length > 12 
+      const displayVal = name.startsWith('0x') && name.length > 12
         ? `${name.slice(0, 6)}...${name.slice(-4)}`
         : name;
 
@@ -301,14 +359,14 @@ document.addEventListener('DOMContentLoaded', () => {
   // ── Initialization & Dashboard Rendering ──
   function initPage() {
     const sessionToken = localStorage.getItem('sessionToken');
-    
+
     if (!sessionToken) {
       // Show login required, hide the rest
       if (loginRequiredCard) loginRequiredCard.classList.remove('hidden');
       if (assessmentCard) assessmentCard.classList.add('hidden');
       if (dashboardCard) dashboardCard.classList.add('hidden');
       if (roadmapSection) roadmapSection.classList.add('hidden');
-      
+
       updateWalletUI('');
       return;
     }
@@ -317,7 +375,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const savedPlan = localStorage.getItem('learningPlan');
     let plan = null;
-    
+
     if (savedPlan && savedPlan !== 'undefined') {
       try {
         plan = JSON.parse(savedPlan);
@@ -326,12 +384,12 @@ document.addEventListener('DOMContentLoaded', () => {
         localStorage.removeItem('learningPlan');
       }
     }
-    
+
     if (plan) {
       if (assessmentCard) assessmentCard.classList.add('hidden');
       if (dashboardCard) dashboardCard.classList.remove('hidden');
       if (roadmapSection) roadmapSection.classList.remove('hidden');
-      
+
       renderDashboard(plan);
       renderRoadmap(plan);
     } else {
@@ -350,22 +408,29 @@ document.addEventListener('DOMContentLoaded', () => {
     const durationSelect = document.getElementById('durationSelect');
     generatePathBtn.addEventListener('click', async (e) => {
       e.preventDefault();
-      
+
       const role = goalSelect.value;
       const skill = skillSelect.value;
       const commitmentVal = commitmentInput ? commitmentInput.value.trim() : '2';
-      
+
       const commitment = parseFloat(commitmentVal);
       if (isNaN(commitment) || commitment <= 0 || commitment > 24) {
         Swal.fire({
-          title: 'Invalid Commitment',
+          title: 'INVALID COMMITMENT',
           text: 'Please enter a valid daily hours commitment (between 1 and 24 hours per day).',
-          icon: 'warning',
-          confirmButtonColor: '#8a2be2'
+          confirmButtonText: 'OK',
+          buttonsStyling: false,
+          customClass: {
+            popup: 'bg-white border-4 border-textMain shadow-brutal rounded-none p-6 md:p-8',
+            title: 'text-2xl md:text-3xl font-black text-brandOrange uppercase tracking-tighter flex items-center justify-center gap-3',
+            htmlContainer: 'text-base md:text-lg text-textMuted font-bold mt-4 mb-8',
+            actions: 'w-full flex justify-center',
+            confirmButton: 'w-full md:w-auto md:px-12 py-3 bg-brandViolet text-white font-black text-lg uppercase tracking-wider border-4 border-textMain shadow-[4px_4px_0px_#09090b] hover:bg-brandViolet/90 hover:translate-y-[2px] hover:translate-x-[2px] hover:shadow-[2px_2px_0px_#09090b] transition-all'
+          }
         });
         return;
       }
-      
+
       const durationKey = durationSelect ? durationSelect.value : '1m';
       const durationMap = {
         '1w': 1,
@@ -391,7 +456,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!response.ok) {
           throw new Error('Failed to fetch learning path from API (Pastikan Anda sudah login)');
         }
-        
+
         const body = await response.json();
         const plan = body.data;
 
@@ -419,10 +484,24 @@ document.addEventListener('DOMContentLoaded', () => {
       } catch (err) {
         console.error('Error generating path:', err);
         Swal.fire({
-          title: 'Generation Failed',
+          title: 'GENERATION FAILED',
           text: 'Failed to generate learning path: ' + err.message,
-          icon: 'error',
-          confirmButtonColor: '#8a2be2'
+          confirmButtonText: 'UNDERSTOOD',
+
+          // Mematikan styling bawaan
+          buttonsStyling: false,
+
+          // Memasukkan utility classes Tailwind
+          customClass: {
+            popup: 'bg-white border-4 border-textMain shadow-brutal rounded-none p-6 md:p-8',
+            // Teks merah untuk indikasi error
+            title: 'text-2xl md:text-3xl font-black text-red-600 uppercase tracking-tighter flex items-center justify-center gap-3',
+            htmlContainer: 'text-base md:text-lg text-textMuted font-bold mt-4 mb-8',
+            actions: 'w-full flex justify-center',
+
+            // Tombol konfirmasi (Warna Ungu)
+            confirmButton: 'w-full md:w-auto md:px-12 py-3 bg-brandViolet text-white font-black text-lg uppercase tracking-wider border-4 border-textMain shadow-[4px_4px_0px_#09090b] hover:bg-brandViolet/90 hover:translate-y-[2px] hover:translate-x-[2px] hover:shadow-[2px_2px_0px_#09090b] transition-all'
+          }
         });
       } finally {
         generatePathBtn.disabled = false;
@@ -435,11 +514,11 @@ document.addEventListener('DOMContentLoaded', () => {
     const list = plan.materials || [];
     const selectedLang = localStorage.getItem('selectedLanguage');
     const languageSlugs = ['javascript', 'go', 'python', 'ruby', 'java', 'c', 'php', 'rust'];
-    
+
     return list.filter(m => {
       // Filter out any material marked as 'dilewati'
       if (m.status === 'dilewati') return false;
-      
+
       // Filter out other languages if a language is selected
       if (selectedLang && languageSlugs.includes(m.slug) && m.slug !== selectedLang) {
         return false;
@@ -452,7 +531,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (filteredList.length === 0) return [];
     const total = filteredList.length;
     const chunkSize = Math.ceil(total / 4);
-    
+
     return [
       { id: 1, title: 'Module I: Fundamentals & Introduction', items: filteredList.slice(0, chunkSize) },
       { id: 2, title: 'Module II: Core Concepts', items: filteredList.slice(chunkSize, 2 * chunkSize) },
@@ -526,13 +605,13 @@ document.addEventListener('DOMContentLoaded', () => {
       const isQuizDone = completedSlugs.includes('quiz-module-' + activeMod.id);
       const completedModItems = completedModMaterials + (isQuizDone ? 1 : 0);
       progressPercent = Math.min(100, Math.round((completedModItems / totalModItems) * 100));
-      
+
       const romanNumerals = ['I', 'II', 'III', 'IV'];
       activeModRoman = romanNumerals[activeModuleIndex] || (activeModuleIndex + 1);
     }
 
     const roleLabel = plan.role === 'frontend' ? 'Frontend Developer Path' : plan.role === 'backend' ? 'Backend Developer Path' : 'Fullstack Developer Path';
-    
+
     dashboardCard.innerHTML = `
       <h2 class="text-3xl font-black uppercase">Welcome Back 👋</h2>
       <p class="text-textMuted mt-2 font-bold uppercase tracking-wider text-brandViolet">${roleLabel}</p>
@@ -566,21 +645,36 @@ document.addEventListener('DOMContentLoaded', () => {
     // Bind reset
     document.getElementById('resetPathBtn').addEventListener('click', async () => {
       Swal.fire({
-        title: 'Reset Learning Path?',
+        title: 'RESET PATH?',
         text: 'Are you sure you want to reset your learning path? All progress will be lost.',
-        icon: 'warning',
         showCancelButton: true,
-        confirmButtonColor: '#ff4500',
-        cancelButtonColor: '#8a2be2',
-        confirmButtonText: 'Yes, reset it!',
-        cancelButtonText: 'Cancel'
+        confirmButtonText: 'YES, RESET IT!',
+        cancelButtonText: 'CANCEL',
+
+        // Mematikan styling bawaan
+        buttonsStyling: false,
+
+        // Memasukkan utility classes Tailwind
+        customClass: {
+          popup: 'bg-white border-4 border-textMain shadow-brutal rounded-none p-6 md:p-8',
+          // Menggunakan warna merah untuk indikasi peringatan/bahaya
+          title: 'text-2xl md:text-3xl font-black text-red-600 uppercase tracking-tighter flex items-center justify-center gap-3',
+          htmlContainer: 'text-base md:text-lg text-textMuted font-bold mt-4 mb-8',
+          actions: 'w-full flex gap-4 justify-center',
+
+          // Tombol konfirmasi (Oranye/Destruktif)
+          confirmButton: 'flex-1 py-3 bg-brandOrange text-white font-black text-sm md:text-base uppercase tracking-wider border-4 border-textMain shadow-[4px_4px_0px_#09090b] hover:bg-brandOrange/90 hover:translate-y-[2px] hover:translate-x-[2px] hover:shadow-[2px_2px_0px_#09090b] transition-all',
+
+          // Tombol batal (Ungu)
+          cancelButton: 'flex-1 py-3 bg-brandViolet text-white font-black text-sm md:text-base uppercase tracking-wider border-4 border-textMain shadow-[4px_4px_0px_#09090b] hover:bg-brandViolet/90 hover:translate-y-[2px] hover:translate-x-[2px] hover:shadow-[2px_2px_0px_#09090b] transition-all'
+        }
       }).then(async (result) => {
         if (result.isConfirmed) {
           const token = localStorage.getItem('sessionToken');
           localStorage.removeItem('learningPlan');
           localStorage.removeItem('completedSlugs');
           localStorage.removeItem('selectedLanguage');
-          
+
           // Sync reset to DB
           await fetch('/api/v1/user/sync', {
             method: 'POST',
@@ -590,7 +684,7 @@ document.addEventListener('DOMContentLoaded', () => {
             },
             body: JSON.stringify({ resetProgress: true, integrityScore: 100 })
           }).catch(err => console.error('Error resetting path on DB:', err));
-          
+
           initPage();
         }
       });
@@ -608,7 +702,7 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     }
     const roleLabel = plan.role === 'frontend' ? 'Frontend Developer' : plan.role === 'backend' ? 'Backend Developer' : 'Fullstack Developer';
-    
+
     roadmapTitle.textContent = `${roleLabel} Roadmap`;
     roadmapContainer.innerHTML = '';
 
@@ -640,10 +734,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
       modObj.items.forEach((m) => {
         const isCompleted = completedSlugs.includes(m.slug);
-        
+
         const materialCard = document.createElement('a');
         materialCard.href = `materi.html?role=${plan.role}&slug=${m.slug}`;
-        
+
         let cardStyle = '';
         let checkmarkHtml = '';
         let badgeText = m.status === 'wajib' ? 'Required' : m.status === 'pilihan' ? 'Optional' : 'Skipped';
@@ -675,7 +769,7 @@ document.addEventListener('DOMContentLoaded', () => {
           <div class="text-lg text-textMain font-black tracking-tight leading-snug group-hover:text-brandOrange transition">${m.title}</div>
           <p class="text-xs font-medium text-textMuted mt-2 line-clamp-2">${m.content_summary}...</p>
         `;
-        
+
         materialsGrid.appendChild(materialCard);
       });
 
@@ -685,7 +779,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const isQuizCompleted = completedSlugs.includes('quiz-module-' + modObj.id);
         const quizCard = document.createElement('a');
         quizCard.href = `quiz.html?role=${plan.role}&module=${modObj.id}&slug=${lastItem.slug}`;
-        
+
         let quizStyle = '';
         let quizCheckmark = '';
         if (isQuizCompleted) {

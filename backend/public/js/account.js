@@ -1,5 +1,3 @@
-// public/js/account.js
-
 document.addEventListener('DOMContentLoaded', () => {
   const connectWalletBtn = document.getElementById('connectWalletBtn');
   const loginModal = document.getElementById('loginModal');
@@ -30,18 +28,24 @@ document.addEventListener('DOMContentLoaded', () => {
   if (connectWalletBtn) {
     connectWalletBtn.addEventListener('click', (e) => {
       e.preventDefault();
-      
+
       // If already logged in, click triggers sign out confirmation
       if (localStorage.getItem('sessionToken')) {
         Swal.fire({
-          title: 'Sign Out?',
+          title: 'SIGN OUT?',
           text: 'Are you sure you want to sign out?',
-          icon: 'warning',
           showCancelButton: true,
-          confirmButtonColor: '#ff4500',
-          cancelButtonColor: '#8a2be2',
-          confirmButtonText: 'Yes, Sign Out!',
-          cancelButtonText: 'Cancel'
+          confirmButtonText: 'YES, SIGN OUT!',
+          cancelButtonText: 'CANCEL',
+          buttonsStyling: false,
+          customClass: {
+            popup: 'bg-white border-4 border-textMain shadow-brutal rounded-none p-6 md:p-8',
+            title: 'text-2xl md:text-3xl font-black text-brandOrange uppercase tracking-tighter flex items-center justify-center gap-3',
+            htmlContainer: 'text-base md:text-lg text-textMuted font-bold mt-4 mb-8',
+            actions: 'w-full flex gap-4 justify-center',
+            confirmButton: 'flex-1 py-3 bg-brandOrange text-white font-black text-sm md:text-base uppercase tracking-wider border-4 border-textMain shadow-[4px_4px_0px_#09090b] hover:bg-brandOrange/90 hover:translate-y-[2px] hover:translate-x-[2px] hover:shadow-[2px_2px_0px_#09090b] transition-all',
+            cancelButton: 'flex-1 py-3 bg-brandViolet text-white font-black text-sm md:text-base uppercase tracking-wider border-4 border-textMain shadow-[4px_4px_0px_#09090b] hover:bg-brandViolet/90 hover:translate-y-[2px] hover:translate-x-[2px] hover:shadow-[2px_2px_0px_#09090b] transition-all'
+          }
         }).then((result) => {
           if (result.isConfirmed) {
             logout();
@@ -49,7 +53,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
         return;
       }
-      
+
       showModal();
     });
   }
@@ -82,7 +86,7 @@ document.addEventListener('DOMContentLoaded', () => {
           // Request cryptographic signature to prove ownership
           const timestamp = Date.now();
           const message = `Welcome to VerifyLearn! Please sign this message to verify your wallet ownership. Timestamp: ${timestamp}`;
-          
+
           const signature = await window.ethereum.request({
             method: 'personal_sign',
             params: [message, address]
@@ -124,31 +128,58 @@ document.addEventListener('DOMContentLoaded', () => {
 
           updateWalletUI(data.username);
           hideModal();
+          
+          // Success Login Alert (Brutalist)
           Swal.fire({
-            title: 'Welcome!',
+            title: 'WELCOME!',
             text: 'Authenticated successfully with Web3 Wallet!',
-            icon: 'success',
-            confirmButtonColor: '#ff4500'
+            confirmButtonText: 'CONTINUE',
+            buttonsStyling: false,
+            customClass: {
+              popup: 'bg-white border-4 border-textMain shadow-brutal rounded-none p-6 md:p-8',
+              title: 'text-2xl md:text-3xl font-black text-green-600 uppercase tracking-tighter flex items-center justify-center gap-3',
+              htmlContainer: 'text-base md:text-lg text-textMuted font-bold mt-4 mb-8',
+              actions: 'w-full flex justify-center',
+              confirmButton: 'w-full md:w-auto md:px-12 py-3 bg-brandOrange text-white font-black text-lg uppercase tracking-wider border-4 border-textMain shadow-[4px_4px_0px_#09090b] hover:bg-brandOrange/90 hover:translate-y-[2px] hover:translate-x-[2px] hover:shadow-[2px_2px_0px_#09090b] transition-all'
+            }
           });
 
         } catch (err) {
           console.error('MetaMask connection or signature error:', err);
+          
+          // Error Login Alert (Brutalist)
           Swal.fire({
-            title: 'Authentication Failed',
+            title: 'AUTH FAILED',
             text: 'Failed to connect wallet: ' + err.message,
-            icon: 'error',
-            confirmButtonColor: '#8a2be2'
+            confirmButtonText: 'TRY AGAIN',
+            buttonsStyling: false,
+            customClass: {
+              popup: 'bg-white border-4 border-textMain shadow-brutal rounded-none p-6 md:p-8',
+              title: 'text-2xl md:text-3xl font-black text-red-600 uppercase tracking-tighter flex items-center justify-center gap-3',
+              htmlContainer: 'text-base md:text-lg text-textMuted font-bold mt-4 mb-8',
+              actions: 'w-full flex justify-center',
+              confirmButton: 'w-full md:w-auto md:px-12 py-3 bg-brandViolet text-white font-black text-lg uppercase tracking-wider border-4 border-textMain shadow-[4px_4px_0px_#09090b] hover:bg-brandViolet/90 hover:translate-y-[2px] hover:translate-x-[2px] hover:shadow-[2px_2px_0px_#09090b] transition-all'
+            }
           });
         } finally {
           metaMaskLoginBtn.disabled = false;
           metaMaskLoginBtn.textContent = 'Connect MetaMask';
         }
       } else {
+        
+        // No MetaMask Detected Alert (Brutalist)
         Swal.fire({
-          title: 'MetaMask Not Detected',
+          title: 'NO METAMASK',
           text: 'MetaMask is not detected. Please use the Account Simulation option below to try the app.',
-          icon: 'warning',
-          confirmButtonColor: '#8a2be2'
+          confirmButtonText: 'UNDERSTOOD',
+          buttonsStyling: false,
+          customClass: {
+            popup: 'bg-white border-4 border-textMain shadow-brutal rounded-none p-6 md:p-8',
+            title: 'text-2xl md:text-3xl font-black text-brandOrange uppercase tracking-tighter flex items-center justify-center gap-3',
+            htmlContainer: 'text-base md:text-lg text-textMuted font-bold mt-4 mb-8',
+            actions: 'w-full flex justify-center',
+            confirmButton: 'w-full md:w-auto md:px-12 py-3 bg-brandViolet text-white font-black text-lg uppercase tracking-wider border-4 border-textMain shadow-[4px_4px_0px_#09090b] hover:bg-brandViolet/90 hover:translate-y-[2px] hover:translate-x-[2px] hover:shadow-[2px_2px_0px_#09090b] transition-all'
+          }
         });
       }
     });
@@ -159,11 +190,20 @@ document.addEventListener('DOMContentLoaded', () => {
     mockLoginBtn.addEventListener('click', async () => {
       const usernameVal = mockUsernameInput ? mockUsernameInput.value.trim() : '';
       if (!usernameVal) {
+        
+        // Required Field Alert (Brutalist)
         Swal.fire({
-          title: 'Required Field',
+          title: 'REQUIRED FIELD',
           text: 'Please enter your simulated username first.',
-          icon: 'info',
-          confirmButtonColor: '#8a2be2'
+          confirmButtonText: 'OK',
+          buttonsStyling: false,
+          customClass: {
+            popup: 'bg-white border-4 border-textMain shadow-brutal rounded-none p-6 md:p-8',
+            title: 'text-2xl md:text-3xl font-black text-brandOrange uppercase tracking-tighter flex items-center justify-center gap-3',
+            htmlContainer: 'text-base md:text-lg text-textMuted font-bold mt-4 mb-8',
+            actions: 'w-full flex justify-center',
+            confirmButton: 'w-full md:w-auto md:px-12 py-3 bg-brandViolet text-white font-black text-lg uppercase tracking-wider border-4 border-textMain shadow-[4px_4px_0px_#09090b] hover:bg-brandViolet/90 hover:translate-y-[2px] hover:translate-x-[2px] hover:shadow-[2px_2px_0px_#09090b] transition-all'
+          }
         });
         return;
       }
@@ -173,7 +213,7 @@ document.addEventListener('DOMContentLoaded', () => {
         mockLoginBtn.textContent = 'SIGNING IN...';
 
         const mockAddress = '0x71C7656EC7ab88b098defB751B7401B5f6d8976F';
-        
+
         // Call backend login with mock configuration
         const response = await fetch('/api/v1/auth/login', {
           method: 'POST',
@@ -210,20 +250,38 @@ document.addEventListener('DOMContentLoaded', () => {
 
         updateWalletUI(data.username);
         hideModal();
+        
+        // Mock Login Success Alert (Brutalist)
         Swal.fire({
-          title: 'Welcome!',
+          title: 'WELCOME!',
           text: `Welcome, ${data.username}! You are logged in with a Simulated Account.`,
-          icon: 'success',
-          confirmButtonColor: '#ff4500'
+          confirmButtonText: 'CONTINUE',
+          buttonsStyling: false,
+          customClass: {
+            popup: 'bg-white border-4 border-textMain shadow-brutal rounded-none p-6 md:p-8',
+            title: 'text-2xl md:text-3xl font-black text-green-600 uppercase tracking-tighter flex items-center justify-center gap-3',
+            htmlContainer: 'text-base md:text-lg text-textMuted font-bold mt-4 mb-8',
+            actions: 'w-full flex justify-center',
+            confirmButton: 'w-full md:w-auto md:px-12 py-3 bg-brandOrange text-white font-black text-lg uppercase tracking-wider border-4 border-textMain shadow-[4px_4px_0px_#09090b] hover:bg-brandOrange/90 hover:translate-y-[2px] hover:translate-x-[2px] hover:shadow-[2px_2px_0px_#09090b] transition-all'
+          }
         });
 
       } catch (err) {
         console.error('Mock login error:', err);
+        
+        // Mock Login Error Alert (Brutalist)
         Swal.fire({
-          title: 'Login Failed',
+          title: 'LOGIN FAILED',
           text: 'Simulated login failed: ' + err.message,
-          icon: 'error',
-          confirmButtonColor: '#8a2be2'
+          confirmButtonText: 'TRY AGAIN',
+          buttonsStyling: false,
+          customClass: {
+            popup: 'bg-white border-4 border-textMain shadow-brutal rounded-none p-6 md:p-8',
+            title: 'text-2xl md:text-3xl font-black text-red-600 uppercase tracking-tighter flex items-center justify-center gap-3',
+            htmlContainer: 'text-base md:text-lg text-textMuted font-bold mt-4 mb-8',
+            actions: 'w-full flex justify-center',
+            confirmButton: 'w-full md:w-auto md:px-12 py-3 bg-brandViolet text-white font-black text-lg uppercase tracking-wider border-4 border-textMain shadow-[4px_4px_0px_#09090b] hover:bg-brandViolet/90 hover:translate-y-[2px] hover:translate-x-[2px] hover:shadow-[2px_2px_0px_#09090b] transition-all'
+          }
         });
       } finally {
         mockLoginBtn.disabled = false;
@@ -238,11 +296,20 @@ document.addEventListener('DOMContentLoaded', () => {
       const token = localStorage.getItem('sessionToken');
       if (!token) {
         e.preventDefault();
+        
+        // Guard Alert (Brutalist)
         Swal.fire({
-          title: 'Sign In Required',
+          title: 'SIGN IN REQUIRED',
           text: 'Please sign in first using your Web3 wallet or a Simulated Account to start learning.',
-          icon: 'warning',
-          confirmButtonColor: '#8a2be2'
+          confirmButtonText: 'OK',
+          buttonsStyling: false,
+          customClass: {
+            popup: 'bg-white border-4 border-textMain shadow-brutal rounded-none p-6 md:p-8',
+            title: 'text-2xl md:text-3xl font-black text-brandOrange uppercase tracking-tighter flex items-center justify-center gap-3',
+            htmlContainer: 'text-base md:text-lg text-textMuted font-bold mt-4 mb-8',
+            actions: 'w-full flex justify-center',
+            confirmButton: 'w-full md:w-auto md:px-12 py-3 bg-brandViolet text-white font-black text-lg uppercase tracking-wider border-4 border-textMain shadow-[4px_4px_0px_#09090b] hover:bg-brandViolet/90 hover:translate-y-[2px] hover:translate-x-[2px] hover:shadow-[2px_2px_0px_#09090b] transition-all'
+          }
         }).then(() => {
           showModal();
         });
@@ -277,11 +344,20 @@ document.addEventListener('DOMContentLoaded', () => {
       connectWalletBtn.classList.remove('bg-brandOrange');
       connectWalletBtn.classList.add('bg-white', 'text-textMain');
     }
+    
+    // Signed Out Success Alert (Brutalist)
     Swal.fire({
-      title: 'Signed Out',
+      title: 'SIGNED OUT',
       text: 'You have been signed out successfully.',
-      icon: 'success',
-      confirmButtonColor: '#ff4500'
+      confirmButtonText: 'OK',
+      buttonsStyling: false,
+      customClass: {
+        popup: 'bg-white border-4 border-textMain shadow-brutal rounded-none p-6 md:p-8',
+        title: 'text-2xl md:text-3xl font-black text-green-600 uppercase tracking-tighter flex items-center justify-center gap-3',
+        htmlContainer: 'text-base md:text-lg text-textMuted font-bold mt-4 mb-8',
+        actions: 'w-full flex justify-center',
+        confirmButton: 'w-full md:w-auto md:px-12 py-3 bg-brandOrange text-white font-black text-lg uppercase tracking-wider border-4 border-textMain shadow-[4px_4px_0px_#09090b] hover:bg-brandOrange/90 hover:translate-y-[2px] hover:translate-x-[2px] hover:shadow-[2px_2px_0px_#09090b] transition-all'
+      }
     });
   }
 
@@ -289,7 +365,7 @@ document.addEventListener('DOMContentLoaded', () => {
   function updateWalletUI(name) {
     if (connectWalletBtn) {
       // Display truncated address if it looks like an address, otherwise display name
-      const displayVal = name.startsWith('0x') && name.length > 12 
+      const displayVal = name.startsWith('0x') && name.length > 12
         ? `${name.slice(0, 6)}...${name.slice(-4)}`
         : name;
 
