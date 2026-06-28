@@ -2,6 +2,7 @@
 import argparse
 import json
 import os
+import re
 import sys
 import time
 from pathlib import Path
@@ -13,8 +14,44 @@ SCRIPTS_DIR = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, BASE_DIR)
 sys.path.insert(0, SCRIPTS_DIR)
 
-from build_knowledge_base import extract_urls, fetch_url_text, summarize_url_text
+from build_knowledge_base import extract_urls, fetch_url_text, summarize_url_text, is_likely_code_chunk
 ROLE_FILES = ["backend.jsonl", "frontend.jsonl", "fullstack.jsonl"]
+
+# URL yang diketahui menghasilkan konten SPA/minim teks — lewati saja
+SKIP_URL_PATTERNS = [
+    r"app\.daily\.dev",
+    r"youtube\.com",
+    r"youtu\.be",
+    r"github\.com/.*/blob/",  # blob view GitHub
+    r"roadmap\.sh/.*#",      # anchor roadmap
+    r"skills\.github\.com",
+    r"inter-git\.com",
+    r"freecodecamp\.org/learn",
+]
+
+
+def should_skip_url(url: str) -> bool:
+    """Return True jika URL kemungkinan besar menghasilkan konten SPA atau tidak berguna."""
+    for pat in SKIP_URL_PATTERNS:
+        if re.search(pat, url, re.IGNORECASE):
+            return True
+    return False
+
+
+def is_content_clean(text: str) -> bool:
+    """
+    Validasi apakah teks yang akan disimpan benar-benar bersih dari garbage kode.
+    Return False jika masih mengandung indikator kode JS/CSS yang signifikan.
+    """
+    if not text:
+        return True
+    # Hitung rasio baris yang terindikasi kode
+    lines = [l.strip() for l in text.split('\n') if l.strip()]
+    if not lines:
+        return True
+    code_lines = sum(1 for l in lines if is_likely_code_chunk(l))
+    ratio = code_lines / len(lines)
+    return ratio < 0.15  # Toleransi max 15% baris bertipe kode
 
 
 def load_jsonl(file_path: str) -> list[dict]:
@@ -34,8 +71,9 @@ def save_jsonl(file_path: str, docs: list[dict]) -> None:
             f.write(json.dumps(doc, ensure_ascii=False) + "\n")
 
 
-def enrich_doc(doc: dict) -> dict:
-    if doc.get("expanded_content"):
+def enrich_doc(doc: dict, force: bool = False) -> dict:
+    """Perkaya satu dokumen dengan ringkasan dari URL eksternal."""
+    if doc.get("expanded_content") and not force:
         return doc
 
     content = doc.get("content", "")
@@ -44,12 +82,30 @@ def enrich_doc(doc: dict) -> dict:
     summaries = []
 
     for url in urls:
+        # Skip URL yang diketahui menghasilkan konten SPA atau tidak berguna
+        if should_skip_url(url):
+            print(f"    [SKIP URL] {url}")
+            continue
+
         fetched = fetch_url_text(url)
         if not fetched:
             continue
+
         summary = summarize_url_text(fetched, max_chars=800)
-        if summary:
-            summaries.append({"url": url, "summary": summary})
+        if not summary:
+            continue
+
+        # Validasi: pastikan summary tidak mengandung garbage kode
+        if not is_content_clean(summary):
+            print(f"    [DIRTY] Konten dari {url} dibuang (terdeteksi kode JS/CSS)")
+            continue
+
+        # Minimal ada 50 karakter bermakna
+        clean_text = summary.strip()
+        if len(clean_text) < 50:
+            continue
+
+        summaries.append({"url": url, "summary": clean_text})
 
     expanded = content
     if summaries:
@@ -67,6 +123,7 @@ def main():
     parser.add_argument("--role", choices=["backend", "frontend", "fullstack"], help="Hanya enrich satu role saja")
     parser.add_argument("--inplace", action="store_true", help="Tulis hasil kembali ke file original")
     parser.add_argument("--limit", type=int, default=0, help="Batas jumlah dokumen yang diolah per file (0 = semua)")
+    parser.add_argument("--force", action="store_true", help="Timpa expanded_content yang sudah ada (berguna untuk rebuild ulang setelah perbaikan)")
     args = parser.parse_args()
 
     kb_dir = Path(args.kb_dir)
@@ -93,7 +150,7 @@ def main():
             if args.limit and processed >= args.limit:
                 break
             original = doc.copy()
-            doc = enrich_doc(doc)
+            doc = enrich_doc(doc, force=args.force)
             if doc.get("expanded_content") and doc.get("expanded_content") != original.get("expanded_content", original.get("content", "")):
                 enriched += 1
             processed += 1

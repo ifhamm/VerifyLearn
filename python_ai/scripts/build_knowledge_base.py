@@ -153,26 +153,93 @@ def fetch_url_text(url: str, timeout: int = 8) -> str:
     text = parser.get_text()
     text = re.sub(r"\n{3,}", "\n\n", text).strip()
 
-    # Filter out known JS variable blocks and inline script leftovers.
+    # ── Filter sisa kode JS/CSS yang lolos dari parser ───────────────────────
+    # Hapus dataLayer & gtag calls
     text = re.sub(r"window\.dataLayer\s*=\s*window\.dataLayer\s*\|\|\s*\[\];", "", text)
-    text = re.sub(r"gtag\([^\)]*\);", "", text)
-    text = re.sub(r"console\.warn\([^\)]*\);", "", text)
-    text = re.sub(r"try \{[^\}]*\}\s*catch \([^\)]*\) \{[^\}]*\}", "", text, flags=re.DOTALL)
+    text = re.sub(r"gtag\s*\([^)]*\);", "", text)
+    text = re.sub(r"function\s+gtag\s*\([^)]*\)\s*\{[^}]*\}", "", text)
+    # Hapus console calls
+    text = re.sub(r"console\.(warn|log|error|info)\([^)]*\);", "", text)
+    # Hapus try/catch blocks kecil
+    text = re.sub(r"try\s*\{[^{}]*\}\s*catch\s*\([^)]*\)\s*\{[^{}]*\}", "", text, flags=re.DOTALL)
+    # Hapus CSS @font-face dan property blocks
+    text = re.sub(r"@font-face\s*\{[^}]*\}", "", text, flags=re.DOTALL)
+    text = re.sub(r"@[a-z-]+[^{]*\{[^}]*\}", "", text, flags=re.DOTALL)
+    # Hapus CSS class/id selector blocks (misal: .loader { ... })
+    text = re.sub(r"[.#][a-zA-Z][a-zA-Z0-9_-]*(?:[.#:>+~ ][a-zA-Z0-9_-]*)*\s*\{[^}]*\}", "", text, flags=re.DOTALL)
+    # Hapus template literals Vue/Angular {{ ... }}
+    text = re.sub(r"\{\{[^}]*\}\}", "", text)
+    # Hapus var/const/let assignments umum
+    text = re.sub(r"\b(var|const|let)\s+[a-zA-Z_$][a-zA-Z0-9_$]*\s*=.+;?", "", text)
+    # Hapus baris yang hanya tanda baca kode
+    text = re.sub(r"^\s*[{}();,]+\s*$", "", text, flags=re.MULTILINE)
+    # Normalisasi whitespace
     text = re.sub(r"[\t ]{2,}", " ", text)
     text = re.sub(r"\n{3,}", "\n\n", text).strip()
     return text
 
 
+def is_likely_code_chunk(chunk: str) -> bool:
+    """
+    Deteksi apakah sebuah chunk teks lebih mirip kode JS/CSS
+    daripada konten artikel yang bermakna.
+    Return True jika chunk sebaiknya dibuang.
+    """
+    if not chunk or len(chunk) < 10:
+        return False
+
+    # Rasio karakter kode tinggi → kemungkinan besar kode
+    code_chars = sum(1 for c in chunk if c in '{}();,<>=|&!')
+    if len(chunk) > 20 and (code_chars / len(chunk)) > 0.12:
+        return True
+
+    # Pola kode JS/CSS yang jelas
+    code_patterns = [
+        r"window\.[a-zA-Z]",
+        r"document\.[a-zA-Z]",
+        r"function\s+[a-zA-Z_$]",
+        r"\bconst\s+[a-zA-Z_$]",
+        r"\bvar\s+[a-zA-Z_$]",
+        r"\blet\s+[a-zA-Z_$]",
+        r"gtag\s*\(",
+        r"dataLayer",
+        r"@font-face",
+        r"font-family\s*:",
+        r"src\s*:\s*url\(",
+        r"visibility\s*:\s*(hidden|visible)",
+        r"position\s*:\s*(fixed|absolute|relative)",
+        r"z-index\s*:",
+        r"\.loader\s*\{",
+        r"localStorage\.",
+        r"window\.location",
+        r"import\s+.*\s+from\s+['\"].*['\"]",
+        r"require\s*\(['\"].*['\"]\)",
+        r"module\.exports",
+    ]
+    for pat in code_patterns:
+        if re.search(pat, chunk):
+            return True
+
+    return False
+
+
 def summarize_url_text(text: str, max_chars: int = 1500) -> str:
-    """Ringkas teks panjang menjadi potongan yang lebih pendek."""
+    """Ringkas teks panjang menjadi potongan yang lebih pendek, buang chunk kode."""
     if not text:
         return ""
 
     text = text.replace("\r", "\n")
     chunks = [chunk.strip() for chunk in text.split("\n\n") if chunk.strip()]
+
+    # Buang chunk yang terdeteksi sebagai kode JS/CSS bocor
+    clean_chunks = [c for c in chunks if not is_likely_code_chunk(c)]
+
+    # Buang chunk yang terlalu pendek (kemungkinan navlink atau label UI)
+    clean_chunks = [c for c in clean_chunks if len(c) > 30]
+
     summary_parts = []
     total = 0
-    for chunk in chunks:
+    for chunk in clean_chunks:
         if total + len(chunk) > max_chars:
             break
         summary_parts.append(chunk)

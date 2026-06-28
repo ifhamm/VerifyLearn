@@ -37,10 +37,10 @@ document.addEventListener('DOMContentLoaded', async () => {
   const progressText = document.getElementById('progressText');
   const progressBar = document.getElementById('progressBar');
   const sidebarTopics = document.getElementById('sidebarTopics');
-  
+
   const materialTitle = document.getElementById('materialTitle');
   const materialContent = document.getElementById('materialContent');
-  
+
   const backBtn = document.getElementById('backBtn');
   const prevBtn = document.getElementById('prevBtn');
   const nextBtn = document.getElementById('nextBtn');
@@ -56,7 +56,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       localStorage.removeItem('learningPlan');
     }
   }
-  
+
   if (!plan) {
     // If user opened page directly, fetch default path so it does not crash
     try {
@@ -157,7 +157,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   // Render Sidebar
   renderSidebar(modules, slug, completedSlugs);
-  
+
   // Render Progress
   updateProgressUI(modules, slug, completedSlugs);
 
@@ -168,15 +168,93 @@ document.addEventListener('DOMContentLoaded', async () => {
       if (!res.ok) throw new Error('Material not found');
       const body = await res.json();
       const mData = body.data;
-      
+
       const isCurrentDone = completedSlugs.includes(slug);
       if (isCurrentDone) {
         materialTitle.innerHTML = `${mData.title} <span class="ml-3 inline-flex items-center px-3 py-1 bg-green-100 text-green-700 text-xs font-black uppercase rounded-full border border-green-200">Completed ✓</span>`;
       } else {
         materialTitle.textContent = mData.title;
       }
-      materialContent.innerHTML = formatMarkdown(mData.expanded_content || mData.content);
-      
+
+      // Gunakan content bersih sebagai primary, expanded hanya sebagai tambahan
+      const primaryContent = mData.content || '';
+      const expandedContent = mData.expanded_content || '';
+
+      let extraContent = '';
+      if (expandedContent && expandedContent !== primaryContent) {
+        extraContent = expandedContent.replace(primaryContent, '').trim();
+      }
+
+      // Render content utama
+      let finalHtml = formatMarkdown(primaryContent);
+
+      // Render referensi tambahan ke dalam Accordion jika ada
+      if (extraContent) {
+        const refParts = extraContent.split(/Sumber:\s+/);
+        const validRefs = [];
+
+        refParts.forEach(part => {
+          const trimmed = part.trim();
+          if (!trimmed) return;
+
+          // Pisahkan URL dengan sisa teks summary
+          const lines = trimmed.split('\n');
+          const url = lines[0].trim();
+          const summaryText = lines.slice(1).join('\n').trim();
+
+          if (url.startsWith('http') && summaryText.length > 30) {
+            validRefs.push({ url, summary: summaryText });
+          }
+        });
+
+        if (validRefs.length > 0) {
+          finalHtml += `
+            <div class="mt-12 border-t border-gray-200 pt-8">
+              <h3 class="text-lg font-black text-gray-900 mb-2 flex items-center gap-2">
+                Additional References
+              </h3>
+              <p class="text-xs text-gray-500 mb-6">The following is a summary of external references from the curriculum. Click to open and read the summary details.</p>
+              <div class="space-y-3">
+          `;
+
+          validRefs.forEach((ref, index) => {
+            let domain = 'Website';
+            try {
+              domain = new URL(ref.url).hostname.replace('www.', '');
+            } catch (e) { }
+
+            const formattedSummary = formatMarkdown(ref.summary);
+
+            finalHtml += `
+              <div class="border border-gray-200 rounded-xl overflow-hidden bg-white hover:border-orange-300 transition-colors shadow-sm">
+                <div class="flex items-center justify-between p-4 bg-gray-50/50 cursor-pointer select-none" onclick="toggleReference(${index})">
+                  <div class="flex items-center gap-3 overflow-hidden pr-4">
+                    <span class="px-2 py-0.5 text-[9px] font-black uppercase tracking-wider bg-orange-100 text-orange-700 rounded border border-orange-200 shrink-0">${domain}</span>
+                    <a href="${ref.url}" target="_blank" rel="noopener noreferrer" class="text-xs font-bold text-gray-600 hover:text-orange-500 truncate" onclick="event.stopPropagation()">${ref.url}</a>
+                  </div>
+                  <button id="ref-btn-${index}" class="flex items-center gap-1 text-xs font-black text-orange-600 hover:text-orange-700 transition shrink-0">
+                    View Summary 
+                    <svg id="ref-icon-${index}" class="w-4 h-4 transform transition-transform duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                    </svg>
+                  </button>
+                </div>
+                <div id="ref-content-${index}" class="hidden border-t border-gray-100 p-5 bg-white prose prose-gray max-w-none text-sm leading-relaxed">
+                  ${formattedSummary}
+                </div>
+              </div>
+            `;
+          });
+
+          finalHtml += `
+              </div>
+            </div>
+          `;
+        }
+      }
+
+      materialContent.innerHTML = finalHtml;
+
       // Inject Pick a Language grid if current material is Pick a Language
       if (slug === 'pick-a-backend-language') {
         const languages = [
@@ -199,10 +277,10 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         languages.forEach(lang => {
           const isSelected = selectedLang === lang.slug;
-          const activeClass = isSelected 
-            ? 'border-4 border-brandOrange bg-orange-50 ring-4 ring-brandOrange/20' 
+          const activeClass = isSelected
+            ? 'border-4 border-brandOrange bg-orange-50 ring-4 ring-brandOrange/20'
             : 'border-2 border-textMain bg-white hover:bg-gray-50';
-          
+
           gridHtml += `
             <div class="p-5 rounded-xl transition cursor-pointer select-none relative group flex flex-col justify-between ${activeClass}" onclick="selectLanguage('${lang.slug}')">
               <div>
@@ -233,7 +311,7 @@ document.addEventListener('DOMContentLoaded', async () => {
           console.error("Highlight.js failed to highlight:", e);
         }
       }
-      
+
       // Setup Navigation Flow
       setupNavigation(modules, slug);
     } catch (err) {
@@ -350,7 +428,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   // ── Helper: Update Progress Display ──
   function updateProgressUI(modulesList, currentSlug, completed) {
     if (!progressText || !progressBar) return;
-    
+
     // Find active module
     const activeModIdx = modulesList.findIndex(mod => mod.items.some(m => m.slug === currentSlug));
     if (activeModIdx === -1) return;
@@ -573,10 +651,10 @@ document.addEventListener('DOMContentLoaded', async () => {
 
       if (inCodeBlock) {
         const trimmed = line.trim();
-        const isContinuation = trimmed === '' || 
-                               /[{},;()[\]]/.test(trimmed) || 
-                               /^\s+/.test(line) || 
-                               /^[a-zA-Z0-9_-]+\s*:\s*/.test(trimmed); // object properties
+        const isContinuation = trimmed === '' ||
+          /[{},;()[\]]/.test(trimmed) ||
+          /^\s+/.test(line) ||
+          /^[a-zA-Z0-9_-]+\s*:\s*/.test(trimmed); // object properties
 
         if (isCode || isContinuation) {
           codeBlockLines.push(line);
@@ -618,25 +696,36 @@ document.addEventListener('DOMContentLoaded', async () => {
   // ── Simple Markdown to HTML Formatter ──
   function formatMarkdown(text) {
     if (!text) return '';
-    
+
+    // ── Tahap 0: Sanitasi sisi klien (fallback terakhir) ──────────────────────
+    text = text.replace(/^\s*window\.[a-zA-Z].*$/gm, '');
+    text = text.replace(/^\s*function\s+gtag.*$/gm, '');
+    text = text.replace(/^\s*dataLayer.*$/gm, '');
+    text = text.replace(/^\s*const\s+[a-zA-Z_$][a-zA-Z0-9_$]*\s*=.*$/gm, '');
+    text = text.replace(/^\s*var\s+[a-zA-Z_$][a-zA-Z0-9_$]*\s*=.*$/gm, '');
+    text = text.replace(/^\s*let\s+[a-zA-Z_$][a-zA-Z0-9_$]*\s*=.*$/gm, '');
+    text = text.replace(/^\s*[@.#][a-zA-Z][a-zA-Z0-9_-]*\s*\{[^}]*\}\s*$/gm, '');
+    text = text.replace(/\{\{[^}]*\}\}/g, '');
+    text = text.replace(/^\s*[{}();,]+\s*$/gm, '');
+    text = text.replace(/\n{3,}/g, '\n\n').trim();
+
     // Auto-fence any raw code blocks first
     const fencedText = autoFenceCode(text);
-    
+
     // Extract code blocks to protect them from splitting/formatting
     const codeBlocks = [];
     let html = fencedText.replace(/```(javascript|json|html|css|python|go)?\s*([\s\S]*?)\s*```/gim, (match, lang, code) => {
       const index = codeBlocks.length;
       const languageBadge = lang ? `<span class="absolute top-2 right-4 text-[10px] font-black uppercase text-gray-400 select-none">${lang}</span>` : '';
       const codeClass = lang ? `class="language-${lang}"` : '';
-      
-      // Escape HTML characters inside the code block
+
       const escapedCode = code
         .replace(/&/g, '&amp;')
         .replace(/</g, '&lt;')
         .replace(/>/g, '&gt;');
 
       const blockHtml = `<div class="relative group my-6"><pre class="bg-gray-900 text-gray-100 rounded-xl p-5 border-2 border-textMain shadow-brutal-sm overflow-x-auto font-mono text-sm leading-relaxed select-all"><code ${codeClass}>${escapedCode.trim()}</code></pre>${languageBadge}</div>`;
-      
+
       codeBlocks.push(blockHtml);
       return `\n\n__CODE_BLOCK_${index}__\n\n`;
     });
@@ -665,11 +754,11 @@ document.addEventListener('DOMContentLoaded', async () => {
     html = html.split(/\n\n+/).map(p => {
       p = p.trim();
       if (!p) return '';
-      // Skip wrapping if it is a heading, code block placeholder, pre block, or list item
       if (p.startsWith('<h') || p.startsWith('__CODE_BLOCK_') || p.startsWith('<pre') || p.startsWith('<li')) {
         return p;
       }
-      return `<p class="text-gray-600 text-base mb-6 leading-relaxed">${p.replace(/\n/g, '<br />')}</p>`;
+      const merged = p.replace(/\n(?!\n)/g, ' ');
+      return `<p class="text-gray-600 text-base mb-6 leading-relaxed">${merged}</p>`;
     }).join('\n');
 
     // Put code blocks back
@@ -680,3 +769,27 @@ document.addEventListener('DOMContentLoaded', async () => {
     return html;
   }
 });
+
+// Fungsi global untuk toggle accordion referensi eksternal
+window.toggleReference = (index) => {
+  const content = document.getElementById(`ref-content-${index}`);
+  const btn = document.getElementById(`ref-btn-${index}`);
+  const icon = document.getElementById(`ref-icon-${index}`);
+  if (!content || !btn || !icon) return;
+
+  if (content.classList.contains('hidden')) {
+    content.classList.remove('hidden');
+    icon.classList.add('rotate-180');
+    const textNode = Array.from(btn.childNodes).find(node => node.nodeType === Node.TEXT_NODE);
+    if (textNode) {
+      textNode.nodeValue = 'Tutup Ringkasan ';
+    }
+  } else {
+    content.classList.add('hidden');
+    icon.classList.remove('rotate-180');
+    const textNode = Array.from(btn.childNodes).find(node => node.nodeType === Node.TEXT_NODE);
+    if (textNode) {
+      textNode.nodeValue = 'Lihat Ringkasan ';
+    }
+  }
+};

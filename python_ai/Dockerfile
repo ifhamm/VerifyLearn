@@ -2,24 +2,23 @@ FROM python:3.10-slim
 
 WORKDIR /app
 
-# Install system dependencies needed for some Python packages (e.g. chromadb compilation if needed, though pre-built wheels usually exist)
-RUN apt-get update && apt-get install -y \
-    build-essential \
-    python3-dev \
-    && rm -rf /var/lib/apt/lists/*
-
-COPY requirements.txt .
-
-RUN pip install --no-cache-dir -r requirements.txt
-
-COPY . .
-
-# Environment variables
+# Environment dasar Python
+ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
 ENV PORT=8000
 
-# Expose port (FastAPI usually runs on 8000)
+# Copy requirements lebih dulu supaya layer pip bisa di-cache
+COPY requirements.txt .
+
+# Upgrade pip lalu install dependency Python
+RUN pip install --no-cache-dir --upgrade pip && \
+    pip install --no-cache-dir -r requirements.txt
+
+# Copy seluruh source code aplikasi
+COPY . .
+
+# Expose port FastAPI
 EXPOSE 8000
 
+# Jalankan FastAPI via uvicorn
 CMD ["uvicorn", "server:app", "--host", "0.0.0.0", "--port", "8000"]
-
