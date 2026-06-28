@@ -111,3 +111,50 @@ exports.saveQuizResult = async (req, res) => {
     res.status(500).json({ error: error.message });
   }
 };
+
+// Retrieve latest quiz result
+exports.getQuizResult = async (req, res) => {
+  try {
+    const { materialSlug, quizType } = req.query;
+    const userId = req.user.userId;
+
+    if (!materialSlug || !quizType) {
+      return res.status(400).json({ error: 'materialSlug and quizType are required.' });
+    }
+
+    const result = await db.query(
+      `SELECT * FROM quiz_results 
+       WHERE user_id = $1 AND material_slug = $2 AND quiz_type = $3 
+       ORDER BY created_at DESC LIMIT 1`,
+      [userId, materialSlug, quizType]
+    );
+
+    if (result.rows.length > 0) {
+      res.json({ success: true, data: result.rows[0] });
+    } else {
+      res.json({ success: true, data: null });
+    }
+  } catch (error) {
+    console.error('Error fetching quiz result:', error);
+    res.status(500).json({ error: error.message });
+  }
+};
+
+// Retrieve all quiz results for the user
+exports.getAllQuizResults = async (req, res) => {
+  try {
+    const userId = req.user.userId;
+
+    const result = await db.query(
+      `SELECT * FROM quiz_results 
+       WHERE user_id = $1 
+       ORDER BY created_at DESC`,
+      [userId]
+    );
+
+    res.json({ success: true, data: result.rows });
+  } catch (error) {
+    console.error('Error fetching all quiz results:', error);
+    res.status(500).json({ error: error.message });
+  }
+};

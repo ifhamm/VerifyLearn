@@ -20,6 +20,8 @@ router.get('/auth/session', authController.checkSession);
 // User progress & DB Sync routes
 router.post('/user/sync', walletAuth, userController.syncProgress);
 router.post('/quiz/result', walletAuth, userController.saveQuizResult);
+router.get('/quiz/result', walletAuth, userController.getQuizResult);
+router.get('/quiz/results', walletAuth, userController.getAllQuizResults);
 
 
 // Learning routes

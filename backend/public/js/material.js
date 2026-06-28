@@ -17,15 +17,47 @@ document.addEventListener('DOMContentLoaded', async () => {
   const sessionToken = localStorage.getItem('sessionToken');
   if (!sessionToken) {
     Swal.fire({
-      title: 'Access Denied',
+      title: 'ACCESS DENIED',
       text: 'Please sign in first to access learning materials.',
-      icon: 'error',
-      confirmButtonColor: '#8a2be2'
+      confirmButtonText: 'OK',
+      buttonsStyling: false,
+      customClass: {
+        popup: 'bg-white border-4 border-textMain shadow-brutal rounded-none p-6 md:p-8',
+        title: 'text-2xl md:text-3xl font-black text-red-600 uppercase tracking-tighter flex items-center justify-center gap-3',
+        htmlContainer: 'text-base md:text-lg text-textMuted font-bold mt-4 mb-8',
+        actions: 'w-full flex justify-center',
+        confirmButton: 'w-full md:w-auto md:px-12 py-3 bg-brandViolet text-white font-black text-lg uppercase tracking-wider border-4 border-textMain shadow-[4px_4px_0px_#09090b] hover:bg-brandViolet/90 hover:translate-y-[2px] hover:translate-x-[2px] hover:shadow-[2px_2px_0px_#09090b] transition-all'
+      }
     }).then(() => {
       window.location.replace('index.html');
     });
     return;
   }
+
+  // --- Dynamic Sidebar Integrity Score Update ---
+  function updateSidebarScore() {
+    const sidebarScore = document.getElementById('sidebarScore');
+    const sidebarScoreBar = document.getElementById('sidebarScoreBar');
+    const sidebarScoreLabel = document.getElementById('sidebarScoreLabel');
+
+    if (sidebarScore || sidebarScoreBar || sidebarScoreLabel) {
+      const scoreVal = localStorage.getItem('integrityScore') || '100';
+      if (sidebarScore) sidebarScore.textContent = scoreVal;
+      if (sidebarScoreBar) sidebarScoreBar.style.width = `${scoreVal}%`;
+      if (sidebarScoreLabel) {
+        const s = parseInt(scoreVal, 10);
+        let label = 'Excellent';
+        if (!isNaN(s)) {
+          if (s >= 85) label = 'Excellent';
+          else if (s >= 70) label = 'Good';
+          else if (s >= 50) label = 'Fair';
+          else label = 'Suspicious';
+        }
+        sidebarScoreLabel.textContent = label;
+      }
+    }
+  }
+  updateSidebarScore();
 
   // Parse Query Parameters
   const params = new URLSearchParams(window.location.search);

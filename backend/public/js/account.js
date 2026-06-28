@@ -341,8 +341,8 @@ document.addEventListener('DOMContentLoaded', () => {
     // Reset button UI
     if (connectWalletBtn) {
       connectWalletBtn.textContent = 'SIGN IN';
-      connectWalletBtn.classList.remove('bg-brandOrange');
-      connectWalletBtn.classList.add('bg-white', 'text-textMain');
+      connectWalletBtn.classList.remove('bg-white', 'text-textMain');
+      connectWalletBtn.classList.add('bg-brandOrange', 'text-white');
     }
     
     // Signed Out Success Alert (Brutalist)

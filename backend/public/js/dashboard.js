@@ -342,8 +342,8 @@ document.addEventListener('DOMContentLoaded', () => {
     if (connectWalletBtn) {
       if (!name) {
         connectWalletBtn.textContent = 'SIGN IN';
-        connectWalletBtn.classList.remove('bg-brandOrange', 'text-white');
-        connectWalletBtn.classList.add('bg-white', 'text-textMain');
+        connectWalletBtn.classList.remove('bg-white', 'text-textMain');
+        connectWalletBtn.classList.add('bg-brandOrange', 'text-white');
         return;
       }
       const displayVal = name.startsWith('0x') && name.length > 12
@@ -627,6 +627,10 @@ document.addEventListener('DOMContentLoaded', () => {
           <p class="text-5xl font-black mt-1">${progressPercent}%</p>
         </div>
       </div>
+
+      <a href="progress.html" class="mt-4 block w-full text-center border-2 border-textMain py-3 text-xs font-black uppercase bg-brandViolet text-white hover:bg-brandViolet/90 transition shadow-brutal-sm">
+        View Progress Report
+      </a>
 
       <div class="mt-8">
         <p class="text-xs uppercase font-bold mb-2 text-textMuted">Active Topic (Module ${activeModRoman})</p>

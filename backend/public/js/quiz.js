@@ -17,15 +17,47 @@ document.addEventListener('DOMContentLoaded', () => {
   const sessionToken = localStorage.getItem('sessionToken');
   if (!sessionToken) {
     Swal.fire({
-      title: 'Access Denied',
+      title: 'ACCESS DENIED',
       text: 'Please sign in first to access the quiz.',
-      icon: 'error',
-      confirmButtonColor: '#8a2be2'
+      confirmButtonText: 'OK',
+      buttonsStyling: false,
+      customClass: {
+        popup: 'bg-white border-4 border-textMain shadow-brutal rounded-none p-6 md:p-8',
+        title: 'text-2xl md:text-3xl font-black text-red-600 uppercase tracking-tighter flex items-center justify-center gap-3',
+        htmlContainer: 'text-base md:text-lg text-textMuted font-bold mt-4 mb-8',
+        actions: 'w-full flex justify-center',
+        confirmButton: 'w-full md:w-auto md:px-12 py-3 bg-brandViolet text-white font-black text-lg uppercase tracking-wider border-4 border-textMain shadow-[4px_4px_0px_#09090b] hover:bg-brandViolet/90 hover:translate-y-[2px] hover:translate-x-[2px] hover:shadow-[2px_2px_0px_#09090b] transition-all'
+      }
     }).then(() => {
       window.location.replace('index.html');
     });
     return;
   }
+
+  // --- Dynamic Sidebar Integrity Score Update ---
+  function updateSidebarScore() {
+    const sidebarScore = document.getElementById('sidebarScore');
+    const sidebarScoreBar = document.getElementById('sidebarScoreBar');
+    const sidebarScoreLabel = document.getElementById('sidebarScoreLabel');
+
+    if (sidebarScore || sidebarScoreBar || sidebarScoreLabel) {
+      const scoreVal = localStorage.getItem('integrityScore') || '100';
+      if (sidebarScore) sidebarScore.textContent = scoreVal;
+      if (sidebarScoreBar) sidebarScoreBar.style.width = `${scoreVal}%`;
+      if (sidebarScoreLabel) {
+        const s = parseInt(scoreVal, 10);
+        let label = 'Excellent';
+        if (!isNaN(s)) {
+          if (s >= 85) label = 'Excellent';
+          else if (s >= 70) label = 'Good';
+          else if (s >= 50) label = 'Fair';
+          else label = 'Suspicious';
+        }
+        sidebarScoreLabel.textContent = label;
+      }
+    }
+  }
+  updateSidebarScore();
 
   // Parse Query Parameters
   const params = new URLSearchParams(window.location.search);
@@ -176,8 +208,8 @@ document.addEventListener('DOMContentLoaded', () => {
   // Initialize Speech Recognition
   initSpeechRecognition();
 
-  // Load Questions
-  loadQuiz();
+  // Check for previous attempt first
+  checkPreviousResult();
 
   // ── 1. Load Quiz via API ──
   async function loadQuiz() {
@@ -271,6 +303,118 @@ document.addEventListener('DOMContentLoaded', () => {
       quizOptionsList.innerHTML = `<p class="text-red-500 font-bold">Error: ${err.message}</p>
       <a href="materi.html?role=${role}&slug=${slug}" class="inline-block mt-4 px-6 py-2 bg-brandOrange text-white border-2 border-textMain font-bold">Back to Material</a>`;
     }
+  }
+
+  // --- Check Previous Result & Render Overview ---
+  async function checkPreviousResult() {
+    quizQuestionTitle.textContent = 'Checking for previous quiz attempts... 🔍';
+    quizOptionsList.innerHTML = `
+      <div class="flex items-center gap-3 p-6 border-2 border-textMain bg-panel font-bold shadow-brutal-sm text-textMain">
+        <span class="animate-spin text-xl">⏳</span>
+        <span>Please wait while we check if you have taken this quiz before...</span>
+      </div>
+    `;
+
+    try {
+      const quizType = moduleId ? 'module_quiz' : 'quiz';
+      const response = await fetch(`/api/v1/quiz/result?materialSlug=${moduleId ? `quiz-module-${moduleId}` : slug}&quizType=${quizType}`, {
+        headers: {
+          'Authorization': 'Bearer ' + sessionToken
+        }
+      });
+
+      if (!response.ok) throw new Error('Failed to fetch previous quiz result');
+
+      const body = await response.json();
+      const prevResult = body.data;
+
+      if (prevResult) {
+        renderPreviousResultView(prevResult);
+      } else {
+        loadQuiz();
+      }
+    } catch (err) {
+      console.error('Error checking previous result:', err);
+      loadQuiz();
+    }
+  }
+
+  function renderPreviousResultView(result) {
+    // Hide timer and progress bar during overview
+    const timerDisplay = document.getElementById('timerDisplay');
+    if (timerDisplay) timerDisplay.parentElement.classList.add('hidden');
+    const questionProgressText = document.getElementById('questionProgressText');
+    if (questionProgressText) questionProgressText.parentElement.classList.add('hidden');
+
+    // Hide right sidebar if on larger screen, since it shows live quiz overview
+    const rightSidebar = document.getElementById('right-sidebar');
+    if (rightSidebar) rightSidebar.classList.add('hidden');
+
+    quizQuestionTitle.textContent = 'Quiz Attempt Completed';
+    
+    // Format score as integer if possible
+    const scoreVal = Math.round(parseFloat(result.score));
+    
+    // Format integrity verification label
+    const verifiedText = result.keystroke_verified 
+      ? '<span class="text-green-600 font-black">VERIFIED ✓</span>' 
+      : '<span class="text-red-600 font-black">SUSPICIOUS / BYPASSED ✗</span>';
+
+    // Format date
+    const dateStr = new Date(result.created_at).toLocaleString();
+
+    quizOptionsList.innerHTML = `
+      <div class="space-y-6">
+        <div class="bg-orange-50 border-4 border-textMain p-6 shadow-brutal rounded-none text-textMain">
+          <h2 class="text-3xl font-black uppercase text-brandOrange tracking-tighter">PREVIOUS QUIZ RESULT</h2>
+          <p class="text-textMuted font-bold mt-2">You have completed this quiz before. Below is your last attempt details.</p>
+          
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-6">
+            <div class="bg-white border-2 border-textMain p-4 shadow-brutal-sm">
+              <p class="text-xs uppercase font-bold text-textMuted">Last Score</p>
+              <p class="text-4xl font-black text-brandOrange mt-1">${scoreVal}%</p>
+            </div>
+            <div class="bg-white border-2 border-textMain p-4 shadow-brutal-sm">
+              <p class="text-xs uppercase font-bold text-textMuted">Correct Answers</p>
+              <p class="text-4xl font-black mt-1">${result.correct_answers} / ${result.total_questions}</p>
+            </div>
+          </div>
+
+          <div class="mt-6 bg-white border-2 border-textMain p-4 shadow-brutal-sm">
+            <p class="text-xs uppercase font-bold text-textMuted">Integrity Status</p>
+            <p class="text-lg font-black mt-1">${verifiedText}</p>
+          </div>
+
+          <div class="mt-4 text-xs text-textMuted font-bold">
+            Attempted on: ${dateStr}
+          </div>
+        </div>
+
+        <div class="flex flex-col sm:flex-row gap-4 pt-4">
+          <button type="button" id="retakeQuizBtn" class="flex-1 py-4 bg-brandOrange text-white font-black uppercase border-2 border-textMain shadow-brutal hover:bg-brandViolet transition text-center">
+            Retake Quiz
+          </button>
+          <a href="materi.html?role=${role}&slug=${slug}" class="flex-1 py-4 bg-white text-textMain border-2 border-textMain font-black uppercase shadow-brutal hover:bg-panel transition text-center flex items-center justify-center">
+            Back to Material
+          </a>
+        </div>
+      </div>
+    `;
+
+    // Hide default submit button
+    if (quizSubmitBtn) quizSubmitBtn.classList.add('hidden');
+
+    // Bind retake event
+    document.getElementById('retakeQuizBtn').addEventListener('click', () => {
+      // Restore UI elements for active quiz
+      if (timerDisplay) timerDisplay.parentElement.classList.remove('hidden');
+      if (questionProgressText) questionProgressText.parentElement.classList.remove('hidden');
+      if (rightSidebar) rightSidebar.classList.remove('hidden');
+      if (quizSubmitBtn) quizSubmitBtn.classList.remove('hidden');
+      
+      // Load new quiz
+      loadQuiz();
+    });
   }
 
   // ── 2. Timer Countdown ──
@@ -719,10 +863,17 @@ document.addEventListener('DOMContentLoaded', () => {
 
       if (!finalTranscript) {
         Swal.fire({
-          title: 'Answer Required',
+          title: 'ANSWER REQUIRED',
           text: 'Please write/speak your answer first!',
-          icon: 'info',
-          confirmButtonColor: '#8a2be2'
+          confirmButtonText: 'OK',
+          buttonsStyling: false,
+          customClass: {
+            popup: 'bg-white border-4 border-textMain shadow-brutal rounded-none p-6 md:p-8',
+            title: 'text-2xl md:text-3xl font-black text-brandOrange uppercase tracking-tighter flex items-center justify-center gap-3',
+            htmlContainer: 'text-base md:text-lg text-textMuted font-bold mt-4 mb-8',
+            actions: 'w-full flex justify-center',
+            confirmButton: 'w-full md:w-auto md:px-12 py-3 bg-brandViolet text-white font-black text-lg uppercase tracking-wider border-4 border-textMain shadow-[4px_4px_0px_#09090b] hover:bg-brandViolet/90 hover:translate-y-[2px] hover:translate-x-[2px] hover:shadow-[2px_2px_0px_#09090b] transition-all'
+          }
         });
         return;
       }
@@ -747,10 +898,17 @@ document.addEventListener('DOMContentLoaded', () => {
         const voiceResult = body.data;
 
         Swal.fire({
-          title: 'Voice Evaluation',
+          title: voiceResult.passed ? 'VOICE VERIFICATION SUCCESS' : 'VOICE VERIFICATION FAILED',
           text: voiceResult.feedback,
-          icon: voiceResult.passed ? 'success' : 'error',
-          confirmButtonColor: voiceResult.passed ? '#ff4500' : '#8a2be2'
+          confirmButtonText: 'OK',
+          buttonsStyling: false,
+          customClass: {
+            popup: 'bg-white border-4 border-textMain shadow-brutal rounded-none p-6 md:p-8',
+            title: `text-2xl md:text-3xl font-black ${voiceResult.passed ? 'text-green-600' : 'text-red-600'} uppercase tracking-tighter flex items-center justify-center gap-3`,
+            htmlContainer: 'text-base md:text-lg text-textMuted font-bold mt-4 mb-8',
+            actions: 'w-full flex justify-center',
+            confirmButton: `w-full md:w-auto md:px-12 py-3 ${voiceResult.passed ? 'bg-brandOrange hover:bg-brandOrange/90' : 'bg-brandViolet hover:bg-brandViolet/90'} text-white font-black text-lg uppercase tracking-wider border-4 border-textMain shadow-[4px_4px_0px_#09090b] hover:translate-y-[2px] hover:translate-x-[2px] hover:shadow-[2px_2px_0px_#09090b] transition-all`
+          }
         });
         voiceModal.classList.add('hidden');
 
@@ -776,10 +934,17 @@ document.addEventListener('DOMContentLoaded', () => {
       } catch (err) {
         console.error('Voice verify error:', err);
         Swal.fire({
-          title: 'Network Error',
+          title: 'NETWORK ERROR',
           text: 'A network error occurred while evaluating voice.',
-          icon: 'error',
-          confirmButtonColor: '#8a2be2'
+          confirmButtonText: 'OK',
+          buttonsStyling: false,
+          customClass: {
+            popup: 'bg-white border-4 border-textMain shadow-brutal rounded-none p-6 md:p-8',
+            title: 'text-2xl md:text-3xl font-black text-red-600 uppercase tracking-tighter flex items-center justify-center gap-3',
+            htmlContainer: 'text-base md:text-lg text-textMuted font-bold mt-4 mb-8',
+            actions: 'w-full flex justify-center',
+            confirmButton: 'w-full md:w-auto md:px-12 py-3 bg-brandViolet text-white font-black text-lg uppercase tracking-wider border-4 border-textMain shadow-[4px_4px_0px_#09090b] hover:bg-brandViolet/90 hover:translate-y-[2px] hover:translate-x-[2px] hover:shadow-[2px_2px_0px_#09090b] transition-all'
+          }
         });
         voiceModal.classList.add('hidden');
         saveQuizFailed(0, 4, 'Voice verification bypassed / failed.');
@@ -816,6 +981,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     score = Math.min(100, score + 4);
     localStorage.setItem('integrityScore', score.toString());
+    updateSidebarScore();
 
     // 3. Sync to DB
     const token = localStorage.getItem('sessionToken');
@@ -881,6 +1047,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     score = Math.max(0, score - 15);
     localStorage.setItem('integrityScore', score.toString());
+    updateSidebarScore();
 
     // 3. Sync to DB
     const token = localStorage.getItem('sessionToken');
