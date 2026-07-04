@@ -127,3 +127,17 @@ exports.verifyVoice = async (req, res) => {
     res.status(500).json({ error: error.message });
   }
 };
+
+exports.gradeEssay = async (req, res) => {
+  try {
+    const { question, explanation, userAnswer } = req.body;
+    if (!question || !explanation || !userAnswer) {
+      return res.status(400).json({ error: 'Must include question, explanation, and userAnswer.' });
+    }
+
+    const data = await aiService.gradeEssay(question, explanation, userAnswer);
+    res.json({ message: 'Essay graded successfully', data });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+};

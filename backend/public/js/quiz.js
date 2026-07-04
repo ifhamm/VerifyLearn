@@ -208,12 +208,91 @@ document.addEventListener('DOMContentLoaded', () => {
   // Initialize Speech Recognition
   initSpeechRecognition();
 
+  // Lock Check for Quiz
+  let isQuizLocked = false;
+  let lockReason = '';
+
+  const completedSlugsRaw = localStorage.getItem('completedSlugs');
+  let completedSlugs = [];
+  if (completedSlugsRaw && completedSlugsRaw !== 'undefined') {
+    try {
+      completedSlugs = JSON.parse(completedSlugsRaw);
+    } catch (e) {}
+  }
+
+  if (moduleId) {
+    // This is a module quiz. All materials in this module must be completed first.
+    const savedPlanRaw = localStorage.getItem('learningPlan');
+    if (savedPlanRaw && savedPlanRaw !== 'undefined') {
+      try {
+        const plan = JSON.parse(savedPlanRaw);
+        if (plan && plan.materials) {
+          const selectedLang = localStorage.getItem('selectedLanguage');
+          const languageSlugs = ['javascript', 'go', 'python', 'ruby', 'java', 'c', 'php', 'rust'];
+
+          // Filter materials
+          const filtered = plan.materials.filter(m => {
+            if (m.status === 'dilewati') return false;
+            if (selectedLang && languageSlugs.includes(m.slug) && m.slug !== selectedLang) return false;
+            return true;
+          });
+
+          // Group into modules
+          const total = filtered.length;
+          const chunkSize = Math.ceil(total / 4);
+          const modules = [
+            filtered.slice(0, chunkSize),
+            filtered.slice(chunkSize, 2 * chunkSize),
+            filtered.slice(2 * chunkSize, 3 * chunkSize),
+            filtered.slice(3 * chunkSize)
+          ].filter(arr => arr.length > 0);
+
+          const modIdx = parseInt(moduleId, 10) - 1;
+          if (modIdx >= 0 && modIdx < modules.length) {
+            const uncompletedItems = modules[modIdx].filter(m => !completedSlugs.includes(m.slug));
+            if (uncompletedItems.length > 0) {
+              isQuizLocked = true;
+              lockReason = `Anda harus menyelesaikan seluruh materi di Modul ${moduleId} sebelum dapat memulai kuis ini! (${uncompletedItems.map(m => m.title).join(', ')})`;
+            }
+          }
+        }
+      } catch (e) {
+        console.error('Error checking quiz module lock:', e);
+      }
+    }
+  } else if (slug) {
+    if (!completedSlugs.includes(slug)) {
+      isQuizLocked = true;
+      lockReason = 'Anda harus menyelesaikan materi ini terlebih dahulu sebelum dapat mengambil kuis!';
+    }
+  }
+
+  if (isQuizLocked) {
+    Swal.fire({
+      title: 'Kuis Terkunci 🔒',
+      text: lockReason,
+      icon: 'warning',
+      confirmButtonText: 'OK',
+      buttonsStyling: false,
+      customClass: {
+        popup: 'bg-white border-4 border-textMain shadow-brutal rounded-none p-6 md:p-8',
+        title: 'text-2xl md:text-3xl font-black text-brandOrange uppercase tracking-tighter flex items-center justify-center gap-3',
+        htmlContainer: 'text-base md:text-lg text-textMuted font-bold mt-4 mb-8',
+        actions: 'w-full flex justify-center',
+        confirmButton: 'w-full md:w-auto md:px-12 py-3 bg-brandViolet text-white font-black text-lg uppercase tracking-wider border-4 border-textMain shadow-[4px_4px_0px_#09090b] hover:bg-brandViolet/90 hover:translate-y-[2px] hover:translate-x-[2px] hover:shadow-[2px_2px_0px_#09090b] transition-all'
+      }
+    }).then(() => {
+      window.location.replace(`materi.html?role=${role}&slug=${slug}`);
+    });
+    return;
+  }
+
   // Check for previous attempt first
   checkPreviousResult();
 
   // ── 1. Load Quiz via API ──
   async function loadQuiz() {
-    quizQuestionTitle.textContent = 'Asking AI to generate a quiz for you... 🤖';
+    quizQuestionTitle.textContent = 'Asking AI to generate a quiz for you...';
     quizOptionsList.innerHTML = `
       <div class="flex items-center gap-3 p-6 border-2 border-textMain bg-panel font-bold shadow-brutal-sm">
         <span class="animate-spin text-xl">⏳</span>
@@ -738,12 +817,12 @@ document.addEventListener('DOMContentLoaded', () => {
         triggerVoiceChallenge(keyResult.message);
       } else {
         // Lulus Integritas! Simpan progress kuis berhasil
-        saveQuizSuccess(correctCount, totalPg, keyResult);
+        evaluateEssayAndFinish(true, correctCount, totalPg, keyResult.message || 'Integrity pattern verified secure.');
       }
     } catch (err) {
       console.error('Integrity checks failed:', err);
       // Fallback: anggap lulus jika jaringan gagal demi kelancaran demo
-      saveQuizSuccess(correctCount, totalPg, { verified: true, message: 'Verification bypassed due to network issue.' });
+      evaluateEssayAndFinish(true, correctCount, totalPg, 'Verification bypassed due to network issue.');
     }
   }
 
@@ -926,10 +1005,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
         if (voiceResult.passed) {
           // Lolos tantangan suara!
-          saveQuizSuccess(correctCount, totalPg, { verified: true, message: 'Integrity restored via Voice Verification.' });
+          evaluateEssayAndFinish(true, correctCount, totalPg, 'Integrity restored via Voice Verification.');
         } else {
           // Gagal tantangan suara!
-          saveQuizFailed(correctCount, totalPg, voiceResult.feedback);
+          evaluateEssayAndFinish(false, correctCount, totalPg, voiceResult.feedback || 'Voice verification failed.');
         }
       } catch (err) {
         console.error('Voice verify error:', err);
@@ -947,13 +1026,98 @@ document.addEventListener('DOMContentLoaded', () => {
           }
         });
         voiceModal.classList.add('hidden');
-        saveQuizFailed(0, 4, 'Voice verification bypassed / failed.');
+        evaluateEssayAndFinish(false, 0, 4, 'Voice verification bypassed / failed.');
       }
     });
   }
 
   // ── 11. Finish States ──
-  function saveQuizSuccess(correct, total, integrityData) {
+  async function evaluateEssayAndFinish(passed, correctCount, totalPg, integrityMessage) {
+    // Show Loading/Grading Status
+    quizQuestionTitle.textContent = 'Grading Essay Answers... 📝';
+    quizOptionsList.innerHTML = `
+      <div class="flex flex-col items-center justify-center p-12 border-2 border-textMain bg-panel font-bold shadow-brutal-sm text-center w-full">
+        <span class="animate-spin text-4xl mb-4">⚙️</span>
+        <h3 class="text-xl font-black mb-2 uppercase">Essay Assessment In Progress</h3>
+        <p class="text-sm text-textMuted max-w-md">Our AI is checking your essay answers for correctness and completeness...</p>
+      </div>
+    `;
+
+    let essayScoreSum = 0;
+    let essayCount = 0;
+    let essayFeedbacks = [];
+
+    const essayIndices = [];
+    questions.forEach((q, idx) => {
+      if (q.type === 'essay') {
+        essayIndices.push(idx);
+      }
+    });
+
+    if (essayIndices.length > 0) {
+      for (const idx of essayIndices) {
+        const q = questions[idx];
+        const userAnswer = userAnswers[idx] || '';
+        try {
+          const res = await fetch('/api/v1/grade-essay', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': 'Bearer ' + sessionToken
+            },
+            body: JSON.stringify({
+              question: q.question,
+              explanation: q.explanation || '',
+              userAnswer: userAnswer
+            })
+          });
+          if (res.ok) {
+            const body = await res.json();
+            const gradeResult = body.data;
+            essayScoreSum += gradeResult.score;
+            essayFeedbacks.push({
+              question: q.question,
+              userAnswer: userAnswer,
+              score: gradeResult.score,
+              feedback: gradeResult.feedback
+            });
+          } else {
+            essayScoreSum += 0;
+            essayFeedbacks.push({
+              question: q.question,
+              userAnswer: userAnswer,
+              score: 0,
+              feedback: 'Failed to communicate with the essay evaluation server.'
+            });
+          }
+        } catch (e) {
+          console.error('Error grading essay:', e);
+          essayScoreSum += 0;
+          essayFeedbacks.push({
+            question: q.question,
+            userAnswer: userAnswer,
+            score: 0,
+            feedback: 'Error: ' + e.message
+          });
+        }
+        essayCount++;
+      }
+    }
+
+    const totalQuestions = totalPg + essayCount;
+    let finalScore = 0;
+    if (totalQuestions > 0) {
+      finalScore = ((correctCount * 100) + essayScoreSum) / totalQuestions;
+    }
+
+    if (passed) {
+      saveQuizSuccess(correctCount, totalPg, finalScore, essayCount, essayScoreSum, essayFeedbacks, integrityMessage);
+    } else {
+      saveQuizFailed(correctCount, totalPg, finalScore, essayCount, essayScoreSum, essayFeedbacks, integrityMessage);
+    }
+  }
+
+  function saveQuizSuccess(correct, total, finalScore, essayCount, essayScoreSum, essayFeedbacks, integrityMessage) {
     // 1. Simpan Completed status ke LocalStorage
     let completed = [];
     const savedSlugs = localStorage.getItem('completedSlugs');
@@ -1006,21 +1170,21 @@ document.addEventListener('DOMContentLoaded', () => {
       body: JSON.stringify({
         materialSlug: keyToSave,
         quizType: moduleId ? 'module_quiz' : 'quiz',
-        score: (correct / (total || 1)) * 100,
-        totalQuestions: total,
+        score: finalScore,
+        totalQuestions: total + essayCount,
         correctAnswers: correct,
-        details: { questions, userAnswers, integrityMessage: integrityData.message },
+        details: { questions, userAnswers, essayCount, essayScoreSum, essayFeedbacks, integrityMessage },
         keystrokeVerified: true,
         keystrokeScore: null
       })
     }).catch(err => console.error('Error saving quiz result:', err));
 
     // 4. Render Output Hasil
-    renderResultView(true, correct, total, integrityData.message, score);
+    renderResultView(true, correct, total, finalScore, essayCount, essayScoreSum, essayFeedbacks, integrityMessage, score);
   }
 
-  function saveQuizFailed(correct, total, feedback) {
-    // 1. Simpan completed status (karena kuis dikerjakan selesai)
+  function saveQuizFailed(correct, total, finalScore, essayCount, essayScoreSum, essayFeedbacks, integrityMessage) {
+    // 1. Simpan completed status
     let completed = [];
     const savedSlugs = localStorage.getItem('completedSlugs');
     if (savedSlugs && savedSlugs !== 'undefined') {
@@ -1072,19 +1236,19 @@ document.addEventListener('DOMContentLoaded', () => {
       body: JSON.stringify({
         materialSlug: keyToSave,
         quizType: moduleId ? 'module_quiz' : 'quiz',
-        score: (correct / (total || 1)) * 100,
-        totalQuestions: total,
+        score: finalScore,
+        totalQuestions: total + essayCount,
         correctAnswers: correct,
-        details: { questions, userAnswers, feedback },
+        details: { questions, userAnswers, essayCount, essayScoreSum, essayFeedbacks, integrityMessage },
         keystrokeVerified: false,
         keystrokeScore: null
       })
     }).catch(err => console.error('Error saving quiz result:', err));
 
-    renderResultView(false, correct, total, feedback, score);
+    renderResultView(false, correct, total, finalScore, essayCount, essayScoreSum, essayFeedbacks, integrityMessage, score);
   }
 
-  function renderResultView(passed, correct, total, reason, finalScore) {
+  function renderResultView(passed, correct, total, finalScore, essayCount, essayScoreSum, essayFeedbacks, integrityMessage, finalGlobalScore) {
     quizQuestionTitle.textContent = 'Quiz Evaluation Result';
     
     let heading = passed 
@@ -1095,40 +1259,82 @@ document.addEventListener('DOMContentLoaded', () => {
       ? 'Congratulations! You completed this module authentically.'
       : 'Attention: We detected an integrity anomaly that did not pass the voice verification.';
 
+    let essayHtml = '';
+    if (essayCount > 0) {
+      const avgEssay = Math.round(essayScoreSum / essayCount);
+      essayHtml = `
+        <div class="border-2 border-textMain p-4 text-center bg-gray-50">
+          <span class="text-xs font-bold text-textMuted uppercase block">ESSAY SCORE (AVG)</span>
+          <span class="text-3xl font-black text-brandViolet">${avgEssay} / 100</span>
+        </div>
+      `;
+    }
+
+    let feedbackListHtml = '';
+    if (essayFeedbacks && essayFeedbacks.length > 0) {
+      feedbackListHtml = `
+        <div class="border-2 border-textMain p-4 rounded-lg bg-gray-50 text-xs font-mono text-gray-700 leading-relaxed mb-6">
+          <p class="font-bold text-textMain uppercase mb-2">Essay Correctness & Completeness Feedback:</p>
+          ${essayFeedbacks.map((f, i) => `
+            <div class="mb-3 border-b border-gray-200 pb-2 last:border-0 last:pb-0">
+              <p class="font-semibold text-textMain">Q: ${f.question}</p>
+              <p class="text-gray-500 italic mt-0.5">Your answer: "${f.userAnswer}"</p>
+              <p class="mt-1"><span class="font-bold text-brandViolet">Score: ${f.score}/100</span> - ${f.feedback}</p>
+            </div>
+          `).join('')}
+        </div>
+      `;
+    }
+
+    const colsCount = essayCount > 0 ? 4 : 3;
+
     quizOptionsList.innerHTML = `
       <div class="border-4 border-textMain p-8 bg-white shadow-brutal w-full text-left">
         ${heading}
         <p class="text-sm font-bold text-textMuted uppercase mb-6">${message}</p>
         
-        <div class="grid md:grid-cols-3 gap-4 mb-8">
+        <div class="grid md:grid-cols-${colsCount} gap-4 mb-8">
           <div class="border-2 border-textMain p-4 text-center bg-gray-50">
             <span class="text-xs font-bold text-textMuted uppercase block">PG SCORE</span>
             <span class="text-3xl font-black text-brandViolet">${correct} / ${total}</span>
           </div>
+          ${essayHtml}
           <div class="border-2 border-textMain p-4 text-center bg-gray-50">
-            <span class="text-xs font-bold text-textMuted uppercase block">INTEGRITY STATUS</span>
-            <span class="text-lg font-black uppercase ${passed ? 'text-green-600' : 'text-red-600'}">${passed ? 'PASSED' : 'FLAGGED'}</span>
+            <span class="text-xs font-bold text-textMuted uppercase block">COMBINED SCORE</span>
+            <span class="text-3xl font-black text-brandOrange">${Math.round(finalScore)}%</span>
           </div>
           <div class="border-2 border-textMain p-4 text-center bg-gray-50">
-            <span class="text-xs font-bold text-textMuted uppercase block">CURRENT GLOBAL SCORE</span>
-            <span class="text-3xl font-black text-brandOrange">${finalScore} / 100</span>
+            <span class="text-xs font-bold text-textMuted uppercase block">GLOBAL INTEGRITY</span>
+            <span class="text-3xl font-black text-brandOrange">${finalGlobalScore} / 100</span>
           </div>
         </div>
+
+        ${feedbackListHtml}
 
         <div class="border-2 border-textMain p-4 rounded-lg bg-gray-50 text-xs font-mono text-gray-700 leading-relaxed mb-6">
           <p class="font-bold text-textMain uppercase mb-1">Integrity Analysis Notes:</p>
-          <p>"${reason}"</p>
+          <p>"${integrityMessage}"</p>
         </div>
 
-        <button type="button" id="finishQuizBtn" class="w-full py-4 bg-brandOrange text-white border-2 border-textMain font-black uppercase shadow-brutal hover:bg-textMain transition text-center">
-          Finish & Return to Dashboard
-        </button>
+        <div class="flex flex-col sm:flex-row gap-4 mt-6">
+          <button type="button" id="finishQuizBtn" class="flex-1 py-4 bg-brandOrange text-white border-2 border-textMain font-black uppercase shadow-brutal hover:bg-textMain transition text-center">
+            Return to Dashboard
+          </button>
+          <button type="button" id="backToMaterialBtn" class="flex-1 py-4 bg-brandViolet text-white border-2 border-textMain font-black uppercase shadow-brutal hover:bg-textMain transition text-center">
+            Back to Last Material
+          </button>
+        </div>
       </div>
     `;
 
     document.getElementById('finishQuizBtn').onclick = (e) => {
       e.preventDefault();
       window.location.href = 'myPath.html';
+    };
+
+    document.getElementById('backToMaterialBtn').onclick = (e) => {
+      e.preventDefault();
+      window.location.href = `materi.html?role=${role}&slug=${slug}`;
     };
   }
 });

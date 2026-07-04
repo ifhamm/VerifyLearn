@@ -122,6 +122,9 @@ document.addEventListener('DOMContentLoaded', () => {
           if (data.learningPlan) {
             localStorage.setItem('learningPlan', JSON.stringify(data.learningPlan));
           }
+          if (data.learningPlans) {
+            localStorage.setItem('learningPlans', JSON.stringify(data.learningPlans));
+          }
           if (data.completedSlugs) {
             localStorage.setItem('completedSlugs', JSON.stringify(data.completedSlugs));
           }
@@ -243,6 +246,9 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         if (data.learningPlan) {
           localStorage.setItem('learningPlan', JSON.stringify(data.learningPlan));
+        }
+        if (data.learningPlans) {
+          localStorage.setItem('learningPlans', JSON.stringify(data.learningPlans));
         }
         if (data.completedSlugs) {
           localStorage.setItem('completedSlugs', JSON.stringify(data.completedSlugs));

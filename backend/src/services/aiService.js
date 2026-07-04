@@ -169,3 +169,28 @@ exports.generateAdaptiveLearningPlan = async ({ role, level, commitment, duratio
   }
 };
 
+exports.gradeEssay = async (question, explanation, userAnswer) => {
+  try {
+    const response = await fetch(`${AI_SERVICE_URL}/api/grade-essay`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ question, explanation, user_answer: userAnswer }),
+    });
+
+    if (!response.ok) {
+      throw new Error(`AI Service returned status ${response.status}`);
+    }
+
+    const json = await response.json();
+    return json.data;
+  } catch (error) {
+    console.error('Error calling AI Service /api/grade-essay:', error);
+    return {
+      score: 0,
+      feedback: `Failed to evaluate answer automatically: ${error.message}`
+    };
+  }
+};
+

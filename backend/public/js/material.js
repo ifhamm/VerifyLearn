@@ -158,6 +158,47 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
   }
 
+  // Helper to determine lock status
+  function isMaterialLocked(materialSlug) {
+    const idx = filteredMaterialsList.findIndex(m => m.slug === materialSlug);
+    if (idx <= 0) return false;
+    for (let i = 0; i < idx; i++) {
+      if (!completedSlugs.includes(filteredMaterialsList[i].slug)) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  // If the active material is locked, redirect to first uncompleted or last completed
+  if (slug && isMaterialLocked(slug)) {
+    let redirectSlug = filteredMaterialsList[0].slug;
+    for (let i = 0; i < filteredMaterialsList.length; i++) {
+      if (completedSlugs.includes(filteredMaterialsList[i].slug)) {
+        redirectSlug = filteredMaterialsList[i].slug;
+      } else {
+        break;
+      }
+    }
+    Swal.fire({
+      title: 'Materi Terkunci 🔒',
+      text: 'Silakan selesaikan materi sebelumnya terlebih dahulu secara berurutan!',
+      icon: 'warning',
+      confirmButtonText: 'OK',
+      buttonsStyling: false,
+      customClass: {
+        popup: 'bg-white border-4 border-textMain shadow-brutal rounded-none p-6 md:p-8',
+        title: 'text-2xl md:text-3xl font-black text-brandOrange uppercase tracking-tighter flex items-center justify-center gap-3',
+        htmlContainer: 'text-base md:text-lg text-textMuted font-bold mt-4 mb-8',
+        actions: 'w-full flex justify-center',
+        confirmButton: 'w-full md:w-auto md:px-12 py-3 bg-brandViolet text-white font-black text-lg uppercase tracking-wider border-4 border-textMain shadow-[4px_4px_0px_#09090b] hover:bg-brandViolet/90 hover:translate-y-[2px] hover:translate-x-[2px] hover:shadow-[2px_2px_0px_#09090b] transition-all'
+      }
+    }).then(() => {
+      window.location.replace(`materi.html?role=${role}&slug=${redirectSlug}`);
+    });
+    return;
+  }
+
   // If no slug is specified in query param, redirect to the first material
   if (!slug && filteredMaterialsList.length > 0) {
     window.location.replace(`materi.html?role=${role}&slug=${filteredMaterialsList[0].slug}`);
@@ -346,6 +387,84 @@ document.addEventListener('DOMContentLoaded', async () => {
 
       // Setup Navigation Flow
       setupNavigation(modules, slug);
+
+      // Fetch Note for this material
+      const noteTextarea = document.getElementById('noteTextarea');
+      const saveNoteBtn = document.getElementById('saveNoteBtn');
+      if (noteTextarea) {
+        try {
+          const res = await fetch(`/api/v1/user/note?materialSlug=${slug}&role=${role}`, {
+            headers: {
+              'Authorization': 'Bearer ' + sessionToken
+            }
+          });
+          if (res.ok) {
+            const noteBody = await res.json();
+            noteTextarea.value = noteBody.notes || '';
+          }
+        } catch (err) {
+          console.error('Error fetching note:', err);
+        }
+      }
+
+      if (saveNoteBtn && noteTextarea) {
+        saveNoteBtn.onclick = async (e) => {
+          e.preventDefault();
+          saveNoteBtn.disabled = true;
+          saveNoteBtn.textContent = 'Saving...';
+          try {
+            const res = await fetch('/api/v1/user/note', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': 'Bearer ' + sessionToken
+              },
+              body: JSON.stringify({
+                materialSlug: slug,
+                role: role,
+                notes: noteTextarea.value
+              })
+            });
+            if (res.ok) {
+              Swal.fire({
+                title: 'Note Saved! 📝',
+                text: 'Your learning notes have been updated successfully.',
+                icon: 'success',
+                confirmButtonText: 'Great!',
+                buttonsStyling: false,
+                customClass: {
+                  popup: 'bg-white border-4 border-textMain shadow-brutal rounded-none p-6 md:p-8',
+                  title: 'text-2xl md:text-3xl font-black text-green-600 uppercase tracking-tighter flex items-center justify-center gap-3',
+                  htmlContainer: 'text-base md:text-lg text-textMuted font-bold mt-4 mb-8',
+                  actions: 'w-full flex justify-center',
+                  confirmButton: 'w-full md:w-auto md:px-12 py-3 bg-brandViolet text-white font-black text-lg uppercase tracking-wider border-4 border-textMain shadow-[4px_4px_0px_#09090b] hover:bg-brandViolet/90 hover:translate-y-[2px] hover:translate-x-[2px] hover:shadow-[2px_2px_0px_#09090b] transition-all'
+                }
+              });
+            } else {
+              throw new Error('Failed to save note');
+            }
+          } catch (err) {
+            console.error('Error saving note:', err);
+            Swal.fire({
+              title: 'Error',
+              text: 'Failed to save note: ' + err.message,
+              icon: 'error',
+              confirmButtonText: 'OK',
+              buttonsStyling: false,
+              customClass: {
+                popup: 'bg-white border-4 border-textMain shadow-brutal rounded-none p-6 md:p-8',
+                title: 'text-2xl md:text-3xl font-black text-red-600 uppercase tracking-tighter flex items-center justify-center gap-3',
+                htmlContainer: 'text-base md:text-lg text-textMuted font-bold mt-4 mb-8',
+                actions: 'w-full flex justify-center',
+                confirmButton: 'w-full md:w-auto md:px-12 py-3 bg-brandViolet text-white font-black text-lg uppercase tracking-wider border-4 border-textMain shadow-[4px_4px_0px_#09090b] hover:bg-brandViolet/90 hover:translate-y-[2px] hover:translate-x-[2px] hover:shadow-[2px_2px_0px_#09090b] transition-all'
+              }
+            });
+          } finally {
+            saveNoteBtn.disabled = false;
+            saveNoteBtn.textContent = 'Save Note';
+          }
+        };
+      }
     } catch (err) {
       materialTitle.textContent = 'Material Not Found';
       materialContent.innerHTML = `<p class="text-red-500 font-bold">Error: ${err.message}</p>`;
@@ -444,15 +563,42 @@ document.addEventListener('DOMContentLoaded', async () => {
           window.location.href = `materi.html?role=${role}&slug=${modObj.items[localIdx + 1].slug}`;
         };
       } else {
-        // Last material of the module! Next points to the Module Quiz!
-        nextBtn.innerHTML = `Practice Quiz! 🚀
-          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
-          </svg>`;
-        nextBtn.onclick = () => {
-          markCurrentCompleted();
-          window.location.href = `quiz.html?role=${role}&module=${modObj.id}&slug=${currentSlug}`;
-        };
+        // Last material of the module!
+        const isQuizCompleted = completedSlugs.includes('quiz-module-' + modObj.id);
+
+        if (!isQuizCompleted) {
+          // Next points to the Module Quiz
+          nextBtn.innerHTML = `Practice Quiz! 🚀
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
+            </svg>`;
+          nextBtn.onclick = () => {
+            markCurrentCompleted();
+            window.location.href = `quiz.html?role=${role}&module=${modObj.id}&slug=${currentSlug}`;
+          };
+        } else if (modIdx < modulesList.length - 1) {
+          // Quiz is already completed, go to the first material of the next module!
+          const nextMod = modulesList[modIdx + 1];
+          const firstItemOfNextMod = nextMod.items[0];
+          nextBtn.innerHTML = `Next Module ➔
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
+            </svg>`;
+          nextBtn.onclick = () => {
+            markCurrentCompleted();
+            window.location.href = `materi.html?role=${role}&slug=${firstItemOfNextMod.slug}`;
+          };
+        } else {
+          // All modules completed!
+          nextBtn.innerHTML = `Complete Path! 🎉
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
+            </svg>`;
+          nextBtn.onclick = () => {
+            markCurrentCompleted();
+            window.location.href = 'myPath.html';
+          };
+        }
       }
     }
   }
@@ -515,12 +661,18 @@ document.addEventListener('DOMContentLoaded', async () => {
         let badgeStyle = 'w-6 h-6 flex items-center justify-center rounded-full bg-gray-100 text-gray-500 text-[10px] shrink-0 font-bold';
         let tagBadge = '';
 
+        const isLocked = isMaterialLocked(m.slug);
+
         if (isActive) {
           cardStyle = 'w-full flex items-center justify-between px-3 py-2 bg-orange-50 text-brandOrange font-black rounded-lg border border-brandOrange/30 transition text-left text-sm';
           badgeStyle = 'w-6 h-6 flex items-center justify-center rounded-full bg-brandOrange text-white text-[10px] shrink-0 font-bold';
         } else if (isDone) {
           cardStyle = 'w-full flex items-center justify-between px-3 py-2 bg-green-50 text-green-700 font-bold rounded-lg border border-green-100 transition text-left text-sm';
           badgeStyle = 'w-6 h-6 flex items-center justify-center rounded-full bg-green-500 text-white text-[10px] shrink-0 font-bold';
+        } else if (isLocked) {
+          cardStyle = 'w-full flex items-center justify-between px-3 py-2 text-gray-400 bg-gray-50 border border-gray-100 rounded-lg cursor-not-allowed transition text-left text-sm opacity-60';
+          badgeStyle = 'w-6 h-6 flex items-center justify-center rounded-full bg-gray-200 text-gray-400 text-[10px] shrink-0 font-bold';
+          tagBadge = '<span class="text-[9px] font-black text-gray-400 bg-gray-100 border border-gray-200 px-1.5 py-0.5 rounded uppercase tracking-tight ml-2">🔒 Locked</span>';
         } else {
           // Uncompleted and inactive
           if (m.status === 'wajib') {
@@ -535,7 +687,28 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
 
         const btn = document.createElement('a');
-        btn.href = `materi.html?role=${role}&slug=${m.slug}`;
+        if (isLocked) {
+          btn.href = '#';
+          btn.addEventListener('click', (e) => {
+            e.preventDefault();
+            Swal.fire({
+              title: 'Materi Terkunci 🔒',
+              text: 'Silakan selesaikan materi sebelumnya terlebih dahulu secara berurutan!',
+              icon: 'warning',
+              confirmButtonText: 'OK',
+              buttonsStyling: false,
+              customClass: {
+                popup: 'bg-white border-4 border-textMain shadow-brutal rounded-none p-6 md:p-8',
+                title: 'text-2xl md:text-3xl font-black text-brandOrange uppercase tracking-tighter flex items-center justify-center gap-3',
+                htmlContainer: 'text-base md:text-lg text-textMuted font-bold mt-4 mb-8',
+                actions: 'w-full flex justify-center',
+                confirmButton: 'w-full md:w-auto md:px-12 py-3 bg-brandViolet text-white font-black text-lg uppercase tracking-wider border-4 border-textMain shadow-[4px_4px_0px_#09090b] hover:bg-brandViolet/90 hover:translate-y-[2px] hover:translate-x-[2px] hover:shadow-[2px_2px_0px_#09090b] transition-all'
+              }
+            });
+          });
+        } else {
+          btn.href = `materi.html?role=${role}&slug=${m.slug}`;
+        }
         btn.className = cardStyle;
         btn.innerHTML = `
           <div class="flex items-center gap-3 overflow-hidden">

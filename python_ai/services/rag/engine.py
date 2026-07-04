@@ -661,6 +661,37 @@ Respond with JSON:
             expected_voice_keywords=data["expected_keywords"],
         )
 
+    def grade_essay(self, question: str, explanation: str, user_answer: str) -> dict:
+        print(f"[RAGEngine] Grading essay for question: {question[:50]}...")
+        prompt = f"""Evaluate the user's essay answer for the following question.
+
+Question: {question}
+Expected concepts/explanation: {explanation}
+User's Answer: {user_answer}
+
+Rate the user's answer on a scale from 0 to 100 based on its correctness and completeness.
+Provide a score (integer) and feedback in English based on the expected concepts.
+IMPORTANT: The feedback MUST be written entirely in English.
+
+Respond in strict JSON format:
+{{
+  "score": 85,
+  "feedback": "Your explanation is very good..."
+}}"""
+        try:
+            raw = self._llm(prompt)
+            data = json.loads(self._clean_json(raw))
+            return {
+                "score": int(data.get("score", 0)),
+                "feedback": data.get("feedback", "Failed to generate feedback.")
+            }
+        except Exception as e:
+            print(f"[RAGEngine] Error grading essay: {e}")
+            return {
+                "score": 0,
+                "feedback": f"Error grading essay: {str(e)}"
+            }
+
     # ── Helper ────────────────────────────────────────────────────────────────
 
     def to_dict(self, obj) -> dict:

@@ -56,12 +56,13 @@ exports.login = async (req, res) => {
       
       const user = userResult.rows[0];
 
-      // Fetch user's existing learning plan if any
+      // Fetch user's existing learning plans if any
       const planResult = await db.query(
         `SELECT plan_data FROM user_learning_paths WHERE user_id = $1`,
         [user.id]
       );
-      const learningPlan = planResult.rows[0] ? planResult.rows[0].plan_data : null;
+      const learningPlans = planResult.rows.map(row => row.plan_data);
+      const learningPlan = learningPlans[0] || null;
 
       // Fetch user's existing completed slugs
       const progressResult = await db.query(
@@ -91,6 +92,7 @@ exports.login = async (req, res) => {
         username: user.username,
         integrityScore: user.integrity_score,
         learningPlan,
+        learningPlans,
         completedSlugs
       });
     }
@@ -126,12 +128,13 @@ exports.checkSession = async (req, res) => {
       return res.status(401).json({ isAuthenticated: false, error: 'Session has expired or is invalid.' });
     }
 
-    // Fetch learning plan
+    // Fetch learning plans
     const planResult = await db.query(
       `SELECT plan_data FROM user_learning_paths WHERE user_id = $1`,
       [session.user_id]
     );
-    const learningPlan = planResult.rows[0] ? planResult.rows[0].plan_data : null;
+    const learningPlans = planResult.rows.map(row => row.plan_data);
+    const learningPlan = learningPlans[0] || null;
 
     // Fetch progress
     const progressResult = await db.query(
@@ -147,6 +150,7 @@ exports.checkSession = async (req, res) => {
       integrityScore: session.integrity_score,
       isMock: session.is_mock,
       learningPlan,
+      learningPlans,
       completedSlugs
     });
   } catch (error) {

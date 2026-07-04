@@ -55,16 +55,34 @@ async function initializeDatabase() {
     await client.query(`
       CREATE TABLE IF NOT EXISTS user_learning_paths (
         id SERIAL PRIMARY KEY,
-        user_id INTEGER REFERENCES users(id) ON DELETE CASCADE UNIQUE,
+        user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
         role VARCHAR(100) NOT NULL,
         level VARCHAR(100) NOT NULL,
         duration_weeks INTEGER NOT NULL,
         commitment_hours DOUBLE PRECISION NOT NULL,
         plan_data JSONB NOT NULL,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE (user_id, role)
       )
     `);
+
+    // Migration to change unique constraint
+    const checkRoleKey = await client.query(`
+      SELECT 1 FROM pg_constraint WHERE conname = 'user_learning_paths_user_id_role_key'
+    `);
+    if (checkRoleKey.rows.length === 0) {
+      try {
+        await client.query(`
+          ALTER TABLE user_learning_paths DROP CONSTRAINT IF EXISTS user_learning_paths_user_id_key
+        `);
+        await client.query(`
+          ALTER TABLE user_learning_paths ADD CONSTRAINT user_learning_paths_user_id_role_key UNIQUE (user_id, role)
+        `);
+      } catch (migErr) {
+        console.warn('[Database Migration] Migration statement failed:', migErr.message);
+      }
+    }
 
     // 4. Create user_progress table
     await client.query(`
@@ -74,6 +92,7 @@ async function initializeDatabase() {
         material_slug VARCHAR(255) NOT NULL,
         role VARCHAR(100) NOT NULL,
         status VARCHAR(50) DEFAULT 'in_progress',
+        notes TEXT,
         completed_at TIMESTAMP,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -110,6 +129,14 @@ async function initializeDatabase() {
         UNIQUE (user_id, module_id)
       )
     `);
+
+    // --- Schema Migration Queries ---
+    // Ensure default integrity_score constraint and migrate any NULL values to 100
+    await client.query(`ALTER TABLE users ALTER COLUMN integrity_score SET DEFAULT 100`);
+    await client.query(`UPDATE users SET integrity_score = 100 WHERE integrity_score IS NULL`);
+
+    // Ensure user_progress has notes column if table already exists
+    await client.query(`ALTER TABLE user_progress ADD COLUMN IF NOT EXISTS notes TEXT`);
 
     await client.query('COMMIT');
     console.log('[Database] Database tables initialized successfully.');

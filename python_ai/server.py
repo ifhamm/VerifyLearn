@@ -72,6 +72,11 @@ class VoiceVerifyRequest(BaseModel):
     expected_keywords: List[str]
     min_match_ratio: float = 0.6
 
+class EssayGradeRequest(BaseModel):
+    question: str
+    explanation: str
+    user_answer: str
+
 # ── Endpoints ────────────────────────────────────────────────────────────────
 
 @app.get("/health")
@@ -268,6 +273,21 @@ def verify_voice_answer(payload: VoiceVerifyRequest):
         return {
             "status": "success",
             "data": asdict(result)
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/api/grade-essay")
+def grade_essay(payload: EssayGradeRequest):
+    try:
+        result = engine.grade_essay(
+            question=payload.question,
+            explanation=payload.explanation,
+            user_answer=payload.user_answer
+        )
+        return {
+            "status": "success",
+            "data": result
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))

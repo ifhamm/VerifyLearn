@@ -1,158 +1,139 @@
 # VerifyLearn Ecosystem 🎓🔐
-
-VerifyLearn is a Web3 learning platform that utilizes AI-driven learning paths and verifies learning integrity through keystroke dynamics and anti-cheat voice challenges.
-
----
-
-## 🏗️ System Architecture & Services
-
-The ecosystem consists of two core services:
-
-1. **Backend Service (`backend/`)**:
-   - Built on Node.js & Express.
-   - Serves the frontend user dashboard.
-   - Manages user sessions, Web3 wallet auth, and API routes.
-   - Dockerized and configured on port `3000`.
-
-2. **Python AI Service (`python_ai/`)**:
-   - Built on Python 3.10 with RAG (Retrieval-Augmented Generation) engine capabilities.
-   - Integrates local embedding (`sentence-transformers/all-MiniLM-L6-v2`) and a flexible LLM provider.
-   - Supports local LLM (**Qwen2.5 via Ollama**) or cloud LLM (**Google Gemini API**) for roadmap indexing, quiz generation, and anomaly scoring.
-   - Dockerized and configured on port `8000`.
+> **AI-Powered Adaptive Learning & Web3 Behavioral Integrity Verification**
 
 ---
 
-## 🐳 Running with Docker Compose
+## 🏆 Introduction & Pitch
 
-Ensure you have Docker and Docker Compose installed.
+In the era of remote education, online credentials face a massive trust deficit. Traditional certificates are easily forged, assessments are vulnerable to copy-paste plagiarism (e.g., ChatGPT-aided cheating), and learning platforms lack verifiable proof of authentic learning.
 
-### 1. Configure Environment Variables
+**VerifyLearn** solves this by building a trustless, automated validation loop. By combining **AI-driven adaptive learning paths**, **Behavioral Biometrics (keystroke dynamics)**, and **Web3 Soulbound Tokens (SBT)**, VerifyLearn validates not just *what* was submitted, but *how* the learner completed the assessment. It is the ultimate platform for proving genuine skill acquisition.
+
+---
+
+## ✨ Key Winning Features
+
+### 🧠 1. AI-Powered Adaptive Curriculum
+- **Custom Learning Roadmap**: Generates weekly schedules dynamically tailored to the user's role (Frontend, Backend, Fullstack), skill level (Beginner to Advanced), and daily commitment.
+- **RAG-Composed Assessments**: Utilizes Retrieval-Augmented Generation (RAG) to generate quizzes and evaluations based on real, indexed course content.
+
+### ⌨️ 2. Behavioral Biometrics (Keystroke Dynamics)
+- **Typing Cadence Fingerprinting**: Measures typing rhythm (dwell time and flight time) down to the millisecond during writing assessments.
+- **Plagiarism & Anti-Cheat Engine**: Compares the user's live typing fingerprint against their established pattern to verify identity and detect copy-paste or AI-generated injections.
+
+### 🎙️ 3. Multi-Modal Anti-Cheat Voice Challenges
+- **Voice Biometrics Verification**: Integrates audio recording challenges during milestone assessments to confirm the learner's identity biometrically.
+
+### 🔀 4. Multi-Path Switcher & Concurrent Progress
+- **Flexible Lifelong Learning**: Allows users to simultaneously enroll in and maintain progress for Frontend, Backend, and Fullstack paths.
+- **Independent State Persistence**: Tracks progress, custom roadmap unlocks, and quiz scores independently per path without losing historical data.
+
+### ⛓️ 5. Immutable Web3 Credentials (Soulbound Tokens)
+- **Soulbound Tokens (SBT)**: Automatically mints non-transferable, on-chain badges for completing modules and final paths.
+- **Trustless CV**: Credentials are permanently bound to the user's wallet address, serving as a tamper-proof digital resume.
+
+---
+
+## 🏗️ System Architecture
+
+VerifyLearn is composed of three decoupled, high-performance layers:
+
+```text
+                     ┌──────────────────────────┐
+                     │    Frontend Dashboard    │
+                     │  (HTML, Tailwind, JS)    │
+                     └────────────┬─────────────┘
+                                  │ HTTPS / WebSockets
+                                  ▼
+                     ┌──────────────────────────┐
+                     │  Express.js API Gateway  │ <───> [ PostgreSQL ]
+                     │  (Web3 Auth, Notes API)  │
+                     └────────────┬─────────────┘
+                                  │ Local HTTP
+                                  ▼
+ ┌──────────────────────────────────────────────────────────────┐
+ │                    Python AI Service                         │
+ │  - RAG Engine Orchestrator      - Sentence-Transformers      │
+ │  - Local Chroma Vector DB       - Local Voice verification   │
+ └──────────────────────────────┬───────────────────────────────┘
+                                │ Ollama API (11434)
+                                ▼
+                   ┌──────────────────────────┐
+                   │    Local Qwen 2.5 LLM    │
+                   │  (Or Cloud Gemini fallback)│
+                   └──────────────────────────┘
+```
+
+1. **Backend Gateway Service (`backend/`)**:
+   - Manages Web3 MetaMask/simulated wallet logins and session states.
+   - Syncs active learning paths, progress markers, and keystroke records to a PostgreSQL database.
+   - Triggers smart contract interactions on the blockchain to mint SBT badges.
+
+2. **Python AI Engine (`python_ai/`)**:
+   - Houses the Retrieval-Augmented Generation (RAG) stack.
+   - Performs local embeddings (`sentence-transformers/all-MiniLM-L6-v2`) and persists data in a local Chroma DB.
+   - Handles essay evaluation, voice challenge verification, and keystroke dynamics anomaly detection.
+
+3. **Smart Contracts (`backend/contracts/`)**:
+   - ERC-5114 equivalent Soulbound Token contract (`VerifyLearnSBT.sol`) deployed to secure achievements permanently.
+
+---
+
+## 🐳 Getting Started (Docker Compose)
+
+The entire ecosystem is containerized for seamless, single-command local deployments.
+
+### 1. Configure the Environment
 Create a `.env` file in the root directory (ignored by git):
 ```env
-# Opsional jika ingin menggunakan Cloud LLM (Gemini)
+# Optional: Set a Gemini key to run without local GPU resources
 GEMINI_API_KEY=your_gemini_api_key_here
 ```
 
-### 2. Start the Entire Stack
-Run the following command to build and run all services in the background:
+### 2. Launch the Services
+Run the following command to build and launch the database, backend dashboard, and Python AI service:
 ```bash
 docker-compose up --build -d
 ```
 
-- **Backend Dashboard & API**: [http://localhost:3000](http://localhost:3000)
-- **Python AI Service**: [http://localhost:8000](http://localhost:8000)
+- **User Dashboard & Main App**: [http://localhost:3000](http://localhost:3000)
+- **AI Core Microservice**: [http://localhost:8000](http://localhost:8000)
 
-### 3. Stop the Stack
+### 3. Populate Chroma Vector Database
+Initialize the localized knowledge base inside the running Python AI container:
 ```bash
-docker-compose down
+docker exec -it verify-learn-python-ai bash
+python ingest_kb.py
 ```
+*(This builds local text embeddings for syllabus topics and loads them into Chroma DB)*
 
 ---
 
-## 🤖 Alur Setup & Penggunaan AI (Ollama & Qwen)
+## 🛠️ Local vs. Cloud AI Orchestration
 
-Untuk memudahkan pengembangan, tim dibagi menjadi dua peran: **AI Host** (1 orang yang menjalankan Ollama & LLM) dan **Client Developer** (tim lainnya yang hanya menggunakan AI tersebut).
+To support both resource-constrained client machines and dedicated servers, VerifyLearn supports dual AI hosting modes:
 
----
+### Mode A: Shared Local LLM (Host-Client Model)
+Perfect for teams where only one developer runs the heavy model resources locally.
+- **AI Host Machine**: Installs [Ollama](https://ollama.com), pulls `qwen2.5:latest`, sets `OLLAMA_HOST=0.0.0.0`, and shares their local IP address.
+- **Client Developers**: Simply add the AI Host's IP to their `.env`:
+  ```env
+  OLLAMA_HOST=http://192.168.1.5:11434
+  ```
 
-### 💻 A. SETUP UNTUK "AI HOST" (Hanya 1 Orang)
-Orang yang PC/Laptop-nya paling kuat bertugas menyediakan akses LLM (Qwen) untuk tim.
-
-1. **Instal Ollama**: Unduh dan pasang [Ollama](https://ollama.com) pada komputer host Anda.
-2. **Unduh Model**: Jalankan perintah berikut untuk mengunduh model LLM:
-   ```bash
-   ollama pull qwen2.5:latest
-   ```
-3. **Izinkan Akses Jaringan (Penting)**:
-   Agar laptop tim lain bisa mengakses Ollama Anda, Anda harus mengizinkan koneksi dari luar:
-   * Matikan aplikasi Ollama dari System Tray (pojok kanan bawah -> **Quit**).
-   * Tambahkan Environment Variable baru di Windows Anda:
-     * **Nama**: `OLLAMA_HOST`
-     * **Nilai**: `0.0.0.0`
-   * Buka kembali aplikasi Ollama dari Start Menu.
-4. **Bagikan Alamat IP**: 
-   Dapatkan IP lokal Anda (lewat `ipconfig` di CMD) atau IP virtual VPN (seperti **Tailscale** jika bekerja jarak jauh), misal: `192.168.1.5` atau `100.80.90.100`.
-
----
-
-### 👥 B. SETUP UNTUK "CLIENT DEVELOPER" (Anggota Tim Lain)
-Anggota tim lain **tidak perlu menginstal Ollama ataupun mengunduh model AI apapun** di laptop mereka. Mereka cukup mengarahkan aplikasinya ke PC AI Host.
-
-1. **Buat file `.env`** di root folder project:
-   ```env
-   # Masukkan IP PC AI Host Anda (ganti dengan IP yang diberikan AI Host)
-   OLLAMA_HOST=http://192.168.1.5:11434
-   ```
-2. **Jalankan Docker Compose**:
-   ```bash
-   docker-compose up -d
-   ```
-3. **Populasikan Database ChromaDB (Hanya sekali saja di awal)**:
-   Masuk ke container Python AI, lalu jalankan script ingest untuk mengisi database lokal:
-   ```bash
-   docker exec -it verify-learn-python-ai bash
-   python ingest_kb.py
-   ```
-   *(Proses ini hanya men-generate embedding secara lokal menggunakan CPU ringan (~80MB) tanpa memakan memori laptop Anda)*
-4. **Uji Coba AI CLI Runner**:
-   ```bash
-   python main.py
-   ```
-   *(Container Anda akan otomatis mengirimkan request AI ke laptop AI Host melalui jaringan)*
-
----
-
-### ☁️ C. OPSIONAL: Menggunakan Gemini API (Cloud Fallback)
-Jika PC AI Host sedang mati atau tidak terhubung, setiap developer dapat menggunakan API Cloud Google Gemini secara gratis tanpa bergantung pada siapa pun:
-1. Dapatkan API Key gratis di [Google AI Studio](https://aistudio.google.com).
-2. Tambahkan variabel ini di file `.env` Anda:
-   ```env
-   GEMINI_API_KEY=key_gemini_anda
-   ```
-3. AI Engine akan mendeteksi key tersebut secara otomatis dan langsung menggunakan Google Gemini Cloud (Ollama akan dilewati).
-
----
-
-## 🚀 CI/CD & Team Integration (GitHub Actions)
-
-We have integrated a professional workflow located in `.github/workflows/docker.yml` that triggers on push/pull request to the `main` branch.
-
-### Automated Container Publishing (GHCR)
-On push to `main`, GitHub Actions will build, tag, and publish the production-ready images directly to the **GitHub Container Registry (GHCR)**.
-
-To pull the latest pre-built images without building locally:
-```bash
-# Log in to GHCR (first time only)
-echo $GITHUB_TOKEN | docker login ghcr.io -u YOUR_GITHUB_USERNAME --password-stdin
-
-# Pull the latest backend image
-docker pull ghcr.io/ifhamm/verifylearn-backend:latest
-
-# Pull the latest AI service image
-docker pull ghcr.io/ifhamm/verifylearn-python-ai:latest
+### Mode B: Cloud API Fallback
+If local GPU resources are unavailable, add your Gemini API Key to `.env`:
+```env
+GEMINI_API_KEY=AIzaSy...
 ```
+The AI Service will automatically detect this key and redirect embedding and generation requests to the Google Gemini cloud API.
 
 ---
 
-## 📂 Repository Layout
+## 🚀 Automated CI/CD (GitHub Actions)
 
-```text
-VerifyLearn/
-├── .github/workflows/           # CI/CD pipelines
-│   └── docker.yml               # Automated Docker build & push to GHCR
-│
-├── backend/                     # Node.js + Express Gateway and frontend client
-│   ├── Dockerfile
-│   ├── package.json
-│   └── src/
-│
-├── python_ai/                   # Python RAG & AI Engine
-│   ├── Dockerfile
-│   ├── requirements.txt
-│   ├── main.py                  # CLI Test Runner
-│   ├── services/                # RAG, Semantic & Voice Services
-│   └── data/                    # Curriculum config & Knowledge base
-│
-├── docker-compose.yml           # Orchestration for both services
-└── README.md                    # This file (documentation)
-```
+We utilize a professional build-and-publish workflow located in `.github/workflows/docker.yml`.
+On every commit push to the `main` branch, GitHub Actions automatically:
+1. Runs code quality checks.
+2. Builds production Docker images for both services.
+3. Publishes them to the **GitHub Container Registry (GHCR)**.

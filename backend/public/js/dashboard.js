@@ -144,6 +144,9 @@ document.addEventListener('DOMContentLoaded', () => {
           if (data.learningPlan) {
             localStorage.setItem('learningPlan', JSON.stringify(data.learningPlan));
           }
+          if (data.learningPlans) {
+            localStorage.setItem('learningPlans', JSON.stringify(data.learningPlans));
+          }
           if (data.completedSlugs) {
             localStorage.setItem('completedSlugs', JSON.stringify(data.completedSlugs));
           }
@@ -255,6 +258,9 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         if (data.learningPlan) {
           localStorage.setItem('learningPlan', JSON.stringify(data.learningPlan));
+        }
+        if (data.learningPlans) {
+          localStorage.setItem('learningPlans', JSON.stringify(data.learningPlans));
         }
         if (data.completedSlugs) {
           localStorage.setItem('completedSlugs', JSON.stringify(data.completedSlugs));
@@ -462,9 +468,18 @@ document.addEventListener('DOMContentLoaded', () => {
 
         localStorage.setItem('learningPlan', JSON.stringify(plan));
         localStorage.setItem('completedSlugs', JSON.stringify([]));
-        if (!localStorage.getItem('integrityScore')) {
-          localStorage.setItem('integrityScore', '100');
+        localStorage.setItem('integrityScore', '100');
+
+        let plans = [];
+        const savedPlans = localStorage.getItem('learningPlans');
+        if (savedPlans && savedPlans !== 'undefined') {
+          try {
+            plans = JSON.parse(savedPlans);
+          } catch (e) {}
         }
+        plans = plans.filter(p => p.role !== plan.role);
+        plans.push(plan);
+        localStorage.setItem('learningPlans', JSON.stringify(plans));
 
         // Sync generated path to DB
         await fetch('/api/v1/user/sync', {
@@ -612,9 +627,36 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const roleLabel = plan.role === 'frontend' ? 'Frontend Developer Path' : plan.role === 'backend' ? 'Backend Developer Path' : 'Fullstack Developer Path';
 
+    let plans = [];
+    const savedPlans = localStorage.getItem('learningPlans');
+    if (savedPlans && savedPlans !== 'undefined') {
+      try {
+        plans = JSON.parse(savedPlans);
+      } catch (e) {}
+    }
+
+    let switcherHtml = '';
+    if (plans.length > 1) {
+      const optionsHtml = plans.map(p => {
+        const label = p.role === 'frontend' ? 'Frontend Developer' : p.role === 'backend' ? 'Backend Developer' : 'Fullstack Developer';
+        const selected = p.role === plan.role ? 'selected' : '';
+        return `<option value="${p.role}" ${selected}>${label} Path</option>`;
+      }).join('');
+
+      switcherHtml = `
+        <div class="mt-4 border-2 border-textMain p-4 bg-gray-50 flex items-center justify-between gap-4 shadow-brutal-sm">
+          <span class="text-xs font-black uppercase text-textMuted">Active Path:</span>
+          <select id="pathSwitcherSelect" class="border-2 border-textMain p-2 bg-white font-bold text-xs focus:outline-none cursor-pointer">
+            ${optionsHtml}
+          </select>
+        </div>
+      `;
+    }
+
     dashboardCard.innerHTML = `
       <h2 class="text-3xl font-black uppercase">Welcome Back 👋</h2>
       <p class="text-textMuted mt-2 font-bold uppercase tracking-wider text-brandViolet">${roleLabel}</p>
+      ${switcherHtml}
 
       <div class="grid grid-cols-2 gap-4 mt-8">
         <div class="border-2 border-textMain p-4 bg-white shadow-brutal-sm">
@@ -646,6 +688,48 @@ document.addEventListener('DOMContentLoaded', () => {
       </button>
     `;
 
+    if (plans.length > 1) {
+      const switcherSelect = document.getElementById('pathSwitcherSelect');
+      if (switcherSelect) {
+        switcherSelect.addEventListener('change', async (e) => {
+          const selectedRole = e.target.value;
+          const selectedPlan = plans.find(p => p.role === selectedRole);
+          if (selectedPlan) {
+            localStorage.setItem('learningPlan', JSON.stringify(selectedPlan));
+            
+            Swal.fire({
+              title: 'SWITCHING PATH...',
+              text: 'Loading your progress for ' + selectedRole.toUpperCase() + '...',
+              allowOutsideClick: false,
+              showConfirmButton: false,
+              didOpen: () => {
+                Swal.showLoading();
+              }
+            });
+            
+            try {
+              const token = localStorage.getItem('sessionToken');
+              const res = await fetch('/api/v1/auth/session', {
+                headers: {
+                  'Authorization': 'Bearer ' + token
+                }
+              });
+              if (res.ok) {
+                const body = await res.json();
+                localStorage.setItem('completedSlugs', JSON.stringify(body.completedSlugs || []));
+                localStorage.setItem('integrityScore', body.integrityScore || '100');
+              }
+            } catch (err) {
+              console.error('Error switching path session sync:', err);
+            }
+            
+            Swal.close();
+            window.location.reload();
+          }
+        });
+      }
+    }
+
     // Bind reset
     document.getElementById('resetPathBtn').addEventListener('click', async () => {
       Swal.fire({
@@ -675,9 +759,20 @@ document.addEventListener('DOMContentLoaded', () => {
       }).then(async (result) => {
         if (result.isConfirmed) {
           const token = localStorage.getItem('sessionToken');
+          const activePlan = plan;
           localStorage.removeItem('learningPlan');
           localStorage.removeItem('completedSlugs');
           localStorage.removeItem('selectedLanguage');
+
+          let localPlans = [];
+          const savedLocalPlans = localStorage.getItem('learningPlans');
+          if (savedLocalPlans && savedLocalPlans !== 'undefined') {
+            try {
+              localPlans = JSON.parse(savedLocalPlans);
+            } catch (e) {}
+          }
+          localPlans = localPlans.filter(p => p.role !== activePlan.role);
+          localStorage.setItem('learningPlans', JSON.stringify(localPlans));
 
           // Sync reset to DB
           await fetch('/api/v1/user/sync', {
@@ -686,7 +781,7 @@ document.addEventListener('DOMContentLoaded', () => {
               'Content-Type': 'application/json',
               'Authorization': 'Bearer ' + token
             },
-            body: JSON.stringify({ resetProgress: true, integrityScore: 100 })
+            body: JSON.stringify({ resetProgress: true, integrityScore: 100, learningPlan: activePlan })
           }).catch(err => console.error('Error resetting path on DB:', err));
 
           initPage();
@@ -738,9 +833,41 @@ document.addEventListener('DOMContentLoaded', () => {
 
       modObj.items.forEach((m) => {
         const isCompleted = completedSlugs.includes(m.slug);
+        const flatIdx = filteredList.findIndex(item => item.slug === m.slug);
+
+        let isLocked = false;
+        if (flatIdx > 0) {
+          for (let i = 0; i < flatIdx; i++) {
+            if (!completedSlugs.includes(filteredList[i].slug)) {
+              isLocked = true;
+              break;
+            }
+          }
+        }
 
         const materialCard = document.createElement('a');
-        materialCard.href = `materi.html?role=${plan.role}&slug=${m.slug}`;
+        if (isLocked) {
+          materialCard.href = '#';
+          materialCard.addEventListener('click', (e) => {
+            e.preventDefault();
+            Swal.fire({
+              title: 'Materi Terkunci 🔒',
+              text: 'Silakan selesaikan materi sebelumnya terlebih dahulu secara berurutan!',
+              icon: 'warning',
+              confirmButtonText: 'OK',
+              buttonsStyling: false,
+              customClass: {
+                popup: 'bg-white border-4 border-textMain shadow-brutal rounded-none p-6 md:p-8',
+                title: 'text-2xl md:text-3xl font-black text-brandOrange uppercase tracking-tighter flex items-center justify-center gap-3',
+                htmlContainer: 'text-base md:text-lg text-textMuted font-bold mt-4 mb-8',
+                actions: 'w-full flex justify-center',
+                confirmButton: 'w-full md:w-auto md:px-12 py-3 bg-brandViolet text-white font-black text-lg uppercase tracking-wider border-4 border-textMain shadow-[4px_4px_0px_#09090b] hover:bg-brandViolet/90 hover:translate-y-[2px] hover:translate-x-[2px] hover:shadow-[2px_2px_0px_#09090b] transition-all'
+              }
+            });
+          });
+        } else {
+          materialCard.href = `materi.html?role=${plan.role}&slug=${m.slug}`;
+        }
 
         let cardStyle = '';
         let checkmarkHtml = '';
@@ -753,6 +880,11 @@ document.addEventListener('DOMContentLoaded', () => {
           checkmarkHtml = '<span class="absolute right-4 top-4 text-green-600 font-extrabold text-xl">✓</span>';
           badgeClass = 'bg-green-500 text-white border-green-600';
           priorityClass = 'text-green-600';
+        } else if (isLocked) {
+          cardStyle = 'border-2 border-gray-200 p-5 bg-gray-50 text-gray-400 rounded-xl font-bold opacity-60 cursor-not-allowed block relative';
+          badgeClass = 'bg-gray-200 text-gray-500 border-gray-300';
+          priorityClass = 'text-gray-400';
+          badgeText = '🔒 Locked';
         } else if (m.status === 'wajib') {
           cardStyle = 'border-2 border-brandOrange p-5 bg-white text-textMain rounded-xl font-bold shadow-[3px_3px_0px_0px_rgba(255,69,0,1)] hover:shadow-brutal transition block relative group';
           badgeClass = 'bg-brandOrange text-white border-brandOrange';
@@ -781,14 +913,39 @@ document.addEventListener('DOMContentLoaded', () => {
       if (modObj.items.length > 0) {
         const lastItem = modObj.items[modObj.items.length - 1];
         const isQuizCompleted = completedSlugs.includes('quiz-module-' + modObj.id);
+        const isQuizLocked = modObj.items.some(item => !completedSlugs.includes(item.slug));
+
         const quizCard = document.createElement('a');
-        quizCard.href = `quiz.html?role=${plan.role}&module=${modObj.id}&slug=${lastItem.slug}`;
+        if (isQuizLocked) {
+          quizCard.href = '#';
+          quizCard.onclick = (e) => {
+            e.preventDefault();
+            Swal.fire({
+              title: 'Kuis Terkunci 🔒',
+              text: `Silakan selesaikan seluruh materi di Modul ${modObj.id} terlebih dahulu sebelum mengambil kuis!`,
+              icon: 'warning',
+              confirmButtonText: 'OK',
+              buttonsStyling: false,
+              customClass: {
+                popup: 'bg-white border-4 border-textMain shadow-brutal rounded-none p-6 md:p-8',
+                title: 'text-2xl md:text-3xl font-black text-brandOrange uppercase tracking-tighter flex items-center justify-center gap-3',
+                htmlContainer: 'text-base md:text-lg text-textMuted font-bold mt-4 mb-8',
+                actions: 'w-full flex justify-center',
+                confirmButton: 'w-full md:w-auto md:px-12 py-3 bg-brandViolet text-white font-black text-lg uppercase tracking-wider border-4 border-textMain shadow-[4px_4px_0px_#09090b] hover:bg-brandViolet/90 hover:translate-y-[2px] hover:translate-x-[2px] hover:shadow-[2px_2px_0px_#09090b] transition-all'
+              }
+            });
+          };
+        } else {
+          quizCard.href = `quiz.html?role=${plan.role}&module=${modObj.id}&slug=${lastItem.slug}`;
+        }
 
         let quizStyle = '';
         let quizCheckmark = '';
         if (isQuizCompleted) {
           quizStyle = 'border-2 border-green-500 p-5 bg-green-50/30 text-green-800 rounded-xl font-bold shadow-[2px_2px_0px_0px_rgba(34,197,94,1)] hover:shadow-brutal hover:bg-green-50/50 transition block relative group col-span-1 md:col-span-2 text-center border-dashed';
           quizCheckmark = '<span class="absolute right-4 top-4 text-green-600 font-extrabold text-xl">✓</span>';
+        } else if (isQuizLocked) {
+          quizStyle = 'border-2 border-gray-200 p-5 bg-gray-50 text-gray-400 rounded-xl font-bold opacity-60 cursor-not-allowed block relative col-span-1 md:col-span-2 text-center border-dashed';
         } else {
           quizStyle = 'border-2 border-brandViolet p-5 bg-white text-textMain rounded-xl font-bold shadow-[3px_3px_0px_0px_rgba(138,43,226,1)] hover:shadow-brutal transition block relative group col-span-1 md:col-span-2 text-center border-dashed';
         }
@@ -797,8 +954,8 @@ document.addEventListener('DOMContentLoaded', () => {
         quizCard.innerHTML = `
           ${quizCheckmark}
           <div class="flex items-center justify-center gap-2 mb-2">
-            <span class="px-2 py-0.5 border text-[10px] font-black uppercase rounded bg-brandViolet text-white border-brandViolet">QUIZ</span>
-            <span class="text-xs uppercase font-black text-brandViolet">Module verification</span>
+            <span class="px-2 py-0.5 border text-[10px] font-black uppercase rounded ${isQuizLocked ? 'bg-gray-200 text-gray-500 border-gray-300' : 'bg-brandViolet text-white border-brandViolet'}">${isQuizLocked ? '🔒 Locked' : 'QUIZ'}</span>
+            <span class="text-xs uppercase font-black ${isQuizLocked ? 'text-gray-400' : 'text-brandViolet'}">Module verification</span>
           </div>
           <div class="text-lg text-textMain font-black tracking-tight leading-snug group-hover:text-brandOrange transition">Module ${romanNumerals[modIdx] || (modIdx + 1)} Quiz</div>
           <p class="text-xs font-medium text-textMuted mt-2">Complete this quiz to verify your understanding of this module's concepts.</p>

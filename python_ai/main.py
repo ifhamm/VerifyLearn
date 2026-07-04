@@ -68,7 +68,7 @@ def main():
         return
 
     # 2. Inisialisasi RAGEngine (Ollama)
-    print("\n🤖 2. Inisialisasi RAGEngine (Ollama)...")
+    print("\n2. Inisialisasi RAGEngine (Ollama)...")
     engine = RAGEngine(vector_store=vector_store, host=args.ollama_host)
 
     try:

@@ -7,10 +7,34 @@ exports.syncProgress = async (req, res) => {
     const userId = req.user.userId;
 
     if (resetProgress) {
-      await db.query(`DELETE FROM user_learning_paths WHERE user_id = $1`, [userId]);
-      await db.query(`DELETE FROM user_progress WHERE user_id = $1`, [userId]);
-      await db.query(`DELETE FROM quiz_results WHERE user_id = $1`, [userId]);
-      await db.query(`DELETE FROM user_sbts WHERE user_id = $1`, [userId]);
+      const targetRole = learningPlan ? (learningPlan.role || 'backend') : 'backend';
+      await db.query(`DELETE FROM user_learning_paths WHERE user_id = $1 AND role = $2`, [userId, targetRole]);
+      await db.query(`DELETE FROM user_progress WHERE user_id = $1 AND role = $2`, [userId, targetRole]);
+      
+      if (learningPlan && learningPlan.materials) {
+        const slugs = learningPlan.materials.map(m => m.slug);
+        
+        // Handle module quizzes associated with this plan
+        const moduleIds = [];
+        learningPlan.materials.forEach(m => {
+          const modId = m.module_id || m.moduleId || (m.module ? m.module.id : null);
+          if (modId && !moduleIds.includes(modId)) {
+            moduleIds.push(modId);
+          }
+        });
+        
+        // Also add potential quiz slugs to delete
+        moduleIds.forEach(id => {
+          slugs.push(`quiz-module-${id}`);
+        });
+
+        if (slugs.length > 0) {
+          await db.query(
+            `DELETE FROM quiz_results WHERE user_id = $1 AND material_slug = ANY($2)`,
+            [userId, slugs]
+          );
+        }
+      }
     }
 
     if (integrityScore !== undefined) {
@@ -24,8 +48,8 @@ exports.syncProgress = async (req, res) => {
       await db.query(
         `INSERT INTO user_learning_paths (user_id, role, level, duration_weeks, commitment_hours, plan_data, updated_at)
          VALUES ($1, $2, $3, $4, $5, $6, CURRENT_TIMESTAMP)
-         ON CONFLICT (user_id) 
-         DO UPDATE SET role = EXCLUDED.role, level = EXCLUDED.level, 
+         ON CONFLICT (user_id, role) 
+         DO UPDATE SET level = EXCLUDED.level, 
                        duration_weeks = EXCLUDED.duration_weeks, commitment_hours = EXCLUDED.commitment_hours,
                        plan_data = EXCLUDED.plan_data, updated_at = CURRENT_TIMESTAMP`,
         [
@@ -157,6 +181,59 @@ exports.getAllQuizResults = async (req, res) => {
     res.json({ success: true, data: result.rows });
   } catch (error) {
     console.error('Error fetching all quiz results:', error);
+    res.status(500).json({ error: error.message });
+  }
+};
+
+// Save or update notes for a specific material progress
+exports.saveNote = async (req, res) => {
+  try {
+    const { materialSlug, role, notes } = req.body;
+    const userId = req.user.userId;
+
+    if (!materialSlug || !role) {
+      return res.status(400).json({ error: 'materialSlug and role are required.' });
+    }
+
+    // Upsert note in user_progress. If row doesn't exist, create it with status 'in_progress'
+    await db.query(
+      `INSERT INTO user_progress (user_id, material_slug, role, notes, status, updated_at)
+       VALUES ($1, $2, $3, $4, 'in_progress', CURRENT_TIMESTAMP)
+       ON CONFLICT (user_id, role, material_slug)
+       DO UPDATE SET notes = EXCLUDED.notes, updated_at = CURRENT_TIMESTAMP`,
+      [userId, materialSlug, role, notes || '']
+    );
+
+    res.json({ success: true, message: 'Note saved successfully.' });
+  } catch (error) {
+    console.error('Error saving note:', error);
+    res.status(500).json({ error: error.message });
+  }
+};
+
+// Retrieve notes for a specific material
+exports.getNote = async (req, res) => {
+  try {
+    const { materialSlug, role } = req.query;
+    const userId = req.user.userId;
+
+    if (!materialSlug || !role) {
+      return res.status(400).json({ error: 'materialSlug and role are required.' });
+    }
+
+    const result = await db.query(
+      `SELECT notes FROM user_progress 
+       WHERE user_id = $1 AND material_slug = $2 AND role = $3`,
+      [userId, materialSlug, role]
+    );
+
+    if (result.rows.length > 0) {
+      res.json({ success: true, notes: result.rows[0].notes || '' });
+    } else {
+      res.json({ success: true, notes: '' });
+    }
+  } catch (error) {
+    console.error('Error fetching note:', error);
     res.status(500).json({ error: error.message });
   }
 };

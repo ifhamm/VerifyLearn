@@ -723,6 +723,10 @@ video {
   margin-right: 1rem;
 }
 
+.mt-0\.5 {
+  margin-top: 0.125rem;
+}
+
 .mt-1 {
   margin-top: 0.25rem;
 }
@@ -807,6 +811,10 @@ video {
   height: 0.375rem;
 }
 
+.h-10 {
+  height: 2.5rem;
+}
+
 .h-12 {
   height: 3rem;
 }
@@ -821,6 +829,10 @@ video {
 
 .h-24 {
   height: 6rem;
+}
+
+.h-3 {
+  height: 0.75rem;
 }
 
 .h-4 {
@@ -863,12 +875,20 @@ video {
   width: 0.375rem;
 }
 
+.w-1\/4 {
+  width: 25%;
+}
+
 .w-16 {
   width: 4rem;
 }
 
 .w-2\.5 {
   width: 0.625rem;
+}
+
+.w-3\/4 {
+  width: 75%;
 }
 
 .w-4 {
@@ -1476,6 +1496,11 @@ video {
   background-color: rgb(229 231 235 / var(--tw-bg-opacity, 1));
 }
 
+.bg-gray-300 {
+  --tw-bg-opacity: 1;
+  background-color: rgb(209 213 219 / var(--tw-bg-opacity, 1));
+}
+
 .bg-gray-400 {
   --tw-bg-opacity: 1;
   background-color: rgb(156 163 175 / var(--tw-bg-opacity, 1));
@@ -1643,11 +1668,6 @@ video {
   padding-right: 0.375rem;
 }
 
-.px-12 {
-  padding-left: 3rem;
-  padding-right: 3rem;
-}
-
 .px-2 {
   padding-left: 0.5rem;
   padding-right: 0.5rem;
@@ -1759,20 +1779,16 @@ video {
   padding-left: 2.75rem;
 }
 
-.pl-12 {
-  padding-left: 3rem;
-}
-
 .pl-4 {
   padding-left: 1rem;
 }
 
-.pr-3 {
-  padding-right: 0.75rem;
-}
-
 .pr-4 {
   padding-right: 1rem;
+}
+
+.pt-2 {
+  padding-top: 0.5rem;
 }
 
 .pt-3 {
@@ -1801,6 +1817,10 @@ video {
 
 .text-center {
   text-align: center;
+}
+
+.text-right {
+  text-align: right;
 }
 
 .font-mono {
@@ -2336,11 +2356,6 @@ body {
   position: absolute;
 }
 
-.before\:-left-4::before {
-  content: var(--tw-content);
-  left: -1rem;
-}
-
 .before\:left-1\/2::before {
   content: var(--tw-content);
   left: 50%;
@@ -2351,24 +2366,9 @@ body {
   top: 0px;
 }
 
-.before\:top-1\/2::before {
-  content: var(--tw-content);
-  top: 50%;
-}
-
-.before\:h-1\.5::before {
-  content: var(--tw-content);
-  height: 0.375rem;
-}
-
 .before\:h-full::before {
   content: var(--tw-content);
   height: 100%;
-}
-
-.before\:w-1\.5::before {
-  content: var(--tw-content);
-  width: 0.375rem;
 }
 
 .before\:w-\[2px\]::before {
@@ -2382,37 +2382,22 @@ body {
   transform: translate(var(--tw-translate-x), var(--tw-translate-y)) rotate(var(--tw-rotate)) skewX(var(--tw-skew-x)) skewY(var(--tw-skew-y)) scaleX(var(--tw-scale-x)) scaleY(var(--tw-scale-y));
 }
 
-.before\:-translate-y-1\/2::before {
-  content: var(--tw-content);
-  --tw-translate-y: -50%;
-  transform: translate(var(--tw-translate-x), var(--tw-translate-y)) rotate(var(--tw-rotate)) skewX(var(--tw-skew-x)) skewY(var(--tw-skew-y)) scaleX(var(--tw-scale-x)) scaleY(var(--tw-scale-y));
-}
-
-.before\:rounded-full::before {
-  content: var(--tw-content);
-  border-radius: 9999px;
-}
-
-.before\:bg-gray-300::before {
-  content: var(--tw-content);
-  --tw-bg-opacity: 1;
-  background-color: rgb(209 213 219 / var(--tw-bg-opacity, 1));
-}
-
-.before\:bg-orange-500::before {
-  content: var(--tw-content);
-  --tw-bg-opacity: 1;
-  background-color: rgb(249 115 22 / var(--tw-bg-opacity, 1));
-}
-
 .before\:bg-textMain::before {
   content: var(--tw-content);
   --tw-bg-opacity: 1;
   background-color: rgb(9 9 11 / var(--tw-bg-opacity, 1));
 }
 
+.last\:border-0:last-child {
+  border-width: 0px;
+}
+
 .last\:border-none:last-child {
   border-style: none;
+}
+
+.last\:pb-0:last-child {
+  padding-bottom: 0px;
 }
 
 .odd\:-me-2:nth-child(odd) {
@@ -2478,11 +2463,6 @@ body {
 
 .hover\:bg-green-50\/50:hover {
   background-color: rgb(240 253 244 / 0.5);
-}
-
-.hover\:bg-orange-100:hover {
-  --tw-bg-opacity: 1;
-  background-color: rgb(255 237 213 / var(--tw-bg-opacity, 1));
 }
 
 .hover\:bg-orange-50:hover {

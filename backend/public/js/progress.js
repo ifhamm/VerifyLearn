@@ -114,6 +114,14 @@ document.addEventListener('DOMContentLoaded', () => {
   function renderReport(plan, completedSlugs, integrityScore, quizResults, userSBTs = []) {
     let pathInfoHTML = '';
     let topicsTimelineHTML = '';
+    
+    let plans = [];
+    const savedPlans = localStorage.getItem('learningPlans');
+    if (savedPlans && savedPlans !== 'undefined') {
+      try {
+        plans = JSON.parse(savedPlans);
+      } catch (e) {}
+    }
 
     // Filter and group modules (same logic as dashboard.js)
     const selectedLang = localStorage.getItem('selectedLanguage');
@@ -148,6 +156,24 @@ document.addEventListener('DOMContentLoaded', () => {
       const completedTopics = plan.materials ? plan.materials.filter(m => completedSlugs.includes(m.slug)).length : 0;
       const progressPercent = totalTopics > 0 ? Math.round((completedTopics / totalTopics) * 100) : 0;
 
+      let switcherHtml = '';
+      if (plans.length > 1) {
+        const optionsHtml = plans.map(p => {
+          const label = p.role === 'frontend' ? 'Frontend Developer' : p.role === 'backend' ? 'Backend Developer' : 'Fullstack Developer';
+          const selected = p.role === plan.role ? 'selected' : '';
+          return `<option value="${p.role}" ${selected}>${label} Path</option>`;
+        }).join('');
+
+        switcherHtml = `
+          <div class="border-2 border-textMain p-4 bg-gray-50 flex items-center justify-between gap-4 mt-4 shadow-brutal-sm">
+            <span class="text-xs font-black uppercase text-textMuted">Active Path:</span>
+            <select id="pathSwitcherSelect" class="border-2 border-textMain p-2 bg-white font-bold text-xs focus:outline-none cursor-pointer">
+              ${optionsHtml}
+            </select>
+          </div>
+        `;
+      }
+
       pathInfoHTML = `
         <div class="bg-white border-4 border-textMain shadow-brutal p-6 md:p-8 space-y-6">
           <h2 class="text-2xl font-black uppercase text-brandViolet">Learning Path Status</h2>
@@ -166,6 +192,8 @@ document.addEventListener('DOMContentLoaded', () => {
               <p class="text-xl font-black text-brandOrange mt-1 uppercase">${completedTopics} / ${totalTopics} Topics (${progressPercent}%)</p>
             </div>
           </div>
+
+          ${switcherHtml}
 
           <div class="w-full bg-panel border-2 border-textMain h-5 rounded-none overflow-hidden">
             <div class="bg-brandOrange h-full" style="width: ${progressPercent}%"></div>
@@ -402,7 +430,7 @@ document.addEventListener('DOMContentLoaded', () => {
           <div class="space-y-3">
             <span class="inline-block bg-amber-500 text-white font-black text-xs px-2.5 py-1 uppercase tracking-wide">MINTED ✓</span>
             <p class="text-xs font-bold text-amber-900 mt-2">Token ID: <span class="font-black">#${sbtMinted.token_id}</span></p>
-            <p class="text-[10px] font-bold text-amber-800 break-all">Tx: <a href="https://sepolia.etherscan.io/tx/${sbtMinted.tx_hash}" target="_blank" class="underline hover:text-brandViolet font-black font-mono">${sbtMinted.tx_hash.substring(0, 10)}...</a></p>
+            <p class="text-[10px] font-bold text-amber-900 break-all" title="Click to view/copy transaction hash">Tx: <span class="font-black font-mono cursor-pointer hover:text-brandViolet underline" onclick="copyTxHash('${sbtMinted.tx_hash}')">${sbtMinted.tx_hash.substring(0, 10)}...</span></p>
           </div>
         `;
       } else if (isModuleCompleted) {
@@ -470,7 +498,7 @@ document.addEventListener('DOMContentLoaded', () => {
               <p class="text-xs font-bold text-brandViolet break-all font-mono mt-1">${localStorage.getItem('walletAddress') || 'Simulated Account'}</p>
               <div class="mt-6 flex justify-between items-center text-xs font-bold text-amber-900">
                 <span>Token ID: <span class="font-black">#${finalSbtMinted.token_id}</span></span>
-                <span>Tx: <a href="https://sepolia.etherscan.io/tx/${finalSbtMinted.tx_hash}" target="_blank" class="underline hover:text-brandViolet font-black font-mono">${finalSbtMinted.tx_hash.substring(0, 14)}...</a></span>
+                <span title="Click to view/copy transaction hash">Tx: <span class="font-black font-mono cursor-pointer hover:text-brandViolet underline" onclick="copyTxHash('${finalSbtMinted.tx_hash}')">${finalSbtMinted.tx_hash.substring(0, 14)}...</span></span>
               </div>
             </div>
           </div>
@@ -544,6 +572,49 @@ document.addEventListener('DOMContentLoaded', () => {
         handleMintSBT(moduleId);
       });
     });
+
+    // Bind path switcher
+    if (plans.length > 1) {
+      const switcherSelect = document.getElementById('pathSwitcherSelect');
+      if (switcherSelect) {
+        switcherSelect.addEventListener('change', async (e) => {
+          const selectedRole = e.target.value;
+          const selectedPlan = plans.find(p => p.role === selectedRole);
+          if (selectedPlan) {
+            localStorage.setItem('learningPlan', JSON.stringify(selectedPlan));
+            
+            Swal.fire({
+              title: 'SWITCHING PATH...',
+              text: 'Loading your progress for ' + selectedRole.toUpperCase() + '...',
+              allowOutsideClick: false,
+              showConfirmButton: false,
+              didOpen: () => {
+                Swal.showLoading();
+              }
+            });
+            
+            try {
+              const token = localStorage.getItem('sessionToken');
+              const res = await fetch('/api/v1/auth/session', {
+                headers: {
+                  'Authorization': 'Bearer ' + token
+                }
+              });
+              if (res.ok) {
+                const body = await res.json();
+                localStorage.setItem('completedSlugs', JSON.stringify(body.completedSlugs || []));
+                localStorage.setItem('integrityScore', body.integrityScore || '100');
+              }
+            } catch (err) {
+              console.error('Error switching path session sync:', err);
+            }
+            
+            Swal.close();
+            window.location.reload();
+          }
+        });
+      }
+    }
   }
 
   // --- Action: Generate New Learning Path ---
@@ -564,7 +635,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     Swal.fire({
       title: 'GENERATE NEW PATH?',
-      text: 'Are you sure you want to generate a new path? This will ARCHIVE your current learning path and progress.',
+      text: 'Are you sure you want to generate a new path? This will overwrite your existing learning path and reset progress for this specific role.',
       showCancelButton: true,
       confirmButtonText: 'YES, GENERATE!',
       cancelButtonText: 'CANCEL',
@@ -614,6 +685,17 @@ document.addEventListener('DOMContentLoaded', () => {
           localStorage.setItem('completedSlugs', JSON.stringify([]));
           localStorage.setItem('integrityScore', '100');
           localStorage.removeItem('selectedLanguage');
+
+          let localPlans = [];
+          const savedLocalPlans = localStorage.getItem('learningPlans');
+          if (savedLocalPlans && savedLocalPlans !== 'undefined') {
+            try {
+              localPlans = JSON.parse(savedLocalPlans);
+            } catch (e) {}
+          }
+          localPlans = localPlans.filter(p => p.role !== newPlan.role);
+          localPlans.push(newPlan);
+          localStorage.setItem('learningPlans', JSON.stringify(localPlans));
 
           // 3. Sync path creation to database
           await fetch('/api/v1/user/sync', {
@@ -720,28 +802,44 @@ document.addEventListener('DOMContentLoaded', () => {
           const body = await res.json();
           if (res.ok && body.success) {
             Swal.fire({
-              title: 'MINT SUCCESSFUL! 🎉',
+              title: 'MINT SUCCESSFUL! ⛓️🎉',
               html: `
-                <div class="space-y-4 font-bold text-left text-textMain">
-                  <p class="text-green-600 text-center text-lg font-black">Your Soulbound Token has been successfully minted!</p>
-                  <div class="p-4 bg-panel border-4 border-textMain text-sm space-y-3 font-mono shadow-brutal-sm">
-                    <p><span class="uppercase font-black text-textMuted mr-2">Module ID:</span> <span class="text-brandViolet font-black">${body.data.moduleId.replace('_', ' ').toUpperCase()}</span></p>
-                    <p><span class="uppercase font-black text-textMuted mr-2">Token ID:</span> <span class="text-brandOrange font-black">#${body.data.tokenId}</span></p>
-                    <p class="break-all"><span class="uppercase font-black text-textMuted mr-2">Tx Hash:</span> <span class="font-bold text-xs block mt-1 bg-white p-2 border-2 border-textMain">${body.data.txHash}</span></p>
+                <div class="space-y-6 font-bold text-left text-textMain">
+                  <div class="p-6 bg-amber-50 border-4 border-amber-500 rounded-none shadow-brutal-sm text-center">
+                    <span class="text-5xl">🎓</span>
+                    <h4 class="text-xl font-black text-amber-900 uppercase mt-2">Verified Soulbound Badge Minted</h4>
+                    <p class="text-xs text-amber-700 uppercase font-black mt-1">Permanently secured on the Blockchain</p>
+                  </div>
+                  <div class="p-5 bg-white border-4 border-textMain text-sm space-y-4 font-mono shadow-brutal">
+                    <div class="flex justify-between border-b border-gray-200 pb-2">
+                      <span class="uppercase font-black text-textMuted">Module ID:</span>
+                      <span class="text-brandViolet font-black text-right">${body.data.moduleId.replace('_', ' ').toUpperCase()}</span>
+                    </div>
+                    <div class="flex justify-between border-b border-gray-200 pb-2">
+                      <span class="uppercase font-black text-textMuted">Token ID:</span>
+                      <span class="text-brandOrange font-black text-right">#${body.data.tokenId}</span>
+                    </div>
+                    <div class="border-b border-gray-200 pb-2">
+                      <span class="uppercase font-black text-textMuted block mb-1">Recipient Wallet:</span>
+                      <span class="text-gray-600 text-xs break-all block bg-gray-50 p-2 border border-gray-200 font-bold">${localStorage.getItem('walletAddress') || 'Simulated Address'}</span>
+                    </div>
+                    <div>
+                      <span class="uppercase font-black text-textMuted block mb-1">Transaction Hash:</span>
+                      <span class="text-gray-600 text-xs break-all block bg-gray-50 p-2 border border-gray-200 font-bold">${body.data.txHash}</span>
+                    </div>
                   </div>
                 </div>
               `,
               confirmButtonText: 'AWESOME!',
               buttonsStyling: false,
               customClass: {
-                popup: 'bg-white border-4 border-textMain shadow-brutal rounded-none p-6 md:p-8 max-w-md',
+                popup: 'bg-white border-4 border-textMain shadow-brutal rounded-none p-6 md:p-8 max-w-xl w-full',
                 title: 'text-3xl font-black text-textMain uppercase tracking-tighter text-center',
-                htmlContainer: 'text-base text-textMuted mt-4 mb-6',
+                htmlContainer: 'text-base text-textMuted mt-4 mb-4',
                 actions: 'w-full flex justify-center mt-6',
-                confirmButton: 'px-12 py-3.5 bg-brandViolet text-white font-black uppercase border-4 border-textMain shadow-[4px_4px_0px_#09090b] hover:bg-brandOrange hover:translate-y-[2px] hover:translate-x-[2px] hover:shadow-[2px_2px_0px_#09090b] transition-all cursor-pointer'
+                confirmButton: 'w-full py-4 bg-brandViolet text-white font-black uppercase border-4 border-textMain shadow-[4px_4px_0px_#09090b] hover:bg-brandOrange hover:translate-y-[2px] hover:translate-x-[2px] hover:shadow-[2px_2px_0px_#09090b] transition-all cursor-pointer text-center'
               }
             }).then(() => {
-              // Reload progress data to show minted state
               loadProgressData();
             });
           } else {
@@ -799,3 +897,42 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 });
+
+// Global function to view/copy full Transaction Hash
+window.copyTxHash = (hash) => {
+  navigator.clipboard.writeText(hash).then(() => {
+    Swal.fire({
+      toast: true,
+      position: 'top-end',
+      icon: 'success',
+      title: 'Transaction Hash Copied! 📋',
+      showConfirmButton: false,
+      timer: 2000,
+      timerProgressBar: true,
+      customClass: {
+        popup: 'bg-white border-4 border-textMain shadow-brutal-sm rounded-none p-4 font-bold text-sm'
+      }
+    });
+  }).catch(() => {
+    // Fallback: show the hash in a beautiful alert modal so they can copy it manually
+    Swal.fire({
+      title: 'TRANSACTION HASH ⛓️',
+      html: `
+        <div class="space-y-4 text-left font-bold text-textMain">
+          <p class="text-sm text-textMuted">Your full transaction hash is secure on-chain:</p>
+          <div class="p-4 bg-gray-50 border-2 border-textMain font-mono text-xs select-all break-all shadow-brutal-sm">
+            ${hash}
+          </div>
+          <p class="text-[10px] text-brandOrange uppercase font-black">TIP: Double-click inside the box to select all</p>
+        </div>
+      `,
+      confirmButtonText: 'CLOSE',
+      buttonsStyling: false,
+      customClass: {
+        popup: 'bg-white border-4 border-textMain shadow-brutal rounded-none p-6 md:p-8 max-w-md w-full',
+        title: 'text-2xl font-black text-textMain uppercase tracking-tighter text-left',
+        confirmButton: 'w-full py-3.5 bg-brandViolet text-white font-black uppercase border-4 border-textMain shadow-[4px_4px_0px_#09090b] hover:bg-brandOrange hover:translate-y-[2px] hover:translate-x-[2px] hover:shadow-[2px_2px_0px_#09090b] transition-all cursor-pointer text-center'
+      }
+    });
+  });
+};
