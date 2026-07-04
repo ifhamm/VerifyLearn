@@ -98,6 +98,19 @@ async function initializeDatabase() {
       )
     `);
 
+    // 6. Create user_sbts table
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS user_sbts (
+        id SERIAL PRIMARY KEY,
+        user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+        module_id VARCHAR(100) NOT NULL,
+        tx_hash VARCHAR(255) NOT NULL,
+        token_id INTEGER,
+        minted_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE (user_id, module_id)
+      )
+    `);
+
     await client.query('COMMIT');
     console.log('[Database] Database tables initialized successfully.');
   } catch (error) {

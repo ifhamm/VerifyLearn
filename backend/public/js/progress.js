@@ -81,8 +81,24 @@ document.addEventListener('DOMContentLoaded', () => {
         console.error('Error fetching quiz results:', err);
       }
 
+      // 2b. Fetch SBTs from Backend
+      let userSBTs = [];
+      try {
+        const sbtResponse = await fetch('/api/v1/user/sbts', {
+          headers: {
+            'Authorization': 'Bearer ' + sessionToken
+          }
+        });
+        if (sbtResponse.ok) {
+          const sbtBody = await sbtResponse.json();
+          userSBTs = sbtBody.data || [];
+        }
+      } catch (err) {
+        console.error('Error fetching user SBTs:', err);
+      }
+
       // 3. Render Dashboard Overview
-      renderReport(plan, completedSlugs, integrityScore, quizResults);
+      renderReport(plan, completedSlugs, integrityScore, quizResults, userSBTs);
 
     } catch (error) {
       console.error(error);
@@ -95,9 +111,35 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   // --- Render Report View ---
-  function renderReport(plan, completedSlugs, integrityScore, quizResults) {
+  function renderReport(plan, completedSlugs, integrityScore, quizResults, userSBTs = []) {
     let pathInfoHTML = '';
     let topicsTimelineHTML = '';
+
+    // Filter and group modules (same logic as dashboard.js)
+    const selectedLang = localStorage.getItem('selectedLanguage');
+    const languageSlugs = ['javascript', 'go', 'python', 'ruby', 'java', 'c', 'php', 'rust'];
+    
+    let filteredMaterials = [];
+    if (plan && plan.materials) {
+      filteredMaterials = plan.materials.filter(m => {
+        if (m.status === 'dilewati') return false;
+        if (selectedLang && languageSlugs.includes(m.slug) && m.slug !== selectedLang) {
+          return false;
+        }
+        return true;
+      });
+    }
+
+    let modules = [];
+    if (filteredMaterials.length > 0) {
+      const chunkSize = Math.ceil(filteredMaterials.length / 4);
+      modules = [
+        { id: 1, title: 'Module I: Fundamentals & Introduction', shortTitle: 'Module I', items: filteredMaterials.slice(0, chunkSize) },
+        { id: 2, title: 'Module II: Core Concepts', shortTitle: 'Module II', items: filteredMaterials.slice(chunkSize, 2 * chunkSize) },
+        { id: 3, title: 'Module III: Advanced Exploration', shortTitle: 'Module III', items: filteredMaterials.slice(2 * chunkSize, 3 * chunkSize) },
+        { id: 4, title: 'Module IV: Projects & Enrichment', shortTitle: 'Module IV', items: filteredMaterials.slice(3 * chunkSize) }
+      ].filter(m => m.items.length > 0);
+    }
 
     // Path Details
     if (plan) {
@@ -131,20 +173,49 @@ document.addEventListener('DOMContentLoaded', () => {
         </div>
       `;
 
-      // Timeline / Topic Completed List
-      let timelineItems = '';
-      plan.materials.forEach((m, idx) => {
-        const isDone = completedSlugs.includes(m.slug);
-        const icon = isDone ? '✓' : '○';
-        const colorClass = isDone ? 'text-green-600 border-green-600 bg-green-50' : 'text-textMuted border-textMain bg-white';
-        timelineItems += `
-          <div class="flex items-start gap-4">
-            <div class="w-8 h-8 rounded-full border-2 font-black flex items-center justify-center shrink-0 ${colorClass}">
-              ${icon}
+      // Timeline grouped by module section
+      let curriculumHTML = '';
+      modules.forEach(mod => {
+        let moduleTimelineItems = '';
+        mod.items.forEach(m => {
+          const isDone = completedSlugs.includes(m.slug);
+          const icon = isDone ? '✓' : '○';
+          const colorClass = isDone ? 'text-green-600 border-green-600 bg-green-50' : 'text-textMuted border-textMain bg-white';
+          moduleTimelineItems += `
+            <div class="flex items-start gap-4">
+              <div class="w-8 h-8 rounded-full border-2 font-black flex items-center justify-center shrink-0 ${colorClass} shadow-brutal-sm text-xs">
+                ${icon}
+              </div>
+              <div class="flex-1 border-2 border-textMain p-4 bg-white shadow-brutal-sm">
+                <h4 class="font-black text-textMain uppercase text-sm">${m.title}</h4>
+                <p class="text-[10px] text-textMuted font-bold mt-1 uppercase tracking-wider">${m.topic_type || 'material'}</p>
+              </div>
             </div>
-            <div class="flex-1 border-2 border-textMain p-4 bg-white shadow-brutal-sm">
-              <h4 class="font-black text-textMain uppercase">${m.title}</h4>
-              <p class="text-xs text-textMuted font-bold mt-1 uppercase tracking-wider">${m.topic_type || 'material'}</p>
+          `;
+        });
+
+        // Add module quiz status
+        const quizSlug = `quiz-module-${mod.id}`;
+        const isQuizDone = completedSlugs.includes(quizSlug);
+        const quizIcon = isQuizDone ? '✓' : '○';
+        const quizColorClass = isQuizDone ? 'text-green-600 border-green-600 bg-green-50' : 'text-brandViolet border-brandViolet bg-white';
+        moduleTimelineItems += `
+          <div class="flex items-start gap-4">
+            <div class="w-8 h-8 rounded-full border-2 font-black flex items-center justify-center shrink-0 ${quizColorClass} shadow-brutal-sm text-xs">
+              ${quizIcon}
+            </div>
+            <div class="flex-1 border-2 border-brandViolet p-4 bg-white shadow-brutal-sm">
+              <h4 class="font-black text-brandViolet uppercase text-sm">${mod.shortTitle} Evaluation Quiz</h4>
+              <p class="text-[10px] text-brandOrange font-bold mt-1 uppercase tracking-wider">module evaluation</p>
+            </div>
+          </div>
+        `;
+
+        curriculumHTML += `
+          <div class="border-4 border-textMain bg-panel p-6 shadow-brutal space-y-4">
+            <h4 class="text-lg font-black text-textMain uppercase tracking-tight">${mod.title}</h4>
+            <div class="space-y-4 relative pl-4 border-l-4 border-brandOrange/30 ml-2">
+              ${moduleTimelineItems}
             </div>
           </div>
         `;
@@ -152,9 +223,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
       topicsTimelineHTML = `
         <div class="space-y-6">
-          <h3 class="text-2xl font-black uppercase text-textMain tracking-tight">Curriculum Completion Details</h3>
-          <div class="space-y-4 relative pl-4 border-l-4 border-textMain">
-            ${timelineItems}
+          <div>
+            <h3 class="text-2xl font-black uppercase text-textMain tracking-tight">Curriculum Completion Details</h3>
+            <p class="text-textMuted font-bold text-sm mt-1">Track your progress and completion status for each topic and module evaluation quiz.</p>
+          </div>
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+            ${curriculumHTML}
           </div>
         </div>
       `;
@@ -311,9 +385,150 @@ document.addEventListener('DOMContentLoaded', () => {
       </div>
     `;
 
+    let sbtBadgesHTML = '';
+    modules.forEach(mod => {
+      const materialsDone = mod.items.every(item => completedSlugs.includes(item.slug));
+      const quizDone = completedSlugs.includes('quiz-module-' + mod.id);
+      const isModuleCompleted = materialsDone && quizDone;
+      const sbtMinted = userSBTs.find(s => s.module_id === 'module_' + mod.id);
+
+      let cardClass = '';
+      let statusHTML = '';
+
+      if (sbtMinted) {
+        // Minted SBT
+        cardClass = 'bg-amber-50 border-4 border-amber-500 shadow-brutal-sm';
+        statusHTML = `
+          <div class="space-y-3">
+            <span class="inline-block bg-amber-500 text-white font-black text-xs px-2.5 py-1 uppercase tracking-wide">MINTED ✓</span>
+            <p class="text-xs font-bold text-amber-900 mt-2">Token ID: <span class="font-black">#${sbtMinted.token_id}</span></p>
+            <p class="text-[10px] font-bold text-amber-800 break-all">Tx: <a href="https://sepolia.etherscan.io/tx/${sbtMinted.tx_hash}" target="_blank" class="underline hover:text-brandViolet font-black font-mono">${sbtMinted.tx_hash.substring(0, 10)}...</a></p>
+          </div>
+        `;
+      } else if (isModuleCompleted) {
+        // Completed but not minted
+        cardClass = 'bg-white border-4 border-textMain shadow-brutal-sm';
+        if (integrityScore >= 70) {
+          statusHTML = `
+            <div class="space-y-3">
+              <span class="inline-block bg-green-500 text-white font-black text-xs px-2.5 py-1 uppercase tracking-wide">COMPLETED</span>
+              <button data-module-id="module_${mod.id}" class="mint-sbt-btn w-full mt-2 py-2.5 bg-brandOrange text-white font-black uppercase text-xs border-2 border-textMain shadow-brutal-sm hover:bg-brandViolet transition">
+                MINT SBT BADGE
+              </button>
+            </div>
+          `;
+        } else {
+          statusHTML = `
+            <div class="space-y-2 text-red-600 font-bold">
+              <span class="inline-block bg-red-600 text-white font-black text-xs px-2.5 py-1 uppercase tracking-wide">LOCKED</span>
+              <p class="text-xs uppercase mt-2">Integrity Score is <70 (${integrityScore}). Cannot mint credential.</p>
+            </div>
+          `;
+        }
+      } else {
+        // Locked / In Progress
+        cardClass = 'bg-gray-50 border-4 border-gray-300 opacity-60';
+        statusHTML = `
+          <div class="space-y-2">
+            <span class="inline-block bg-gray-400 text-white font-black text-xs px-2.5 py-1 uppercase tracking-wide">LOCKED</span>
+            <p class="text-xs text-textMuted font-bold mt-2">Complete all topics and pass the Module Quiz to unlock.</p>
+          </div>
+        `;
+      }
+
+      sbtBadgesHTML += `
+        <div class="${cardClass} p-5 flex flex-col justify-between h-56 transition-all duration-300 hover:-translate-y-1">
+          <div>
+            <p class="text-xs font-black text-brandViolet uppercase tracking-wider">${mod.shortTitle}</p>
+            <h3 class="text-base font-black text-textMain uppercase mt-1 leading-snug">${mod.title.split(': ')[1] || mod.title}</h3>
+          </div>
+          <div class="mt-4">
+            ${statusHTML}
+          </div>
+        </div>
+      `;
+    });
+
+    // Final Certificate SBT
+    const finalSbtMinted = userSBTs.find(s => s.module_id === 'final');
+    const allModulesCompleted = modules.length > 0 && modules.every(mod => {
+      return completedSlugs.includes('quiz-module-' + mod.id);
+    });
+
+    let finalCertificateHTML = '';
+    if (finalSbtMinted) {
+      finalCertificateHTML = `
+        <div class="bg-amber-100 border-4 border-amber-600 shadow-brutal p-8 text-center space-y-6">
+          <div class="max-w-md mx-auto">
+            <h3 class="text-3xl font-black text-amber-900 uppercase tracking-tighter">🎓 VERIFYLEARN MASTER</h3>
+            <p class="text-xs font-bold text-amber-700 uppercase tracking-wider mt-1">Soulbound Path Completion Certificate</p>
+            
+            <div class="border-2 border-dashed border-amber-600 p-6 bg-amber-50 mt-6 relative">
+              <p class="text-xs font-black uppercase text-amber-600 tracking-widest">ON-CHAIN CREDENTIAL MINTED</p>
+              <p class="text-2xl font-black text-amber-950 mt-4 uppercase tracking-tight">${plan ? plan.role.toUpperCase() : 'DEVELOPER'} PATH</p>
+              <p class="text-sm font-bold text-amber-800 mt-2">Awarded to Wallet address:</p>
+              <p class="text-xs font-bold text-brandViolet break-all font-mono mt-1">${localStorage.getItem('walletAddress') || 'Simulated Account'}</p>
+              <div class="mt-6 flex justify-between items-center text-xs font-bold text-amber-900">
+                <span>Token ID: <span class="font-black">#${finalSbtMinted.token_id}</span></span>
+                <span>Tx: <a href="https://sepolia.etherscan.io/tx/${finalSbtMinted.tx_hash}" target="_blank" class="underline hover:text-brandViolet font-black font-mono">${finalSbtMinted.tx_hash.substring(0, 14)}...</a></span>
+              </div>
+            </div>
+          </div>
+        </div>
+      `;
+    } else if (allModulesCompleted) {
+      if (integrityScore >= 70) {
+        finalCertificateHTML = `
+          <div class="bg-white border-4 border-textMain shadow-brutal p-8 text-center space-y-6">
+            <div class="max-w-md mx-auto">
+              <h3 class="text-2xl font-black text-textMain uppercase tracking-tight">🎓 CLAIM MASTER PATH CERTIFICATE</h3>
+              <p class="text-xs font-bold text-textMuted uppercase mt-1">You have successfully completed all modules with authentic learning status.</p>
+              
+              <button data-module-id="final" class="mint-sbt-btn w-full mt-6 py-4 bg-brandViolet text-white font-black uppercase border-2 border-textMain shadow-brutal hover:bg-brandOrange transition">
+                CLAIM SOULBOUND CERTIFICATE (SBT)
+              </button>
+            </div>
+          </div>
+        `;
+      } else {
+        finalCertificateHTML = `
+          <div class="bg-red-50 border-4 border-red-200 shadow-brutal p-8 text-center space-y-4">
+            <h3 class="text-2xl font-black text-red-800 uppercase">🎓 CERTIFICATE LOCKED</h3>
+            <p class="text-sm font-bold text-red-700">All modules completed, but your overall Integrity Score is below the required 70 threshold (Current: ${integrityScore}).</p>
+            <p class="text-xs text-red-600 font-bold uppercase">To verify your skills on-chain, please retry quizzes honestly to build up your integrity score.</p>
+          </div>
+        `;
+      }
+    } else {
+      finalCertificateHTML = `
+        <div class="bg-gray-50 border-4 border-gray-300 opacity-60 p-8 text-center space-y-4">
+          <h3 class="text-2xl font-black text-gray-400 uppercase">🎓 VERIFYLEARN MASTER CERTIFICATE</h3>
+          <p class="text-xs font-bold text-textMuted uppercase">Locked until all modules are completed. Keep reading and passing quizzes!</p>
+        </div>
+      `;
+    }
+
+    const sbtCredentialsHTML = `
+      <div class="bg-white border-4 border-textMain shadow-brutal p-6 md:p-8 space-y-8">
+        <div>
+          <h2 class="text-2xl font-black uppercase text-brandViolet tracking-tight">On-Chain Credentials & Badges (SBT)</h2>
+          <p class="text-textMuted font-bold text-sm mt-1">Verify your skill modules directly on the blockchain as Soulbound Tokens. Non-transferable and permanently bound to your identity.</p>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-6">
+          ${sbtBadgesHTML || '<div class="col-span-4 text-center text-textMuted font-bold py-6">No modules in path yet.</div>'}
+        </div>
+
+        <div class="pt-4 border-t-2 border-dashed border-gray-200">
+          ${finalCertificateHTML}
+        </div>
+      </div>
+    `;
+
     progressContent.innerHTML = `
       ${pathInfoHTML}
       ${integrityCardHTML}
+      ${sbtCredentialsHTML}
       ${quizHistoryHTML}
       ${customizeFormHTML}
       ${topicsTimelineHTML}
@@ -321,6 +536,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Bind custom path button
     document.getElementById('newPathBtn').addEventListener('click', handleGenerateNewPath);
+
+    // Bind mint sbt buttons
+    document.querySelectorAll('.mint-sbt-btn').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        const moduleId = e.target.getAttribute('data-module-id');
+        handleMintSBT(moduleId);
+      });
+    });
   }
 
   // --- Action: Generate New Learning Path ---
@@ -438,6 +661,113 @@ document.addEventListener('DOMContentLoaded', () => {
               htmlContainer: 'text-base md:text-lg text-textMuted font-bold mt-4 mb-8',
               actions: 'w-full flex justify-center',
               confirmButton: 'w-full md:w-auto md:px-12 py-3 bg-brandViolet text-white font-black text-lg uppercase tracking-wider border-4 border-textMain shadow-[4px_4px_0px_#09090b] hover:bg-brandViolet/90 hover:translate-y-[2px] hover:translate-x-[2px] hover:shadow-[2px_2px_0px_#09090b] transition-all'
+            }
+          });
+        }
+      }
+    });
+  }
+
+  // --- Action: Mint Soulbound Token (SBT) ---
+  async function handleMintSBT(moduleId) {
+    const sessionToken = localStorage.getItem('sessionToken');
+    if (!sessionToken) return;
+
+    Swal.fire({
+      title: 'MINT SOULBOUND TOKEN?',
+      text: 'Minting this SBT will store your verified module credentials permanently on-chain. This action cannot be undone.',
+      showCancelButton: true,
+      confirmButtonText: 'YES, MINT NOW!',
+      cancelButtonText: 'CANCEL',
+      buttonsStyling: false,
+      customClass: {
+        popup: 'bg-white border-4 border-textMain shadow-brutal rounded-none p-6 md:p-8',
+        title: 'text-2xl md:text-3xl font-black text-textMain uppercase tracking-tighter',
+        htmlContainer: 'text-base text-textMuted font-bold mt-4 mb-8',
+        actions: 'flex gap-4 w-full justify-end mt-4',
+        confirmButton: 'flex-1 py-3 bg-brandOrange text-white font-black uppercase border-2 border-textMain shadow-brutal-sm hover:bg-brandViolet transition cursor-pointer',
+        cancelButton: 'flex-1 py-3 bg-white text-textMain font-black uppercase border-2 border-textMain shadow-brutal-sm hover:bg-panel transition cursor-pointer'
+      }
+    }).then(async (result) => {
+      if (result.isConfirmed) {
+        // Show loading Swal
+        Swal.fire({
+          title: 'MINTING IN PROGRESS...',
+          html: 'Please wait. Sending transaction to blockchain and generating Soulbound Token... ⛓️',
+          allowOutsideClick: false,
+          showConfirmButton: false,
+          didOpen: () => {
+            Swal.showLoading();
+          },
+          buttonsStyling: false,
+          customClass: {
+            popup: 'bg-white border-4 border-textMain shadow-brutal rounded-none p-6 md:p-8',
+            title: 'text-2xl md:text-3xl font-black text-textMain uppercase tracking-tighter',
+            htmlContainer: 'text-base text-textMuted font-bold mt-4 mb-8'
+          }
+        });
+
+        try {
+          const res = await fetch('/api/v1/user/mint-sbt', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': 'Bearer ' + sessionToken
+            },
+            body: JSON.stringify({ moduleId })
+          });
+
+          const body = await res.json();
+          if (res.ok && body.success) {
+            Swal.fire({
+              title: 'MINT SUCCESSFUL! 🎉',
+              html: `
+                <div class="space-y-4 font-bold text-left text-textMain">
+                  <p class="text-green-600 text-center text-lg font-black">Your Soulbound Token has been successfully minted!</p>
+                  <div class="p-4 bg-panel border-4 border-textMain text-sm space-y-3 font-mono shadow-brutal-sm">
+                    <p><span class="uppercase font-black text-textMuted mr-2">Module ID:</span> <span class="text-brandViolet font-black">${body.data.moduleId.replace('_', ' ').toUpperCase()}</span></p>
+                    <p><span class="uppercase font-black text-textMuted mr-2">Token ID:</span> <span class="text-brandOrange font-black">#${body.data.tokenId}</span></p>
+                    <p class="break-all"><span class="uppercase font-black text-textMuted mr-2">Tx Hash:</span> <span class="font-bold text-xs block mt-1 bg-white p-2 border-2 border-textMain">${body.data.txHash}</span></p>
+                  </div>
+                </div>
+              `,
+              confirmButtonText: 'AWESOME!',
+              buttonsStyling: false,
+              customClass: {
+                popup: 'bg-white border-4 border-textMain shadow-brutal rounded-none p-6 md:p-8 max-w-md',
+                title: 'text-3xl font-black text-textMain uppercase tracking-tighter text-center',
+                htmlContainer: 'text-base text-textMuted mt-4 mb-6',
+                actions: 'w-full flex justify-center mt-6',
+                confirmButton: 'px-12 py-3.5 bg-brandViolet text-white font-black uppercase border-4 border-textMain shadow-[4px_4px_0px_#09090b] hover:bg-brandOrange hover:translate-y-[2px] hover:translate-x-[2px] hover:shadow-[2px_2px_0px_#09090b] transition-all cursor-pointer'
+              }
+            }).then(() => {
+              // Reload progress data to show minted state
+              loadProgressData();
+            });
+          } else {
+            Swal.fire({
+              title: 'MINT FAILED ✗',
+              text: body.error || 'Failed to mint Soulbound Token.',
+              confirmButtonText: 'OK',
+              buttonsStyling: false,
+              customClass: {
+                popup: 'bg-white border-4 border-textMain shadow-brutal rounded-none p-6 md:p-8',
+                title: 'text-2xl md:text-3xl font-black text-red-600 uppercase tracking-tighter',
+                confirmButton: 'px-8 py-3 bg-brandViolet text-white font-black uppercase border-2 border-textMain shadow-brutal-sm hover:bg-brandOrange transition'
+              }
+            });
+          }
+        } catch (error) {
+          console.error(error);
+          Swal.fire({
+            title: 'CONNECTION ERROR ✗',
+            text: 'Failed to connect to backend server.',
+            confirmButtonText: 'OK',
+            buttonsStyling: false,
+            customClass: {
+              popup: 'bg-white border-4 border-textMain shadow-brutal rounded-none p-6 md:p-8',
+              title: 'text-2xl md:text-3xl font-black text-red-600 uppercase tracking-tighter',
+              confirmButton: 'px-8 py-3 bg-brandViolet text-white font-black uppercase border-2 border-textMain shadow-brutal-sm hover:bg-brandOrange transition'
             }
           });
         }

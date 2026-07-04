@@ -9,6 +9,8 @@ exports.syncProgress = async (req, res) => {
     if (resetProgress) {
       await db.query(`DELETE FROM user_learning_paths WHERE user_id = $1`, [userId]);
       await db.query(`DELETE FROM user_progress WHERE user_id = $1`, [userId]);
+      await db.query(`DELETE FROM quiz_results WHERE user_id = $1`, [userId]);
+      await db.query(`DELETE FROM user_sbts WHERE user_id = $1`, [userId]);
     }
 
     if (integrityScore !== undefined) {

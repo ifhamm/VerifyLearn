@@ -6,6 +6,7 @@ const aiController = require('../controllers/aiController');
 const authController = require('../controllers/authController');
 const walletAuth = require('../middlewares/walletAuth');
 const userController = require('../controllers/userController');
+const sbtController = require('../controllers/sbtController');
 
 // Status route
 router.get('/status', (req, res) => {
@@ -22,6 +23,10 @@ router.post('/user/sync', walletAuth, userController.syncProgress);
 router.post('/quiz/result', walletAuth, userController.saveQuizResult);
 router.get('/quiz/result', walletAuth, userController.getQuizResult);
 router.get('/quiz/results', walletAuth, userController.getAllQuizResults);
+
+// SBT routes
+router.get('/user/sbts', walletAuth, sbtController.getUserSBTs);
+router.post('/user/mint-sbt', walletAuth, sbtController.mintSBT);
 
 
 // Learning routes
