@@ -80,6 +80,7 @@ document.addEventListener('DOMContentLoaded', () => {
       } catch (err) {
         console.error('Error fetching quiz results:', err);
       }
+      window.lastQuizResults = quizResults;
 
       // 2b. Fetch SBTs from Backend
       let userSBTs = [];
@@ -114,19 +115,19 @@ document.addEventListener('DOMContentLoaded', () => {
   function renderReport(plan, completedSlugs, integrityScore, quizResults, userSBTs = []) {
     let pathInfoHTML = '';
     let topicsTimelineHTML = '';
-    
+
     let plans = [];
     const savedPlans = localStorage.getItem('learningPlans');
     if (savedPlans && savedPlans !== 'undefined') {
       try {
         plans = JSON.parse(savedPlans);
-      } catch (e) {}
+      } catch (e) { }
     }
 
     // Filter and group modules (same logic as dashboard.js)
     const selectedLang = localStorage.getItem('selectedLanguage');
     const languageSlugs = ['javascript', 'go', 'python', 'ruby', 'java', 'c', 'php', 'rust'];
-    
+
     let filteredMaterials = [];
     if (plan && plan.materials) {
       filteredMaterials = plan.materials.filter(m => {
@@ -311,11 +312,11 @@ document.addEventListener('DOMContentLoaded', () => {
     let tableRows = '';
     if (quizResults.length > 0) {
       quizResults.forEach(r => {
-        const verifiedText = r.keystroke_verified 
-          ? '<span class="text-green-600 font-black">VERIFIED ✓</span>' 
+        const verifiedText = r.keystroke_verified
+          ? '<span class="text-green-600 font-black">VERIFIED ✓</span>'
           : '<span class="text-red-600 font-black">SUSPICIOUS ✗</span>';
         const dateStr = new Date(r.created_at).toLocaleDateString() + ' ' + new Date(r.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-        
+
         // Clean material slug to be reader friendly
         const nameLabel = r.material_slug.replace('quiz-module-', 'Module ').replace('-', ' ').toUpperCase();
 
@@ -430,7 +431,10 @@ document.addEventListener('DOMContentLoaded', () => {
           <div class="space-y-3">
             <span class="inline-block bg-amber-500 text-white font-black text-xs px-2.5 py-1 uppercase tracking-wide">MINTED ✓</span>
             <p class="text-xs font-bold text-amber-900 mt-2">Token ID: <span class="font-black">#${sbtMinted.token_id}</span></p>
-            <p class="text-[10px] font-bold text-amber-900 break-all" title="Click to view/copy transaction hash">Tx: <span class="font-black font-mono cursor-pointer hover:text-brandViolet underline" onclick="copyTxHash('${sbtMinted.tx_hash}')">${sbtMinted.tx_hash.substring(0, 10)}...</span></p>
+
+            <button onclick="showVerifyModal('module_${mod.id}', '${sbtMinted.token_id}', '${sbtMinted.tx_hash}', '${sbtMinted.minted_at}')" class="w-full mt-2 py-1.5 bg-brandViolet text-white font-black uppercase text-[10px] border-2 border-textMain shadow-brutal-sm hover:bg-brandOrange transition cursor-pointer">
+              VERIFY CREDENTIAL
+            </button>
           </div>
         `;
       } else if (isModuleCompleted) {
@@ -465,7 +469,7 @@ document.addEventListener('DOMContentLoaded', () => {
       }
 
       sbtBadgesHTML += `
-        <div class="${cardClass} p-5 flex flex-col justify-between h-56 transition-all duration-300 hover:-translate-y-1">
+        <div class="${cardClass} p-5 flex flex-col justify-between h-64 transition-all duration-300 hover:-translate-y-1">
           <div>
             <p class="text-xs font-black text-brandViolet uppercase tracking-wider">${mod.shortTitle}</p>
             <h3 class="text-base font-black text-textMain uppercase mt-1 leading-snug">${mod.title.split(': ')[1] || mod.title}</h3>
@@ -496,10 +500,12 @@ document.addEventListener('DOMContentLoaded', () => {
               <p class="text-2xl font-black text-amber-950 mt-4 uppercase tracking-tight">${plan ? plan.role.toUpperCase() : 'DEVELOPER'} PATH</p>
               <p class="text-sm font-bold text-amber-800 mt-2">Awarded to Wallet address:</p>
               <p class="text-xs font-bold text-brandViolet break-all font-mono mt-1">${localStorage.getItem('walletAddress') || 'Simulated Account'}</p>
-              <div class="mt-6 flex justify-between items-center text-xs font-bold text-amber-900">
+              <div class="mt-6 text-left text-xs font-bold text-amber-900">
                 <span>Token ID: <span class="font-black">#${finalSbtMinted.token_id}</span></span>
-                <span title="Click to view/copy transaction hash">Tx: <span class="font-black font-mono cursor-pointer hover:text-brandViolet underline" onclick="copyTxHash('${finalSbtMinted.tx_hash}')">${finalSbtMinted.tx_hash.substring(0, 14)}...</span></span>
               </div>
+              <button onclick="showVerifyModal('final', '${finalSbtMinted.token_id}', '${finalSbtMinted.tx_hash}', '${finalSbtMinted.minted_at}')" class="w-full mt-4 py-2.5 bg-brandViolet text-white font-black uppercase text-xs border-2 border-amber-900 shadow-brutal-sm hover:bg-brandOrange transition cursor-pointer">
+                VERIFY CREDENTIAL
+              </button>
             </div>
           </div>
         </div>
@@ -582,7 +588,7 @@ document.addEventListener('DOMContentLoaded', () => {
           const selectedPlan = plans.find(p => p.role === selectedRole);
           if (selectedPlan) {
             localStorage.setItem('learningPlan', JSON.stringify(selectedPlan));
-            
+
             Swal.fire({
               title: 'SWITCHING PATH...',
               text: 'Loading your progress for ' + selectedRole.toUpperCase() + '...',
@@ -592,7 +598,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 Swal.showLoading();
               }
             });
-            
+
             try {
               const token = localStorage.getItem('sessionToken');
               const res = await fetch('/api/v1/auth/session', {
@@ -608,7 +614,7 @@ document.addEventListener('DOMContentLoaded', () => {
             } catch (err) {
               console.error('Error switching path session sync:', err);
             }
-            
+
             Swal.close();
             window.location.reload();
           }
@@ -691,7 +697,7 @@ document.addEventListener('DOMContentLoaded', () => {
           if (savedLocalPlans && savedLocalPlans !== 'undefined') {
             try {
               localPlans = JSON.parse(savedLocalPlans);
-            } catch (e) {}
+            } catch (e) { }
           }
           localPlans = localPlans.filter(p => p.role !== newPlan.role);
           localPlans.push(newPlan);
@@ -898,41 +904,137 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 });
 
-// Global function to view/copy full Transaction Hash
+// Global function to redirect to Sepolia Etherscan for Transaction Hash
 window.copyTxHash = (hash) => {
-  navigator.clipboard.writeText(hash).then(() => {
-    Swal.fire({
-      toast: true,
-      position: 'top-end',
-      icon: 'success',
-      title: 'Transaction Hash Copied! 📋',
-      showConfirmButton: false,
-      timer: 2000,
-      timerProgressBar: true,
-      customClass: {
-        popup: 'bg-white border-4 border-textMain shadow-brutal-sm rounded-none p-4 font-bold text-sm'
+  window.open(`https://sepolia.etherscan.io/tx/${hash}`, '_blank');
+};
+
+// Global function to trigger the "Verify Credential" modal
+window.showVerifyModal = (moduleId, tokenId, txHash, mintedAt) => {
+  // 1. Get wallet address
+  const wallet = localStorage.getItem('walletAddress') || '0x71C7656EC7ab88b098defB751B7401B5f6d8976F';
+  const shortWallet = wallet.startsWith('0x') && wallet.length > 10
+    ? wallet.substring(0, 6) + '...' + wallet.substring(wallet.length - 4)
+    : wallet;
+
+  // 2. Get username
+  const username = localStorage.getItem('username') || 'Anonymous User';
+
+  // 3. Get Course/Path
+  let courseName = 'Blockchain Fundamentals';
+  const planRaw = localStorage.getItem('learningPlan');
+  if (planRaw) {
+    try {
+      const plan = JSON.parse(planRaw);
+      if (plan && plan.role) {
+        courseName = plan.role === 'frontend' ? 'Frontend Developer Fundamentals'
+          : plan.role === 'backend' ? 'Backend Developer Fundamentals'
+            : 'Fullstack Developer Fundamentals';
       }
-    });
-  }).catch(() => {
-    // Fallback: show the hash in a beautiful alert modal so they can copy it manually
-    Swal.fire({
-      title: 'TRANSACTION HASH ⛓️',
-      html: `
-        <div class="space-y-4 text-left font-bold text-textMain">
-          <p class="text-sm text-textMuted">Your full transaction hash is secure on-chain:</p>
-          <div class="p-4 bg-gray-50 border-2 border-textMain font-mono text-xs select-all break-all shadow-brutal-sm">
-            ${hash}
-          </div>
-          <p class="text-[10px] text-brandOrange uppercase font-black">TIP: Double-click inside the box to select all</p>
+    } catch (e) { }
+  }
+
+  // 4. Get Module Name
+  let moduleName = 'Module 1';
+  if (moduleId === 'final') {
+    moduleName = 'Master Certificate';
+  } else {
+    const match = moduleId.match(/module_(\d+)/);
+    if (match) {
+      moduleName = `Module ${match[1]}`;
+    }
+  }
+
+  // 5. Get Score from loaded quizResults
+  let score = 95; // Default fallback
+  if (window.lastQuizResults && Array.isArray(window.lastQuizResults)) {
+    if (moduleId === 'final') {
+      const scores = window.lastQuizResults.map(q => q.score);
+      if (scores.length > 0) {
+        score = Math.round(scores.reduce((a, b) => a + b, 0) / scores.length);
+      }
+    } else {
+      const targetSlug = moduleId.replace('module_', 'quiz-module-');
+      const foundQuiz = window.lastQuizResults.find(q => q.material_slug === targetSlug);
+      if (foundQuiz) {
+        score = Math.round(foundQuiz.score);
+      }
+    }
+  }
+
+  // 6. Format Date Issued
+  const dateObj = mintedAt && mintedAt !== 'undefined' ? new Date(mintedAt) : new Date();
+  const options = { day: 'numeric', month: 'long', year: 'numeric' };
+  const formattedDate = dateObj.toLocaleDateString('en-US', options);
+
+  // 7. Shorten Tx Hash
+  const shortTx = txHash.startsWith('0x') && txHash.length > 10
+    ? txHash.substring(0, 6) + '...' + txHash.substring(txHash.length - 4)
+    : txHash;
+
+  // Show SweetAlert2 Modal
+  Swal.fire({
+    title: `<span class="flex justify-center">VERIFY CREDENTIAL</span>`,
+    html: `
+      <div class="space-y-2 text-left font-bold text-textMain">
+        <div class="flex justify-between items-center text-xs font-black uppercase text-textMuted border-b-2 border-gray-200 pb-1">
+          <span>Wallet</span>
+          <span class="font-mono text-brandViolet">${shortWallet}</span>
         </div>
-      `,
-      confirmButtonText: 'CLOSE',
-      buttonsStyling: false,
-      customClass: {
-        popup: 'bg-white border-4 border-textMain shadow-brutal rounded-none p-6 md:p-8 max-w-md w-full',
-        title: 'text-2xl font-black text-textMain uppercase tracking-tighter text-left',
-        confirmButton: 'w-full py-3.5 bg-brandViolet text-white font-black uppercase border-4 border-textMain shadow-[4px_4px_0px_#09090b] hover:bg-brandOrange hover:translate-y-[2px] hover:translate-x-[2px] hover:shadow-[2px_2px_0px_#09090b] transition-all cursor-pointer text-center'
-      }
-    });
+
+        <div class="grid grid-cols-2 gap-y-2 gap-x-2 text-xs pt-1">
+          <div>
+            <p class="text-[10px] uppercase text-textMuted font-black">Nama</p>
+            <p class="text-sm font-black text-textMain mt-0.5">${username}</p>
+          </div>
+          <div>
+            <p class="text-[10px] uppercase text-textMuted font-black">Course</p>
+            <p class="text-sm font-black text-textMain mt-0.5">${courseName}</p>
+          </div>
+          <div>
+            <p class="text-[10px] uppercase text-textMuted font-black">Module</p>
+            <p class="text-sm font-black text-textMain mt-0.5">${moduleName}</p>
+          </div>
+          <div>
+            <p class="text-[10px] uppercase text-textMuted font-black">Score</p>
+            <p class="text-sm font-black text-brandOrange mt-0.5">${score}%</p>
+          </div>
+          <div>
+            <p class="text-[10px] uppercase text-textMuted font-black">Issued</p>
+            <p class="text-sm font-black text-textMain mt-0.5">${formattedDate}</p>
+          </div>
+          <div>
+            <p class="text-[10px] uppercase text-textMuted font-black">Token ID</p>
+            <p class="text-sm font-black text-textMain mt-0.5">#${tokenId}</p>
+          </div>
+          <div>
+            <p class="text-[10px] uppercase text-textMuted font-black">Blockchain</p>
+            <p class="text-sm font-black text-textMain mt-0.5">Ethereum Sepolia</p>
+          </div>
+          <div>
+            <p class="text-[10px] uppercase text-textMuted font-black">Transaction</p>
+            <p class="text-sm font-mono font-black text-brandViolet mt-0.5 cursor-pointer hover:underline" onclick="window.open('https://sepolia.etherscan.io/tx/${txHash}', '_blank')">${shortTx} ↗</p>
+          </div>
+        </div>
+      </div>
+    `,
+    showCancelButton: true,
+    confirmButtonText: 'VERIFY',
+    cancelButtonText: 'CLOSE',
+    reverseButtons: true,
+    buttonsStyling: false,
+    customClass: {
+      popup: 'bg-white border-4 border-textMain shadow-brutal rounded-none p-5 md:p-6 max-w-md w-full',
+      title: 'text-2xl font-black text-textMain uppercase tracking-tighter text-left',
+      htmlContainer: 'm-0 p-0 mt-3',
+      actions: 'flex gap-4 w-full mt-4 justify-between',
+      confirmButton: 'flex-1 py-3 bg-brandViolet hover:bg-brandOrange text-white font-black uppercase border-2 border-textMain shadow-brutal-sm hover:translate-y-[1px] hover:translate-x-[1px] hover:shadow-[1px_1px_0px_#09090b] transition-all cursor-pointer text-center',
+      cancelButton: 'flex-1 py-3 bg-white hover:bg-gray-100 text-textMain font-black uppercase border-2 border-textMain shadow-brutal-sm hover:translate-y-[1px] hover:translate-x-[1px] hover:shadow-[1px_1px_0px_#09090b] transition-all cursor-pointer text-center'
+    }
+  }).then((result) => {
+    if (result.isConfirmed) {
+      window.open(`https://sepolia.etherscan.io/tx/${txHash}`, '_blank');
+    }
   });
 };
+

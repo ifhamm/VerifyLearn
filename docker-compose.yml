@@ -13,6 +13,9 @@ services:
       - NODE_ENV=development
       - AI_SERVICE_URL=http://python_ai:8000
       - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/verify_learn
+      - RPC_URL=${RPC_URL:-https://ethereum-sepolia-rpc.publicnode.com}
+      - SYSTEM_PRIVATE_KEY=${SYSTEM_PRIVATE_KEY:-}
+      - SBT_CONTRACT_ADDRESS=${SBT_CONTRACT_ADDRESS:-}
     depends_on:
       - postgres
     volumes:
