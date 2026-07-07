@@ -122,3 +122,47 @@ exports.mintSBT = async (req, res) => {
     res.status(500).json({ error: error.message });
   }
 };
+
+exports.verifySBT = async (req, res) => {
+  try {
+    const { walletAddress } = req.params;
+    
+    // Convert to lowercase to ensure matching works properly
+    const addr = walletAddress.toLowerCase();
+    
+    // Find user
+    const userRes = await db.query(
+      `SELECT id, username, wallet_address, integrity_score FROM users WHERE LOWER(wallet_address) = $1`,
+      [addr]
+    );
+    
+    if (userRes.rows.length === 0) {
+      return res.status(404).json({ error: 'User/Wallet not found in the system.' });
+    }
+    
+    const user = userRes.rows[0];
+    
+    // Find their SBTs
+    const sbtRes = await db.query(
+      `SELECT module_id, tx_hash, token_id, minted_at 
+       FROM user_sbts 
+       WHERE user_id = $1 
+       ORDER BY minted_at ASC`,
+      [user.id]
+    );
+    
+    res.json({
+      success: true,
+      user: {
+        username: user.username,
+        walletAddress: user.wallet_address,
+        integrityScore: user.integrity_score
+      },
+      sbts: sbtRes.rows
+    });
+    
+  } catch (error) {
+    console.error('Error verifying SBT:', error);
+    res.status(500).json({ error: error.message });
+  }
+};

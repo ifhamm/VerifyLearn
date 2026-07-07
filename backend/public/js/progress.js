@@ -130,11 +130,16 @@ document.addEventListener('DOMContentLoaded', () => {
 
     let filteredMaterials = [];
     if (plan && plan.materials) {
+      const seenSlugs = new Set();
       filteredMaterials = plan.materials.filter(m => {
         if (m.status === 'dilewati') return false;
         if (selectedLang && languageSlugs.includes(m.slug) && m.slug !== selectedLang) {
           return false;
         }
+        
+        if (seenSlugs.has(m.slug)) return false;
+        seenSlugs.add(m.slug);
+        
         return true;
       });
     }
@@ -808,7 +813,7 @@ document.addEventListener('DOMContentLoaded', () => {
           const body = await res.json();
           if (res.ok && body.success) {
             Swal.fire({
-              title: 'MINT SUCCESSFUL! ⛓️🎉',
+              title: 'MINT SUCCESSFUL!',
               html: `
                 <div class="space-y-6 font-bold text-left text-textMain">
                   <div class="p-6 bg-amber-50 border-4 border-amber-500 rounded-none shadow-brutal-sm text-center">

@@ -530,6 +530,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const selectedLang = localStorage.getItem('selectedLanguage');
     const languageSlugs = ['javascript', 'go', 'python', 'ruby', 'java', 'c', 'php', 'rust'];
 
+    const seenSlugs = new Set();
+
     return list.filter(m => {
       // Filter out any material marked as 'dilewati'
       if (m.status === 'dilewati') return false;
@@ -538,6 +540,11 @@ document.addEventListener('DOMContentLoaded', () => {
       if (selectedLang && languageSlugs.includes(m.slug) && m.slug !== selectedLang) {
         return false;
       }
+      
+      // Filter out duplicates
+      if (seenSlugs.has(m.slug)) return false;
+      seenSlugs.add(m.slug);
+      
       return true;
     });
   }
@@ -838,7 +845,7 @@ document.addEventListener('DOMContentLoaded', () => {
         let isLocked = false;
         if (flatIdx > 0) {
           for (let i = 0; i < flatIdx; i++) {
-            if (!completedSlugs.includes(filteredList[i].slug)) {
+            if (filteredList[i].status === 'wajib' && !completedSlugs.includes(filteredList[i].slug)) {
               isLocked = true;
               break;
             }

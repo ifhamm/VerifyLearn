@@ -59,9 +59,21 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
   updateSidebarScore();
 
+  // Parse learningPlan from localStorage first
+  const savedPlanRaw = localStorage.getItem('learningPlan');
+  let plan = null;
+  if (savedPlanRaw && savedPlanRaw !== 'undefined') {
+    try {
+      plan = JSON.parse(savedPlanRaw);
+    } catch (err) {
+      console.error('Error parsing learningPlan:', err);
+      localStorage.removeItem('learningPlan');
+    }
+  }
+
   // Parse Query Parameters
   const params = new URLSearchParams(window.location.search);
-  const role = params.get('role') || 'backend';
+  const role = params.get('role') || (plan && plan.role) || 'backend';
   const slug = params.get('slug');
 
   // DOM Elements
@@ -76,18 +88,6 @@ document.addEventListener('DOMContentLoaded', async () => {
   const backBtn = document.getElementById('backBtn');
   const prevBtn = document.getElementById('prevBtn');
   const nextBtn = document.getElementById('nextBtn');
-
-  // Redirect if no path generated yet
-  const savedPlanRaw = localStorage.getItem('learningPlan');
-  let plan = null;
-  if (savedPlanRaw && savedPlanRaw !== 'undefined') {
-    try {
-      plan = JSON.parse(savedPlanRaw);
-    } catch (err) {
-      console.error('Error parsing learningPlan:', err);
-      localStorage.removeItem('learningPlan');
-    }
-  }
 
   if (!plan) {
     // If user opened page directly, fetch default path so it does not crash
@@ -137,6 +137,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   const selectedLang = localStorage.getItem('selectedLanguage');
   const languageSlugs = ['javascript', 'go', 'python', 'ruby', 'java', 'c', 'php', 'rust'];
 
+  const seenSlugs = new Set();
   let filteredMaterialsList = materialsList.filter(m => {
     // First, check in local plan if status is 'dilewati'
     if (plan && plan.materials) {
@@ -147,6 +148,11 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (selectedLang && languageSlugs.includes(m.slug) && m.slug !== selectedLang) {
       return false;
     }
+    
+    // Filter out duplicates
+    if (seenSlugs.has(m.slug)) return false;
+    seenSlugs.add(m.slug);
+    
     return true;
   });
 
@@ -163,7 +169,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     const idx = filteredMaterialsList.findIndex(m => m.slug === materialSlug);
     if (idx <= 0) return false;
     for (let i = 0; i < idx; i++) {
-      if (!completedSlugs.includes(filteredMaterialsList[i].slug)) {
+      if (filteredMaterialsList[i].status === 'wajib' && !completedSlugs.includes(filteredMaterialsList[i].slug)) {
         return true;
       }
     }

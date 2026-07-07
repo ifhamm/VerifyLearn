@@ -231,9 +231,12 @@ document.addEventListener('DOMContentLoaded', () => {
           const languageSlugs = ['javascript', 'go', 'python', 'ruby', 'java', 'c', 'php', 'rust'];
 
           // Filter materials
+          const seenSlugs = new Set();
           const filtered = plan.materials.filter(m => {
             if (m.status === 'dilewati') return false;
             if (selectedLang && languageSlugs.includes(m.slug) && m.slug !== selectedLang) return false;
+            if (seenSlugs.has(m.slug)) return false;
+            seenSlugs.add(m.slug);
             return true;
           });
 

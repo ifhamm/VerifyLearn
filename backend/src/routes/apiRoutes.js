@@ -29,6 +29,7 @@ router.get('/user/note', walletAuth, userController.getNote);
 // SBT routes
 router.get('/user/sbts', walletAuth, sbtController.getUserSBTs);
 router.post('/user/mint-sbt', walletAuth, sbtController.mintSBT);
+router.get('/sbt/verify/:walletAddress', sbtController.verifySBT);
 
 
 // Learning routes
