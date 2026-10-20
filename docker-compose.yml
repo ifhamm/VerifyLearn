@@ -5,6 +5,10 @@ services:
     build:
       context: ./backend
       dockerfile: Dockerfile
+      args:
+        # dev compose mounts source over /app; node_modules comes from the
+        # image, so devDependencies (tailwind, concurrently) must be present
+        INSTALL_DEV: "true"
     container_name: verify-learn-backend
     ports:
       - "3000:3000"
