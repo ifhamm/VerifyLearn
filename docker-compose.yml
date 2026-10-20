@@ -21,12 +21,21 @@ services:
       - BLOCKCHAIN_MODE=${BLOCKCHAIN_MODE:-}
       - EXPLORER_URL=${EXPLORER_URL:-https://sepolia.etherscan.io}
     depends_on:
-      - postgres
+      postgres:
+        condition: service_healthy
+      python_ai:
+        condition: service_healthy
     volumes:
       - ./backend:/app
       - ./python_ai:/app/python_ai:ro
       - /app/node_modules
     command: npm run dev
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:3000/api/v1/status"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
     restart: always
 
   postgres:
@@ -40,6 +49,11 @@ services:
       - POSTGRES_DB=verify_learn
     volumes:
       - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d verify_learn"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
     restart: always
 
   python_ai:
@@ -58,6 +72,12 @@ services:
       - ./python_ai:/app
     extra_hosts:
       - "host.docker.internal:host-gateway"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health', timeout=3)"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
     restart: always
 
 volumes:
