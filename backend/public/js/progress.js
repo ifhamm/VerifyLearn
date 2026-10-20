@@ -718,7 +718,6 @@ document.addEventListener('DOMContentLoaded', () => {
             body: JSON.stringify({
               learningPlan: newPlan,
               completedSlugs: [],
-              integrityScore: 100,
               resetProgress: true
             })
           });

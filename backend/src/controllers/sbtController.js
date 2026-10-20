@@ -1,6 +1,20 @@
 const db = require('../utils/db');
 const blockchainService = require('../services/blockchainService');
 
+// A module quiz only counts towards the completion gate when the result was
+// graded by the server (source = 'server') and was not flagged high-risk.
+// Client-written rows (legacy or forged user_progress) never satisfy this.
+const hasServerGradedQuiz = async (userId, quizSlug) => {
+  const result = await db.query(
+    `SELECT id FROM quiz_results
+     WHERE user_id = $1 AND material_slug = $2
+       AND source = 'server'
+       AND integrity_status IS DISTINCT FROM 'high_risk'`,
+    [userId, quizSlug]
+  );
+  return result.rows.length > 0;
+};
+
 exports.getUserSBTs = async (req, res) => {
   try {
     const userId = req.user.userId;
@@ -58,15 +72,8 @@ exports.mintSBT = async (req, res) => {
       // Check if all 4 modules are completed (by checking if their quizzes are done)
       for (let i = 1; i <= 4; i++) {
         const quizSlug = `quiz-module-${i}`;
-        const progressRes = await db.query(
-          `SELECT id FROM user_progress WHERE user_id = $1 AND material_slug = $2 AND status = 'completed'`,
-          [userId, quizSlug]
-        );
-        const resultsRes = await db.query(
-          `SELECT id FROM quiz_results WHERE user_id = $1 AND material_slug = $2`,
-          [userId, quizSlug]
-        );
-        if (progressRes.rows.length === 0 && resultsRes.rows.length === 0) {
+        const quizOk = await hasServerGradedQuiz(userId, quizSlug);
+        if (!quizOk) {
           return res.status(400).json({ 
             error: `Please complete all 4 modules (and pass their quizzes) before claiming the Master Certificate.` 
           });
@@ -81,15 +88,8 @@ exports.mintSBT = async (req, res) => {
       const moduleNum = match[1];
       const quizSlug = `quiz-module-${moduleNum}`;
 
-      const progressRes = await db.query(
-        `SELECT id FROM user_progress WHERE user_id = $1 AND material_slug = $2 AND status = 'completed'`,
-        [userId, quizSlug]
-      );
-      const resultsRes = await db.query(
-        `SELECT id FROM quiz_results WHERE user_id = $1 AND material_slug = $2`,
-        [userId, quizSlug]
-      );
-      if (progressRes.rows.length === 0 && resultsRes.rows.length === 0) {
+      const quizOk = await hasServerGradedQuiz(userId, quizSlug);
+      if (!quizOk) {
         return res.status(400).json({ 
           error: `Please complete this module and pass its module quiz before minting your on-chain badge.` 
         });

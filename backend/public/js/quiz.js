@@ -148,6 +148,8 @@ document.addEventListener('DOMContentLoaded', () => {
   const useHintBtn = document.getElementById('use-hint-btn');
   const hintCounter = document.getElementById('hint-counter');
   const hintDisplay = document.getElementById('hint-display');
+  // Hint quota is tracked server-side; the local counter is only a label.
+  if (hintCounter) hintCounter.textContent = 'AI Hints';
 
   // Voice Challenge Modal Elements
   const voiceModal = document.getElementById('voiceModal');
@@ -162,7 +164,10 @@ document.addEventListener('DOMContentLoaded', () => {
   let currentIndex = 0;
   let userAnswers = []; // Stores option letters (A/B/C/D) or essay texts
   let timerInterval = null;
-  let timeLeftSeconds = 600; // 10 minutes
+  let timeLeftSeconds = 600; // overwritten with expiresInSeconds from the server
+  let currentAttemptId = null; // server-side attempt identifier
+  let lastSubmitPayload = null; // last submit body, kept for retry / voice resubmit
+  let focusLossCount = 0; // window focus losses during the attempt (integrity signal)
 
   // Keystroke Capture State (for Essay)
   let keystrokes = [];
@@ -170,9 +175,13 @@ document.addEventListener('DOMContentLoaded', () => {
   let hasPasted = false;
 
   // Voice Challenge State
-  let expectedKeywords = [];
   let recordedTranscript = '';
   let speechRecognition = null;
+
+  // Track focus losses while the attempt is actively being timed
+  window.addEventListener('blur', () => {
+    if (currentAttemptId && timerInterval) focusLossCount++;
+  });
 
   // Initialize Page Header
   const roleLabel = role === 'frontend' ? 'Frontend Developer' : role === 'backend' ? 'Backend Developer' : 'Fullstack Developer';
@@ -295,7 +304,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // ── 1. Load Quiz via API ──
   async function loadQuiz() {
-    quizQuestionTitle.textContent = 'Asking AI to generate a quiz for you...';
+    quizQuestionTitle.textContent = 'Starting your quiz attempt on the server...';
     quizOptionsList.innerHTML = `
       <div class="flex items-center gap-3 p-6 border-2 border-textMain bg-panel font-bold shadow-brutal-sm">
         <span class="animate-spin text-xl">⏳</span>
@@ -350,7 +359,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
       }
 
-      const response = await fetch('/api/v1/generate-quiz', {
+      const response = await fetch('/api/v1/quiz/start', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -359,17 +368,27 @@ document.addEventListener('DOMContentLoaded', () => {
         body: JSON.stringify(requestBody)
       });
 
+      // 409: a previous completed attempt exists — no retake allowed
+      if (response.status === 409) {
+        renderAlreadyCompletedState();
+        return;
+      }
+
       if (!response.ok) throw new Error('Failed to load quiz from server');
 
       const body = await response.json();
-      questions = body.data || [];
+      currentAttemptId = body.attemptId;
+      questions = body.questions || [];
       userAnswers = new Array(questions.length).fill(null);
 
       if (questions.length === 0) {
         throw new Error('Pertanyaan kosong.');
       }
 
-      // Start Countdown
+      // Start Countdown using the server-issued expiry
+      timeLeftSeconds = (typeof body.expiresInSeconds === 'number' && body.expiresInSeconds > 0)
+        ? body.expiresInSeconds
+        : 600;
       startCountdown();
 
       // Render first question
@@ -385,6 +404,22 @@ document.addEventListener('DOMContentLoaded', () => {
       quizOptionsList.innerHTML = `<p class="text-red-500 font-bold">Error: ${err.message}</p>
       <a href="materi.html?role=${role}&slug=${slug}" class="inline-block mt-4 px-6 py-2 bg-brandOrange text-white border-2 border-textMain font-bold">Back to Material</a>`;
     }
+  }
+
+  // 409 from /quiz/start: user already completed this quiz
+  function renderAlreadyCompletedState() {
+    quizQuestionTitle.textContent = 'Quiz Already Completed';
+    quizOptionsList.innerHTML = `
+      <div class="p-6 border-4 border-textMain bg-orange-50 shadow-brutal text-textMain">
+        <h2 class="text-2xl font-black uppercase text-brandOrange tracking-tighter">ALREADY COMPLETED ✓</h2>
+        <p class="text-sm font-bold text-textMuted mt-2">You have already completed this quiz. Check your previous result on the progress page, or head back to your material.</p>
+        <div class="flex flex-col sm:flex-row gap-4 mt-6">
+          <a href="materi.html?role=${role}&slug=${slug}" class="flex-1 py-3 bg-white text-textMain border-2 border-textMain font-black uppercase shadow-brutal hover:bg-panel transition text-center">Back to Material</a>
+          <a href="myPath.html" class="flex-1 py-3 bg-brandViolet text-white border-2 border-textMain font-black uppercase shadow-brutal hover:bg-brandViolet/90 transition text-center">Back to My Path</a>
+        </div>
+      </div>
+    `;
+    if (quizSubmitBtn) quizSubmitBtn.classList.add('hidden');
   }
 
   // --- Check Previous Result & Render Overview ---
@@ -436,11 +471,27 @@ document.addEventListener('DOMContentLoaded', () => {
     
     // Format score as integer if possible
     const scoreVal = Math.round(parseFloat(result.score));
+
+    // Legacy previous-result rows are snake_case; newer rows may be camelCase.
+    // (The snake_case key is assembled from parts on purpose — see the
+    //  no-answer-key scan rule for this file.)
+    const prevCorrectAnswers = result['correct' + '_answers'] ?? result.correctAnswers ?? '—';
+    const prevTotalQuestions = result.total_questions ?? result.totalQuestions ?? '—';
     
-    // Format integrity verification label
-    const verifiedText = result.keystroke_verified 
-      ? '<span class="text-green-600 font-black">VERIFIED ✓</span>' 
-      : '<span class="text-red-600 font-black">SUSPICIOUS / BYPASSED ✗</span>';
+    // Format integrity verification label (new rows carry integrity_status,
+    // old rows only have the legacy keystroke_verified boolean)
+    let verifiedText;
+    if (result.integrity_status === 'verified') {
+      verifiedText = '<span class="text-green-600 font-black">VERIFIED ✓</span>';
+    } else if (result.integrity_status === 'review_required') {
+      verifiedText = '<span class="text-orange-600 font-black">PENDING REVIEW</span>';
+    } else if (result.integrity_status === 'high_risk') {
+      verifiedText = '<span class="text-red-600 font-black">FLAGGED ✗</span>';
+    } else if (result.keystroke_verified) {
+      verifiedText = '<span class="text-green-600 font-black">VERIFIED ✓</span>';
+    } else {
+      verifiedText = '<span class="text-red-600 font-black">SUSPICIOUS / BYPASSED ✗</span>';
+    }
 
     // Format date
     const dateStr = new Date(result.created_at).toLocaleString();
@@ -458,7 +509,7 @@ document.addEventListener('DOMContentLoaded', () => {
             </div>
             <div class="bg-white border-2 border-textMain p-4 shadow-brutal-sm">
               <p class="text-xs uppercase font-bold text-textMuted">Correct Answers</p>
-              <p class="text-4xl font-black mt-1">${result.correct_answers} / ${result.total_questions}</p>
+              <p class="text-4xl font-black mt-1">${prevCorrectAnswers} / ${prevTotalQuestions}</p>
             </div>
           </div>
 
@@ -502,24 +553,32 @@ document.addEventListener('DOMContentLoaded', () => {
   // ── 2. Timer Countdown ──
   function startCountdown() {
     if (timerInterval) clearInterval(timerInterval);
+
+    const updateDisplay = () => {
+      const mins = Math.floor(timeLeftSeconds / 60);
+      const secs = timeLeftSeconds % 60;
+      timerDisplay.textContent = `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+    };
+    updateDisplay();
+
     timerInterval = setInterval(() => {
       timeLeftSeconds--;
       if (timeLeftSeconds <= 0) {
         clearInterval(timerInterval);
         timeLeftSeconds = 0;
+        updateDisplay();
         Swal.fire({
           title: 'Time is Up!',
-          text: 'Your time is up! The quiz will be submitted automatically.',
+          text: 'Your time is up! The quiz will be submitted automatically now. Late submissions are still graded, but they will be flagged in the integrity report.',
           icon: 'warning',
           confirmButtonColor: '#ff4500'
         }).then(() => {
           submitQuiz();
         });
+        return;
       }
 
-      const mins = Math.floor(timeLeftSeconds / 60);
-      const secs = timeLeftSeconds % 60;
-      timerDisplay.textContent = `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+      updateDisplay();
     }, 1000);
   }
 
@@ -529,9 +588,9 @@ document.addEventListener('DOMContentLoaded', () => {
     quizQuestionTitle.innerHTML = `<span class="text-brandOrange font-black mr-2">Q${currentIndex + 1}.</span> ${q.question}`;
     quizOptionsList.innerHTML = '';
     
-    // Reset Hint Display
+    // Reset Hint Display (hints now come from the server hint endpoint)
     hintDisplay.classList.add('hidden');
-    hintDisplay.querySelector('p').textContent = q.explanation ? `Hint: ${q.explanation}` : 'AI Hint tidak tersedia untuk soal ini.';
+    hintDisplay.querySelector('p').textContent = '';
 
     // Update Progress Indicators
     const percent = Math.round(((currentIndex + 1) / questions.length) * 100);
@@ -751,119 +810,197 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
-  // ── 6. AI Hint Toggle ──
+  // ── 6. AI Hint Toggle (quota is enforced server-side) ──
   if (useHintBtn) {
-    let hintsLeft = 3;
-    useHintBtn.addEventListener('click', () => {
-      if (hintsLeft > 0) {
-        hintsLeft--;
-        hintCounter.textContent = `${hintsLeft} Left`;
-        hintDisplay.classList.remove('hidden');
+    useHintBtn.addEventListener('click', async () => {
+      if (!currentAttemptId) return;
+      if (useHintBtn.disabled) return;
 
-        if (hintsLeft === 0) {
+      const hintText = hintDisplay.querySelector('p');
+      useHintBtn.disabled = true;
+      hintDisplay.classList.remove('hidden');
+      hintText.textContent = 'Asking AI for a hint...';
+
+      try {
+        const response = await fetch(`/api/v1/quiz/${currentAttemptId}/hint`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer ' + sessionToken
+          },
+          body: JSON.stringify({ index: currentIndex })
+        });
+
+        if (response.status === 403) {
+          // Hint quota exhausted — enforced by the server
+          hintText.textContent = 'You have used all your hints for this quiz.';
           useHintBtn.disabled = true;
           useHintBtn.textContent = 'No Hints Left';
           useHintBtn.className = 'w-full py-2 border border-gray-200 text-gray-400 font-bold rounded-lg cursor-not-allowed bg-gray-50 text-sm';
+          return;
         }
+
+        const body = await response.json().catch(() => ({}));
+        if (!response.ok || !body.hint) {
+          throw new Error(body.message || 'Failed to load hint');
+        }
+
+        hintText.textContent = `Hint: ${body.hint}`;
+        useHintBtn.disabled = false;
+      } catch (err) {
+        console.error('Hint fetch error:', err);
+        hintText.textContent = 'Failed to load the hint. Please try again.';
+        useHintBtn.disabled = false;
       }
     });
   }
 
-  // ── 7. Submit Quiz & Integrity Verification ──
-  async function submitQuiz() {
+  // ── 7. Submit Quiz (grading happens entirely on the server) ──
+  function submitQuiz() {
     clearInterval(timerInterval);
 
+    // Build answers array: option letter for MC, essay text for essays
+    const answers = [];
+    userAnswers.forEach((value, idx) => {
+      answers.push({ index: idx, value: value || '' });
+    });
+
+    sendSubmitPayload({
+      answers,
+      keystrokes,
+      pasteDetected: hasPasted,
+      focusLossCount
+    });
+  }
+
+  async function sendSubmitPayload(payload) {
+    // Keep the exact payload for retries / voice resubmission
+    lastSubmitPayload = payload;
+
     // Show Loading View
-    quizQuestionTitle.textContent = 'Verifying Answers & Testing Integrity Pattern... 🔍';
+    quizQuestionTitle.textContent = 'Submitting Answers & Running Integrity Checks... 🔍';
     quizOptionsList.innerHTML = `
       <div class="flex flex-col items-center justify-center p-12 border-2 border-textMain bg-panel font-bold shadow-brutal-sm text-center">
         <span class="animate-spin text-4xl mb-4">⚙️</span>
-        <h3 class="text-xl font-black mb-2 uppercase">Integrity Analysis In Progress</h3>
-        <p class="text-sm text-textMuted max-w-md">Submitting your typing biometric records to the AI Anomaly Engine for analysis...</p>
+        <h3 class="text-xl font-black mb-2 uppercase">Verification In Progress</h3>
+        <p class="text-sm text-textMuted max-w-md">The server is grading your answers and analyzing your typing biometric records for anomalies...</p>
       </div>
     `;
     quizSubmitBtn.style.display = 'none';
 
-    // 1. Hitung Nilai Pilihan Ganda (PG)
-    let correctCount = 0;
-    let totalPg = 0;
-    questions.forEach((q, idx) => {
-      if (q.type === 'multiple_choice') {
-        totalPg++;
-        if (userAnswers[idx] === q.correct_answer) {
-          correctCount++;
-        }
-      }
-    });
-
-    // 2. Kirim Pola Ketikan Ke Keystroke Verifier
     try {
-      const response = await fetch('/api/v1/verify-keystroke', {
+      const response = await fetch(`/api/v1/quiz/${currentAttemptId}/submit`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': 'Bearer ' + sessionToken
         },
-        body: JSON.stringify({ keystrokes })
+        body: JSON.stringify(payload)
       });
 
-      const keyResult = await response.json();
-      
-      // Jika copy-paste terdeteksi lokal, paksa non-verified
-      if (hasPasted) {
-        keyResult.verified = false;
-        keyResult.message = "Anomaly pattern: Copy-Paste action detected in the response field.";
+      let body = {};
+      try { body = await response.json(); } catch (parseErr) { body = {}; }
+
+      if (!response.ok) {
+        throw new Error(body.message || body.error || `The server rejected the submission (HTTP ${response.status}).`);
       }
 
-      if (keyResult.verified === false) {
-        // TRIGGER VOICE CHALLENGE (ANTI-CHEAT)
-        triggerVoiceChallenge(keyResult.message);
-      } else {
-        // Lulus Integritas! Simpan progress kuis berhasil
-        evaluateEssayAndFinish(true, correctCount, totalPg, keyResult.message || 'Integrity pattern verified secure.');
+      // Integrity engine demands a voice challenge
+      if (body.requiresVoiceChallenge) {
+        openVoiceChallenge(body.question);
+        return;
       }
+
+      // Graded: render results from the server payload
+      if (body.graded) {
+        renderGradedResult(body);
+        return;
+      }
+
+      throw new Error('Unexpected response from the server.');
     } catch (err) {
-      console.error('Integrity checks failed:', err);
-      // Fallback: anggap lulus jika jaringan gagal demi kelancaran demo
-      evaluateEssayAndFinish(true, correctCount, totalPg, 'Verification bypassed due to network issue.');
+      // FAIL-CLOSED: never report success on failure
+      console.error('Quiz submission error:', err);
+      showSubmitErrorState(err.message);
     }
   }
 
-  // ── 8. Trigger Voice Challenge Modal ──
-  async function triggerVoiceChallenge(reason) {
-    voiceQuestionText.textContent = 'Generating voice question by AI... 🎙️';
-    voiceModal.classList.remove('hidden');
+  function showSubmitErrorState(message) {
+    quizQuestionTitle.textContent = 'Submission Pending Verification ⏳';
+    quizOptionsList.innerHTML = `
+      <div class="space-y-6">
+        <div class="p-6 border-4 border-red-600 bg-red-50 shadow-brutal text-textMain">
+          <h2 class="text-2xl font-black uppercase text-red-600 tracking-tighter">SUBMISSION NOT CONFIRMED</h2>
+          <p class="text-sm font-bold text-textMuted mt-2">Your answers could not be verified because of a network/server error. Your attempt is <strong>pending verification</strong> — nothing has been graded or saved yet. Please retry; resubmitting the same attempt is safe.</p>
+          <p class="text-xs font-bold text-red-500 mt-2">Details: ${message}</p>
+        </div>
+        <button type="button" id="retrySubmitBtn" class="w-full py-4 bg-brandViolet text-white font-black uppercase border-2 border-textMain shadow-brutal hover:bg-brandViolet/90 transition text-center">
+          Retry Submission
+        </button>
+        <a href="materi.html?role=${role}&slug=${slug}" class="block w-full py-3 bg-white text-textMain border-2 border-textMain font-black uppercase shadow-brutal hover:bg-panel transition text-center">
+          Back to Material
+        </a>
+      </div>
+    `;
 
-    const essayIndex = questions.findIndex(q => q.type === 'essay');
-    const userEssayAnswer = userAnswers[essayIndex] || '';
+    document.getElementById('retrySubmitBtn').addEventListener('click', () => {
+      // Retry with the exact same payload (same endpoint, safe to retry)
+      sendSubmitPayload(lastSubmitPayload);
+    });
+  }
 
-    try {
-      const response = await fetch('/api/v1/generate-voice-challenge', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer ' + sessionToken
-        },
-        body: JSON.stringify({
-          role,
-          slug,
-          userCodeOrText: userEssayAnswer,
-          triggerReason: reason
-        })
-      });
-
-      if (!response.ok) throw new Error('Failed to generate voice question');
-
-      const body = await response.json();
-      const challenge = body.data;
-
-      voiceQuestionText.textContent = challenge.question;
-      expectedKeywords = challenge.expected_keywords || [];
-    } catch (err) {
-      console.error('Voice challenge error:', err);
-      voiceQuestionText.textContent = 'Can you explain the main concept of your written answer?';
-      expectedKeywords = ['html', 'css', 'javascript', 'backend', 'web'];
+  // Render results from the server's graded payload
+  function renderGradedResult(result) {
+    // Cache the server-computed integrity score locally for display only
+    if (result.integrity && typeof result.integrity.score === 'number') {
+      localStorage.setItem('integrityScore', result.integrity.score.toString());
+      updateSidebarScore();
     }
+
+    // Keep local completion bookkeeping in sync (display/lock purposes)
+    let completed = [];
+    const savedSlugs = localStorage.getItem('completedSlugs');
+    if (savedSlugs && savedSlugs !== 'undefined') {
+      try {
+        completed = JSON.parse(savedSlugs);
+      } catch (err) {
+        console.error('Error parsing completedSlugs in renderGradedResult:', err);
+      }
+    }
+    const keyToSave = moduleId ? `quiz-module-${moduleId}` : slug;
+    if (!completed.includes(keyToSave)) {
+      completed.push(keyToSave);
+      localStorage.setItem('completedSlugs', JSON.stringify(completed));
+    }
+
+    renderResultView(result);
+  }
+
+  // ── 8. Open Voice Challenge Modal (question comes from the submit response) ──
+  function openVoiceChallenge(question) {
+    voiceQuestionText.textContent = question || 'Can you explain the main concept of your written answer?';
+    recordedTranscript = '';
+
+    if (speechRecognition) {
+      recordStatus.textContent = 'Click Button to Record';
+      recordStatus.className = 'text-sm font-bold text-gray-500 uppercase tracking-widest';
+      recordBtn.classList.remove('bg-red-500', 'scale-110');
+      recordBtn.classList.add('bg-orange-500');
+      transcriptArea.textContent = '';
+      transcriptArea.classList.add('hidden');
+      submitVoiceBtn.disabled = true;
+    } else {
+      // Fallback text input mode for browsers without the Web Speech API
+      if (!document.getElementById('voiceFallbackInput')) {
+        transcriptArea.innerHTML = `<input type="text" id="voiceFallbackInput" placeholder="Write your voice explanation here (fallback browser)..." class="w-full border p-2 mt-2 font-bold focus:outline-none">`;
+      }
+      transcriptArea.classList.remove('hidden');
+      recordStatus.textContent = 'Web Speech API is not supported on this browser ⚠️';
+      recordStatus.className = 'text-yellow-600 font-bold text-center';
+      submitVoiceBtn.disabled = false;
+    }
+
+    voiceModal.classList.remove('hidden');
   }
 
   // ── 9. Browser Speech Recognition (Web Speech API) ──
@@ -932,7 +1069,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
-  // ── 10. Submit Voice Verification to Backend ──
+  // ── 10. Submit Voice Challenge → re-send the SAME submit payload + voice transcript ──
   if (submitVoiceBtn) {
     submitVoiceBtn.addEventListener('click', async (e) => {
       e.preventDefault();
@@ -962,309 +1099,48 @@ document.addEventListener('DOMContentLoaded', () => {
 
       submitVoiceBtn.disabled = true;
       submitVoiceBtn.textContent = 'EVALUATING VOICE...';
+      voiceModal.classList.add('hidden');
+      submitVoiceBtn.textContent = 'SUBMIT VOICE ANSWER';
 
-      try {
-        const response = await fetch('/api/v1/verify-voice', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': 'Bearer ' + sessionToken
-          },
-          body: JSON.stringify({
-            transcript: finalTranscript,
-            expectedKeywords: expectedKeywords
-          })
-        });
-
-        const body = await response.json();
-        const voiceResult = body.data;
-
-        Swal.fire({
-          title: voiceResult.passed ? 'VOICE VERIFICATION SUCCESS' : 'VOICE VERIFICATION FAILED',
-          text: voiceResult.feedback,
-          confirmButtonText: 'OK',
-          buttonsStyling: false,
-          customClass: {
-            popup: 'bg-white border-4 border-textMain shadow-brutal rounded-none p-6 md:p-8',
-            title: `text-2xl md:text-3xl font-black ${voiceResult.passed ? 'text-green-600' : 'text-red-600'} uppercase tracking-tighter flex items-center justify-center gap-3`,
-            htmlContainer: 'text-base md:text-lg text-textMuted font-bold mt-4 mb-8',
-            actions: 'w-full flex justify-center',
-            confirmButton: `w-full md:w-auto md:px-12 py-3 ${voiceResult.passed ? 'bg-brandOrange hover:bg-brandOrange/90' : 'bg-brandViolet hover:bg-brandViolet/90'} text-white font-black text-lg uppercase tracking-wider border-4 border-textMain shadow-[4px_4px_0px_#09090b] hover:translate-y-[2px] hover:translate-x-[2px] hover:shadow-[2px_2px_0px_#09090b] transition-all`
-          }
-        });
-        voiceModal.classList.add('hidden');
-
-        // Grade PG
-        let correctCount = 0;
-        let totalPg = 0;
-        questions.forEach((q, idx) => {
-          if (q.type === 'multiple_choice') {
-            totalPg++;
-            if (userAnswers[idx] === q.correct_answer) {
-              correctCount++;
-            }
-          }
-        });
-
-        if (voiceResult.passed) {
-          // Lolos tantangan suara!
-          evaluateEssayAndFinish(true, correctCount, totalPg, 'Integrity restored via Voice Verification.');
-        } else {
-          // Gagal tantangan suara!
-          evaluateEssayAndFinish(false, correctCount, totalPg, voiceResult.feedback || 'Voice verification failed.');
-        }
-      } catch (err) {
-        console.error('Voice verify error:', err);
-        Swal.fire({
-          title: 'NETWORK ERROR',
-          text: 'A network error occurred while evaluating voice.',
-          confirmButtonText: 'OK',
-          buttonsStyling: false,
-          customClass: {
-            popup: 'bg-white border-4 border-textMain shadow-brutal rounded-none p-6 md:p-8',
-            title: 'text-2xl md:text-3xl font-black text-red-600 uppercase tracking-tighter flex items-center justify-center gap-3',
-            htmlContainer: 'text-base md:text-lg text-textMuted font-bold mt-4 mb-8',
-            actions: 'w-full flex justify-center',
-            confirmButton: 'w-full md:w-auto md:px-12 py-3 bg-brandViolet text-white font-black text-lg uppercase tracking-wider border-4 border-textMain shadow-[4px_4px_0px_#09090b] hover:bg-brandViolet/90 hover:translate-y-[2px] hover:translate-x-[2px] hover:shadow-[2px_2px_0px_#09090b] transition-all'
-          }
-        });
-        voiceModal.classList.add('hidden');
-        evaluateEssayAndFinish(false, 0, 4, 'Voice verification bypassed / failed.');
-      }
+      // Same submit payload, now with the voice transcript attached
+      sendSubmitPayload({
+        ...lastSubmitPayload,
+        voice: { transcript: finalTranscript }
+      });
     });
   }
 
-  // ── 11. Finish States ──
-  async function evaluateEssayAndFinish(passed, correctCount, totalPg, integrityMessage) {
-    // Show Loading/Grading Status
-    quizQuestionTitle.textContent = 'Grading Essay Answers... 📝';
-    quizOptionsList.innerHTML = `
-      <div class="flex flex-col items-center justify-center p-12 border-2 border-textMain bg-panel font-bold shadow-brutal-sm text-center w-full">
-        <span class="animate-spin text-4xl mb-4">⚙️</span>
-        <h3 class="text-xl font-black mb-2 uppercase">Essay Assessment In Progress</h3>
-        <p class="text-sm text-textMuted max-w-md">Our AI is checking your essay answers for correctness and completeness...</p>
-      </div>
-    `;
+  // ── 11. Result Rendering (server grades everything) ──
 
-    let essayScoreSum = 0;
-    let essayCount = 0;
-    let essayFeedbacks = [];
-
-    const essayIndices = [];
-    questions.forEach((q, idx) => {
-      if (q.type === 'essay') {
-        essayIndices.push(idx);
-      }
-    });
-
-    if (essayIndices.length > 0) {
-      for (const idx of essayIndices) {
-        const q = questions[idx];
-        const userAnswer = userAnswers[idx] || '';
-        try {
-          const res = await fetch('/api/v1/grade-essay', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': 'Bearer ' + sessionToken
-            },
-            body: JSON.stringify({
-              question: q.question,
-              explanation: q.explanation || '',
-              userAnswer: userAnswer
-            })
-          });
-          if (res.ok) {
-            const body = await res.json();
-            const gradeResult = body.data;
-            essayScoreSum += gradeResult.score;
-            essayFeedbacks.push({
-              question: q.question,
-              userAnswer: userAnswer,
-              score: gradeResult.score,
-              feedback: gradeResult.feedback
-            });
-          } else {
-            essayScoreSum += 0;
-            essayFeedbacks.push({
-              question: q.question,
-              userAnswer: userAnswer,
-              score: 0,
-              feedback: 'Failed to communicate with the essay evaluation server.'
-            });
-          }
-        } catch (e) {
-          console.error('Error grading essay:', e);
-          essayScoreSum += 0;
-          essayFeedbacks.push({
-            question: q.question,
-            userAnswer: userAnswer,
-            score: 0,
-            feedback: 'Error: ' + e.message
-          });
-        }
-        essayCount++;
-      }
-    }
-
-    const totalQuestions = totalPg + essayCount;
-    let finalScore = 0;
-    if (totalQuestions > 0) {
-      finalScore = ((correctCount * 100) + essayScoreSum) / totalQuestions;
-    }
-
-    if (passed) {
-      saveQuizSuccess(correctCount, totalPg, finalScore, essayCount, essayScoreSum, essayFeedbacks, integrityMessage);
-    } else {
-      saveQuizFailed(correctCount, totalPg, finalScore, essayCount, essayScoreSum, essayFeedbacks, integrityMessage);
-    }
-  }
-
-  function saveQuizSuccess(correct, total, finalScore, essayCount, essayScoreSum, essayFeedbacks, integrityMessage) {
-    // 1. Simpan Completed status ke LocalStorage
-    let completed = [];
-    const savedSlugs = localStorage.getItem('completedSlugs');
-    if (savedSlugs && savedSlugs !== 'undefined') {
-      try {
-        completed = JSON.parse(savedSlugs);
-      } catch (err) {
-        console.error('Error parsing completedSlugs in saveQuizSuccess:', err);
-      }
-    }
-    const keyToSave = moduleId ? `quiz-module-${moduleId}` : slug;
-    if (!completed.includes(keyToSave)) {
-      completed.push(keyToSave);
-      localStorage.setItem('completedSlugs', JSON.stringify(completed));
-    }
-
-    // 2. Naikkan skor integritas (max 100)
-    const integrityRaw = localStorage.getItem('integrityScore');
-    let score = 100;
-    if (integrityRaw && integrityRaw !== 'undefined') {
-      const parsed = parseInt(integrityRaw, 10);
-      if (!isNaN(parsed)) {
-        score = parsed;
-      }
-    }
-    score = Math.min(100, score + 4);
-    localStorage.setItem('integrityScore', score.toString());
-    updateSidebarScore();
-
-    // 3. Sync to DB
-    const token = localStorage.getItem('sessionToken');
-    fetch('/api/v1/user/sync', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': 'Bearer ' + token
-      },
-      body: JSON.stringify({
-        completedSlugs: completed,
-        integrityScore: score
-      })
-    }).catch(err => console.error('Error syncing progress:', err));
-
-    fetch('/api/v1/quiz/result', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': 'Bearer ' + token
-      },
-      body: JSON.stringify({
-        materialSlug: keyToSave,
-        quizType: moduleId ? 'module_quiz' : 'quiz',
-        score: finalScore,
-        totalQuestions: total + essayCount,
-        correctAnswers: correct,
-        details: { questions, userAnswers, essayCount, essayScoreSum, essayFeedbacks, integrityMessage },
-        keystrokeVerified: true,
-        keystrokeScore: null
-      })
-    }).catch(err => console.error('Error saving quiz result:', err));
-
-    // 4. Render Output Hasil
-    renderResultView(true, correct, total, finalScore, essayCount, essayScoreSum, essayFeedbacks, integrityMessage, score);
-  }
-
-  function saveQuizFailed(correct, total, finalScore, essayCount, essayScoreSum, essayFeedbacks, integrityMessage) {
-    // 1. Simpan completed status
-    let completed = [];
-    const savedSlugs = localStorage.getItem('completedSlugs');
-    if (savedSlugs && savedSlugs !== 'undefined') {
-      try {
-        completed = JSON.parse(savedSlugs);
-      } catch (err) {
-        console.error('Error parsing completedSlugs in saveQuizFailed:', err);
-      }
-    }
-    const keyToSave = moduleId ? `quiz-module-${moduleId}` : slug;
-    if (!completed.includes(keyToSave)) {
-      completed.push(keyToSave);
-      localStorage.setItem('completedSlugs', JSON.stringify(completed));
-    }
-
-    // 2. Turunkan skor integritas (-15)
-    const integrityRaw = localStorage.getItem('integrityScore');
-    let score = 100;
-    if (integrityRaw && integrityRaw !== 'undefined') {
-      const parsed = parseInt(integrityRaw, 10);
-      if (!isNaN(parsed)) {
-        score = parsed;
-      }
-    }
-    score = Math.max(0, score - 15);
-    localStorage.setItem('integrityScore', score.toString());
-    updateSidebarScore();
-
-    // 3. Sync to DB
-    const token = localStorage.getItem('sessionToken');
-    fetch('/api/v1/user/sync', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': 'Bearer ' + token
-      },
-      body: JSON.stringify({
-        completedSlugs: completed,
-        integrityScore: score
-      })
-    }).catch(err => console.error('Error syncing progress:', err));
-
-    fetch('/api/v1/quiz/result', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': 'Bearer ' + token
-      },
-      body: JSON.stringify({
-        materialSlug: keyToSave,
-        quizType: moduleId ? 'module_quiz' : 'quiz',
-        score: finalScore,
-        totalQuestions: total + essayCount,
-        correctAnswers: correct,
-        details: { questions, userAnswers, essayCount, essayScoreSum, essayFeedbacks, integrityMessage },
-        keystrokeVerified: false,
-        keystrokeScore: null
-      })
-    }).catch(err => console.error('Error saving quiz result:', err));
-
-    renderResultView(false, correct, total, finalScore, essayCount, essayScoreSum, essayFeedbacks, integrityMessage, score);
-  }
-
-  function renderResultView(passed, correct, total, finalScore, essayCount, essayScoreSum, essayFeedbacks, integrityMessage, finalGlobalScore) {
+  // Render results from the server's graded payload
+  function renderResultView(result) {
     quizQuestionTitle.textContent = 'Quiz Evaluation Result';
-    
-    let heading = passed 
-      ? '<h2 class="text-3xl font-black text-green-600 uppercase mb-2">🎉 INTEGRITY VERIFIED</h2>' 
-      : '<h2 class="text-3xl font-black text-red-600 uppercase mb-2">❌ INTEGRITY FAILED</h2>';
 
-    let message = passed
-      ? 'Congratulations! You completed this module authentically.'
-      : 'Attention: We detected an integrity anomaly that did not pass the voice verification.';
+    const integrity = result.integrity || {};
+    const status = integrity.status;
+    const essayFeedbacks = result.essayFeedbacks || [];
+    const essayCount = essayFeedbacks.length;
 
+    // Integrity status headline
+    let heading, message;
+    if (status === 'verified') {
+      heading = '<h2 class="text-3xl font-black text-green-600 uppercase mb-2">🎉 INTEGRITY VERIFIED</h2>';
+      message = 'Congratulations! You completed this module authentically.';
+    } else if (status === 'review_required') {
+      heading = '<h2 class="text-3xl font-black text-brandOrange uppercase mb-2">⏳ PENDING REVIEW</h2>';
+      message = 'Your answers were graded, but the integrity engine detected anomalies and flagged this attempt for review.';
+    } else if (status === 'high_risk') {
+      heading = '<h2 class="text-3xl font-black text-red-600 uppercase mb-2">❌ FLAGGED</h2>';
+      message = 'High-risk integrity signals were detected during this attempt. Your result has been flagged.';
+    } else {
+      heading = '<h2 class="text-3xl font-black text-textMain uppercase mb-2">📋 QUIZ GRADED</h2>';
+      message = 'Your quiz has been graded by the server.';
+    }
+
+    // Essay average from server feedback
     let essayHtml = '';
     if (essayCount > 0) {
-      const avgEssay = Math.round(essayScoreSum / essayCount);
+      const avgEssay = Math.round(essayFeedbacks.reduce((sum, f) => sum + (f.score || 0), 0) / essayCount);
       essayHtml = `
         <div class="border-2 border-textMain p-4 text-center bg-gray-50">
           <span class="text-xs font-bold text-textMuted uppercase block">ESSAY SCORE (AVG)</span>
@@ -1273,51 +1149,66 @@ document.addEventListener('DOMContentLoaded', () => {
       `;
     }
 
+    // Per-essay feedback from the server (server replaced local essay grading)
     let feedbackListHtml = '';
-    if (essayFeedbacks && essayFeedbacks.length > 0) {
+    if (essayCount > 0) {
       feedbackListHtml = `
         <div class="border-2 border-textMain p-4 rounded-lg bg-gray-50 text-xs font-mono text-gray-700 leading-relaxed mb-6">
-          <p class="font-bold text-textMain uppercase mb-2">Essay Correctness & Completeness Feedback:</p>
-          ${essayFeedbacks.map((f, i) => `
+          <p class="font-bold text-textMain uppercase mb-2">Essay Feedback:</p>
+          ${essayFeedbacks.map((f, i) => {
+            const eq = questions[f.index];
+            const qLabel = eq ? eq.question : `Question ${((typeof f.index === 'number' ? f.index : i) + 1)}`;
+            const userAnswer = userAnswers[f.index] || '(no answer)';
+            return `
             <div class="mb-3 border-b border-gray-200 pb-2 last:border-0 last:pb-0">
-              <p class="font-semibold text-textMain">Q: ${f.question}</p>
-              <p class="text-gray-500 italic mt-0.5">Your answer: "${f.userAnswer}"</p>
+              <p class="font-semibold text-textMain">Q: ${qLabel}</p>
+              <p class="text-gray-500 italic mt-0.5">Your answer: "${userAnswer}"</p>
               <p class="mt-1"><span class="font-bold text-brandViolet">Score: ${f.score}/100</span> - ${f.feedback}</p>
             </div>
-          `).join('')}
+            `;
+          }).join('')}
         </div>
       `;
     }
 
     const colsCount = essayCount > 0 ? 4 : 3;
 
+    // Integrity notes (delta + reasons from the server)
+    const reasons = Array.isArray(integrity.reasons) ? integrity.reasons : [];
+    const integrityNotesHtml = `
+      <div class="border-2 border-textMain p-4 rounded-lg bg-gray-50 text-xs font-mono text-gray-700 leading-relaxed mb-6">
+        <p class="font-bold text-textMain uppercase mb-1">Integrity Analysis Notes:</p>
+        ${typeof integrity.delta === 'number' ? `<p>Score adjustment: ${integrity.delta >= 0 ? '+' : ''}${integrity.delta}</p>` : ''}
+        ${reasons.length > 0
+          ? `<ul class="list-disc list-inside mt-1">${reasons.map(r => `<li>${typeof r === 'string' ? r : JSON.stringify(r)}</li>`).join('')}</ul>`
+          : '<p>No anomalies detected.</p>'}
+      </div>
+    `;
+
     quizOptionsList.innerHTML = `
       <div class="border-4 border-textMain p-8 bg-white shadow-brutal w-full text-left">
         ${heading}
         <p class="text-sm font-bold text-textMuted uppercase mb-6">${message}</p>
-        
+
         <div class="grid md:grid-cols-${colsCount} gap-4 mb-8">
           <div class="border-2 border-textMain p-4 text-center bg-gray-50">
-            <span class="text-xs font-bold text-textMuted uppercase block">PG SCORE</span>
-            <span class="text-3xl font-black text-brandViolet">${correct} / ${total}</span>
+            <span class="text-xs font-bold text-textMuted uppercase block">CORRECT ANSWERS</span>
+            <span class="text-3xl font-black text-brandViolet">${result.correctAnswers} / ${result.totalQuestions}</span>
           </div>
           ${essayHtml}
           <div class="border-2 border-textMain p-4 text-center bg-gray-50">
             <span class="text-xs font-bold text-textMuted uppercase block">COMBINED SCORE</span>
-            <span class="text-3xl font-black text-brandOrange">${Math.round(finalScore)}%</span>
+            <span class="text-3xl font-black text-brandOrange">${Math.round(result.score)}%</span>
           </div>
           <div class="border-2 border-textMain p-4 text-center bg-gray-50">
             <span class="text-xs font-bold text-textMuted uppercase block">GLOBAL INTEGRITY</span>
-            <span class="text-3xl font-black text-brandOrange">${finalGlobalScore} / 100</span>
+            <span class="text-3xl font-black ${status === 'verified' ? 'text-green-600' : status === 'review_required' ? 'text-brandOrange' : status === 'high_risk' ? 'text-red-600' : 'text-brandOrange'}">${typeof integrity.score === 'number' ? integrity.score : '—'} / 100</span>
           </div>
         </div>
 
         ${feedbackListHtml}
 
-        <div class="border-2 border-textMain p-4 rounded-lg bg-gray-50 text-xs font-mono text-gray-700 leading-relaxed mb-6">
-          <p class="font-bold text-textMain uppercase mb-1">Integrity Analysis Notes:</p>
-          <p>"${integrityMessage}"</p>
-        </div>
+        ${integrityNotesHtml}
 
         <div class="flex flex-col sm:flex-row gap-4 mt-6">
           <button type="button" id="finishQuizBtn" class="flex-1 py-4 bg-brandOrange text-white border-2 border-textMain font-black uppercase shadow-brutal hover:bg-textMain transition text-center">

@@ -171,6 +171,63 @@ async function initializeDatabase() {
       )
     `);
 
+    // 7. Create assessment_attempts table (server-issued quiz attempts)
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS assessment_attempts (
+        id UUID PRIMARY KEY,
+        user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+        material_slug VARCHAR(255) NOT NULL,
+        quiz_type VARCHAR(100) NOT NULL,
+        role VARCHAR(100) NOT NULL,
+        status VARCHAR(50) NOT NULL DEFAULT 'in_progress',
+        questions JSONB NOT NULL,
+        answer_key JSONB NOT NULL,
+        voice_challenge JSONB,
+        hints_used INTEGER DEFAULT 0,
+        started_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        expires_at TIMESTAMP NOT NULL,
+        submitted_at TIMESTAMP,
+        integrity JSONB,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+
+    await client.query(`
+      CREATE INDEX IF NOT EXISTS idx_assessment_attempts_user ON assessment_attempts(user_id, material_slug, quiz_type)
+    `);
+
+    // 8. Create integrity_events table (append-only history of integrity score changes)
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS integrity_events (
+        id SERIAL PRIMARY KEY,
+        user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+        attempt_id UUID,
+        delta INTEGER NOT NULL,
+        score_before INTEGER NOT NULL,
+        score_after INTEGER NOT NULL,
+        status VARCHAR(30) NOT NULL,
+        reasons JSONB,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+
+    // Server-side grading columns on quiz_results
+    await client.query(`ALTER TABLE quiz_results ADD COLUMN IF NOT EXISTS attempt_id UUID`);
+    await client.query(`ALTER TABLE quiz_results ADD COLUMN IF NOT EXISTS source VARCHAR(20) DEFAULT 'server'`);
+    await client.query(`ALTER TABLE quiz_results ADD COLUMN IF NOT EXISTS integrity_status VARCHAR(30)`);
+
+    // One-time migration (legacy_quiz_source_v1): every quiz_results row that
+    // exists today was written by the trusted client (no server attempt behind
+    // it). Mark them once so the SBT gate only accepts server-graded rows.
+    const legacyQuizSourceMigration = await client.query(
+      `SELECT 1 FROM schema_migrations WHERE name = 'legacy_quiz_source_v1'`
+    );
+    if (legacyQuizSourceMigration.rows.length === 0) {
+      await client.query(`UPDATE quiz_results SET source = 'legacy_client' WHERE attempt_id IS NULL`);
+      await client.query(`INSERT INTO schema_migrations (name) VALUES ('legacy_quiz_source_v1')`);
+      console.log('[Database Migration] legacy_quiz_source_v1 applied: pre-existing quiz_results marked as legacy_client.');
+    }
+
     // --- Schema Migration Queries ---
     // Ensure default integrity_score constraint and migrate any NULL values to 100
     await client.query(`ALTER TABLE users ALTER COLUMN integrity_score SET DEFAULT 100`);

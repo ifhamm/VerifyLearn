@@ -498,8 +498,7 @@ document.addEventListener('DOMContentLoaded', () => {
           },
           body: JSON.stringify({
             learningPlan: plan,
-            completedSlugs: [],
-            integrityScore: 100
+            completedSlugs: []
           })
         }).catch(err => console.error('Error syncing path to DB:', err));
 
@@ -796,7 +795,7 @@ document.addEventListener('DOMContentLoaded', () => {
               'Content-Type': 'application/json',
               'Authorization': 'Bearer ' + token
             },
-            body: JSON.stringify({ resetProgress: true, integrityScore: 100, learningPlan: activePlan })
+            body: JSON.stringify({ resetProgress: true, learningPlan: activePlan })
           }).catch(err => console.error('Error resetting path on DB:', err));
 
           initPage();

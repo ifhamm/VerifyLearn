@@ -1,15 +1,20 @@
 const db = require('../utils/db');
 
-// Sync user learning progress, completed materials, and integrity score
+// Sync user learning progress and completed materials.
+// NOTE: integrity score changes are server-side only — any integrityScore in
+// the payload is ignored (it used to be client-trusted).
 exports.syncProgress = async (req, res) => {
   try {
-    const { integrityScore, completedSlugs, learningPlan, resetProgress } = req.body;
+    const { completedSlugs, learningPlan, resetProgress } = req.body;
     const userId = req.user.userId;
 
     if (resetProgress) {
       const targetRole = learningPlan ? (learningPlan.role || 'backend') : 'backend';
       await db.query(`DELETE FROM user_learning_paths WHERE user_id = $1 AND role = $2`, [userId, targetRole]);
       await db.query(`DELETE FROM user_progress WHERE user_id = $1 AND role = $2`, [userId, targetRole]);
+      // Attempts must go too, otherwise finished attempts would block retakes
+      // with 409 even though all quiz results were deleted.
+      await db.query(`DELETE FROM assessment_attempts WHERE user_id = $1 AND role = $2`, [userId, targetRole]);
       
       if (learningPlan && learningPlan.materials) {
         const slugs = learningPlan.materials.map(m => m.slug);
@@ -35,13 +40,6 @@ exports.syncProgress = async (req, res) => {
           );
         }
       }
-    }
-
-    if (integrityScore !== undefined) {
-      await db.query(
-        `UPDATE users SET integrity_score = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2`,
-        [parseInt(integrityScore, 10), userId]
-      );
     }
 
     if (learningPlan) {

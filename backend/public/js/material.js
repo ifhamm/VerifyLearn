@@ -543,7 +543,6 @@ document.addEventListener('DOMContentLoaded', async () => {
 
       // Sync to DB
       const token = localStorage.getItem('sessionToken');
-      const score = localStorage.getItem('integrityScore') || '100';
       await fetch('/api/v1/user/sync', {
         method: 'POST',
         headers: {
@@ -551,8 +550,7 @@ document.addEventListener('DOMContentLoaded', async () => {
           'Authorization': 'Bearer ' + token
         },
         body: JSON.stringify({
-          completedSlugs: completed,
-          integrityScore: parseInt(score, 10)
+          completedSlugs: completed
         })
       }).catch(err => console.error('Error syncing progress to DB:', err));
     }
