@@ -1,4 +1,4 @@
-const db = require('../utils/db');
+const sessionService = require('../services/sessionService');
 
 module.exports = async (req, res, next) => {
   try {
@@ -8,16 +8,8 @@ module.exports = async (req, res, next) => {
     }
 
     const token = authHeader.split(' ')[1];
-    
-    // Find session in DB
-    const sessionResult = await db.query(
-      `SELECT s.token, u.id as user_id, u.wallet_address, u.username, u.integrity_score, u.is_mock 
-       FROM user_sessions s
-       JOIN users u ON s.user_id = u.id
-       WHERE s.token = $1 AND (s.expires_at IS NULL OR s.expires_at > CURRENT_TIMESTAMP)`,
-      [token]
-    );
-    const session = sessionResult.rows[0];
+
+    const session = await sessionService.findSession(token);
 
     if (!session) {
       return res.status(401).json({ error: 'Your login session is invalid or has expired. Please login again.' });

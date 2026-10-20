@@ -11,6 +11,8 @@ services:
     environment:
       - PORT=3000
       - NODE_ENV=development
+      - APP_ENV=${APP_ENV:-development}
+      - ALLOW_MOCK_LOGIN=${ALLOW_MOCK_LOGIN:-true}
       - AI_SERVICE_URL=http://python_ai:8000
       - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/verify_learn
       - RPC_URL=${RPC_URL:-https://ethereum-sepolia-rpc.publicnode.com}

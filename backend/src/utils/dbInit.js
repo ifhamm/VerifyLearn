@@ -51,6 +51,47 @@ async function initializeDatabase() {
       CREATE INDEX IF NOT EXISTS idx_user_sessions_token ON user_sessions(token)
     `);
 
+    // 2b. Create auth_nonces table (server-issued login challenges, anti-replay)
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS auth_nonces (
+        id SERIAL PRIMARY KEY,
+        nonce VARCHAR(64) UNIQUE NOT NULL,
+        wallet_address VARCHAR(255) NOT NULL,
+        message TEXT NOT NULL,
+        used BOOLEAN DEFAULT FALSE,
+        expires_at TIMESTAMP NOT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+
+    await client.query(`
+      CREATE INDEX IF NOT EXISTS idx_auth_nonces_nonce ON auth_nonces(nonce)
+    `);
+
+    await client.query(`
+      CREATE INDEX IF NOT EXISTS idx_auth_nonces_wallet ON auth_nonces(wallet_address)
+    `);
+
+    // Simple migration ledger so one-time migrations run exactly once
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS schema_migrations (
+        name TEXT PRIMARY KEY,
+        applied_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+
+    // One-time migration (hashed_sessions_v1): session tokens are now stored
+    // as SHA-256 hashes. Legacy plaintext tokens cannot be distinguished from
+    // hashes, so all pre-existing sessions are invalidated once.
+    const hashedSessionsMigration = await client.query(
+      `SELECT 1 FROM schema_migrations WHERE name = 'hashed_sessions_v1'`
+    );
+    if (hashedSessionsMigration.rows.length === 0) {
+      await client.query(`DELETE FROM user_sessions`);
+      await client.query(`INSERT INTO schema_migrations (name) VALUES ('hashed_sessions_v1')`);
+      console.log('[Database Migration] hashed_sessions_v1 applied: all legacy sessions invalidated.');
+    }
+
     // 3. Create user_learning_paths table
     await client.query(`
       CREATE TABLE IF NOT EXISTS user_learning_paths (

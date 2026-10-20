@@ -14,6 +14,7 @@ router.get('/status', (req, res) => {
 });
 
 // Auth routes
+router.post('/auth/nonce', authController.requestNonce);
 router.post('/auth/login', authController.login);
 router.post('/auth/logout', authController.logout);
 router.get('/auth/session', authController.checkSession);

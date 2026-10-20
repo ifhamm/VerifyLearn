@@ -83,9 +83,22 @@ document.addEventListener('DOMContentLoaded', () => {
           const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
           const address = accounts[0];
 
+          // Request a server-issued login challenge (single-use nonce)
+          const nonceResponse = await fetch('/api/v1/auth/nonce', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ address })
+          });
+          const nonceData = await nonceResponse.json();
+
+          if (!nonceResponse.ok) {
+            throw new Error(nonceData.error || 'Failed to request login challenge.');
+          }
+
           // Request cryptographic signature to prove ownership
-          const timestamp = Date.now();
-          const message = `Welcome to VerifyLearn! Please sign this message to verify your wallet ownership. Timestamp: ${timestamp}`;
+          const message = nonceData.message;
 
           const signature = await window.ethereum.request({
             method: 'personal_sign',
@@ -102,6 +115,7 @@ document.addEventListener('DOMContentLoaded', () => {
               address,
               signature,
               message,
+              nonce: nonceData.nonce,
               isMock: false
             })
           });
@@ -215,17 +229,13 @@ document.addEventListener('DOMContentLoaded', () => {
         mockLoginBtn.disabled = true;
         mockLoginBtn.textContent = 'SIGNING IN...';
 
-        const mockAddress = '0x71C7656EC7ab88b098defB751B7401B5f6d8976F';
-
-        // Call backend login with mock configuration
+        // Server derives a deterministic simulated wallet from the username
         const response = await fetch('/api/v1/auth/login', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json'
           },
           body: JSON.stringify({
-            address: mockAddress,
-            signature: 'mock-signature',
             username: usernameVal,
             isMock: true
           })

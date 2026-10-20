@@ -88,6 +88,12 @@ Create a `.env` file in the root directory (ignored by git):
 ```env
 # Optional: Set a Gemini key to run without local GPU resources
 GEMINI_API_KEY=your_gemini_api_key_here
+
+# Security: set APP_ENV=production for real deployments.
+# Simulated (mock) wallet logins are disabled in production unless
+# ALLOW_MOCK_LOGIN=true is set explicitly (never recommended).
+APP_ENV=development
+ALLOW_MOCK_LOGIN=true
 ```
 
 ### 2. Launch the Services
