@@ -156,9 +156,11 @@ exports.mintSBT = async (req, res) => {
       // Real-mode failure: mark the row failed and tell the truth — never
       // return a fabricated transaction hash.
       console.error('Error minting SBT:', mintErr);
-      await db
-        .query(`UPDATE user_sbts SET status = 'failed' WHERE id = $1`, [sbtRowId])
-        .catch((markErr) => console.error('Failed to mark SBT row as failed:', markErr));
+      try {
+        await db.query(`UPDATE user_sbts SET status = 'failed' WHERE id = $1`, [sbtRowId]);
+      } catch (markErr) {
+        console.error('Failed to mark SBT row as failed:', markErr);
+      }
 
       if (mintErr.code === 'NOT_CONFIGURED' || mintErr.code === 'ONCHAIN_FAILED') {
         return res.status(502).json({
