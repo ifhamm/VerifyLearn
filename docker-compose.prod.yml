@@ -1,0 +1,90 @@
+# Production compose — image-based (no build).
+#
+# Images are published by .github/workflows/ci-cd.yml to GHCR on every push
+# to main, tagged with the commit SHA. Deploys are performed by the manual
+# "Deploy production" workflow with IMAGE_TAG set to that SHA:
+#
+#   IMAGE_TAG=<sha> docker compose -f docker-compose.prod.yml up -d
+#
+# Server requirements (/opt/verifylearn):
+#   - this file + .env (same variable names as development)
+#   - GHCR read-only login: docker login ghcr.io -u <user> --password-stdin
+#     (ghcr.io/ifhamm/* packages are private by default)
+
+services:
+  backend:
+    image: ghcr.io/ifhamm/verifylearn-backend:${IMAGE_TAG:-latest}
+    container_name: verify-learn-backend
+    ports:
+      - "3000:3000"
+    environment:
+      - PORT=3000
+      - NODE_ENV=production
+      - APP_ENV=production
+      # Rate limiting must key on the real client IP behind the reverse proxy
+      - TRUST_PROXY=1
+      # Mock login is a development-only escape hatch — never on in production
+      - ALLOW_MOCK_LOGIN=${ALLOW_MOCK_LOGIN:-false}
+      - CORS_ORIGIN=${CORS_ORIGIN:-}
+      - AI_TIMEOUT_MS=${AI_TIMEOUT_MS:-30000}
+      - AI_SERVICE_URL=http://python_ai:8000
+      - DATABASE_URL=postgresql://postgres:${POSTGRES_PASSWORD:-postgres}@postgres:5432/verify_learn
+      # Unset BLOCKCHAIN_MODE lets the backend default: production => real
+      - RPC_URL=${RPC_URL:-}
+      - SYSTEM_PRIVATE_KEY=${SYSTEM_PRIVATE_KEY:-}
+      - SBT_CONTRACT_ADDRESS=${SBT_CONTRACT_ADDRESS:-}
+      - BLOCKCHAIN_MODE=${BLOCKCHAIN_MODE:-}
+      - EXPLORER_URL=${EXPLORER_URL:-https://sepolia.etherscan.io}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      python_ai:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:3000/api/v1/status"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+    restart: always
+
+  postgres:
+    image: postgres:15-alpine
+    container_name: verify-learn-db
+    # No host port published in production — reachable only on the compose
+    # network (backup/restore happens with docker compose exec)
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-postgres}
+      - POSTGRES_DB=verify_learn
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d verify_learn"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: always
+
+  python_ai:
+    image: ghcr.io/ifhamm/verifylearn-python-ai:${IMAGE_TAG:-latest}
+    container_name: verify-learn-python-ai
+    ports:
+      - "8000:8000"
+    environment:
+      - PORT=8000
+      - GEMINI_API_KEY=${GEMINI_API_KEY:-}
+      - GROQ_API_KEY=${GROQ_API_KEY:-}
+      - OLLAMA_HOST=${OLLAMA_HOST:-http://host.docker.internal:11434}
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health', timeout=3)"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+    restart: always
+
+volumes:
+  postgres_data:

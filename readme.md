@@ -163,8 +163,46 @@ The AI Service will automatically detect this key and redirect embedding and gen
 
 ## 🚀 Automated CI/CD (GitHub Actions)
 
-We utilize a professional build-and-publish workflow located in `.github/workflows/docker.yml`.
-On every commit push to the `main` branch, GitHub Actions automatically:
-1. Runs code quality checks.
-2. Builds production Docker images for both services.
-3. Publishes them to the **GitHub Container Registry (GHCR)**.
+### `.github/workflows/ci-cd.yml` — test & publish
+
+On every **pull request** to `main` and every **push** to `main`, GitHub Actions runs:
+
+1. `npm run check` — `node --check` syntax gate over all backend JS.
+2. `npm run test:smoke` — four suites with no external dependencies (stubbed DB/AI):
+   auth (12 checks), server-side assessment (105), blockchain lifecycle (44), app boot (5).
+3. `npm run build:css` — Tailwind production build.
+4. Docker image builds for both services (no push — build validation only).
+
+On **push to `main` only** (after tests pass), it additionally publishes both images to
+the **GitHub Container Registry (GHCR)**, tagged with the commit SHA and `latest`:
+
+- `ghcr.io/ifhamm/verifylearn-backend:<sha>`
+- `ghcr.io/ifhamm/verifylearn-python-ai:<sha>`
+
+### `.github/workflows/deploy.yml` — manual production deploy
+
+Deployment is **manual only** (`workflow_dispatch`) — pushes never touch production.
+The workflow takes an `image_tag` (the commit SHA to deploy), SSHes into the server,
+runs `docker compose -f docker-compose.prod.yml pull && up -d`, then health-checks
+`/api/v1/status` and `/health`.
+
+**One-time setup:**
+
+1. On the VPS:
+   ```bash
+   sudo mkdir -p /opt/verifylearn && cd /opt/verifylearn
+   # place docker-compose.prod.yml and .env here (see env section above)
+   echo "<GHCR PAT with read:packages>" | docker login ghcr.io -u <user> --password-stdin
+   ```
+2. On GitHub: **Settings → Environments → create `production`**, add secrets
+   `PROD_HOST`, `PROD_USER`, `PROD_SSH_KEY`. Optionally restrict it to `main` only.
+3. On GitHub: **Settings → Actions → General → Workflow permissions** → allow
+   GitHub Actions to create and approve pull requests / keep read-write so
+   `GITHUB_TOKEN` can push packages (publish job requests `packages: write`).
+
+**Deploy & rollback:** every SHA-tagged image is immutable, so rollback is just a
+re-dispatch of the same workflow with the previous SHA as `image_tag`.
+
+> Status: workflows are YAML-validated and ready, but no VPS/secrets exist yet —
+> the first real CI run happens on the next push, and deployment activates once
+> the setup above is completed.
