@@ -9,7 +9,7 @@
     "watch:css": "tailwindcss -i ./public/styles/input.css -o ./public/styles/tailwind.css --watch",
     "dev": "concurrently \"npm run watch:css\" \"node src/app.js\"",
     "check": "node tests/syntax_check.js",
-    "test:smoke": "node tests/auth_smoke_test.js && node tests/assessment_smoke_test.js && node tests/blockchain_smoke_test.js",
+    "test:smoke": "node tests/auth_smoke_test.js && node tests/assessment_smoke_test.js && node tests/blockchain_smoke_test.js && node tests/app_boot_test.js",
     "test": "npm run check && npm run test:smoke"
   },
   "dependencies": {

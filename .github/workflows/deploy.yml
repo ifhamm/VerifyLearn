@@ -1,0 +1,46 @@
+# Production deployment — MANUAL only (workflow_dispatch).
+#
+# Prerequisites on the repo (Settings -> Environments -> "production"):
+#   secrets: PROD_HOST, PROD_USER, PROD_SSH_KEY
+# On the VPS: /opt/verifylearn contains docker-compose.prod.yml and a
+# GHCR read-only login (docker login ghcr.io for private packages).
+#
+# Images are tagged by commit SHA (immutable), so any deploy is rollback-able
+# by re-running this workflow with the previous SHA as image_tag.
+
+name: Deploy production
+
+on:
+  workflow_dispatch:
+    inputs:
+      image_tag:
+        description: 'Commit SHA image tag to deploy (e.g. 656eba0...)'
+        required: true
+
+jobs:
+  deploy:
+    name: Deploy through SSH
+    runs-on: ubuntu-latest
+    environment: production
+
+    steps:
+      - name: Deploy
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.PROD_HOST }}
+          username: ${{ secrets.PROD_USER }}
+          key: ${{ secrets.PROD_SSH_KEY }}
+          script: |
+            set -e
+
+            cd /opt/verifylearn
+
+            export IMAGE_TAG=${{ inputs.image_tag }}
+
+            docker compose -f docker-compose.prod.yml pull backend python_ai
+            docker compose -f docker-compose.prod.yml up -d backend python_ai
+
+            sleep 10
+
+            curl --fail http://localhost:3000/api/v1/status
+            curl --fail http://localhost:8000/health
