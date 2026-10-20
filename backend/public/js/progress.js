@@ -437,7 +437,7 @@ document.addEventListener('DOMContentLoaded', () => {
             <span class="inline-block bg-amber-500 text-white font-black text-xs px-2.5 py-1 uppercase tracking-wide">MINTED ✓</span>
             <p class="text-xs font-bold text-amber-900 mt-2">Token ID: <span class="font-black">#${sbtMinted.token_id}</span></p>
 
-            <button onclick="showVerifyModal('module_${mod.id}', '${sbtMinted.token_id}', '${sbtMinted.tx_hash}', '${sbtMinted.minted_at}')" class="w-full mt-2 py-1.5 bg-brandViolet text-white font-black uppercase text-[10px] border-2 border-textMain shadow-brutal-sm hover:bg-brandOrange transition cursor-pointer">
+            <button onclick="showVerifyModal('module_${mod.id}', '${sbtMinted.token_id}', '${sbtMinted.tx_hash}', '${sbtMinted.minted_at}', ${sbtMinted.simulated === true})" class="w-full mt-2 py-1.5 bg-brandViolet text-white font-black uppercase text-[10px] border-2 border-textMain shadow-brutal-sm hover:bg-brandOrange transition cursor-pointer">
               VERIFY CREDENTIAL
             </button>
           </div>
@@ -508,7 +508,7 @@ document.addEventListener('DOMContentLoaded', () => {
               <div class="mt-6 text-left text-xs font-bold text-amber-900">
                 <span>Token ID: <span class="font-black">#${finalSbtMinted.token_id}</span></span>
               </div>
-              <button onclick="showVerifyModal('final', '${finalSbtMinted.token_id}', '${finalSbtMinted.tx_hash}', '${finalSbtMinted.minted_at}')" class="w-full mt-4 py-2.5 bg-brandViolet text-white font-black uppercase text-xs border-2 border-amber-900 shadow-brutal-sm hover:bg-brandOrange transition cursor-pointer">
+              <button onclick="showVerifyModal('final', '${finalSbtMinted.token_id}', '${finalSbtMinted.tx_hash}', '${finalSbtMinted.minted_at}', ${finalSbtMinted.simulated === true})" class="w-full mt-4 py-2.5 bg-brandViolet text-white font-black uppercase text-xs border-2 border-amber-900 shadow-brutal-sm hover:bg-brandOrange transition cursor-pointer">
                 VERIFY CREDENTIAL
               </button>
             </div>
@@ -811,14 +811,15 @@ document.addEventListener('DOMContentLoaded', () => {
 
           const body = await res.json();
           if (res.ok && body.success) {
+            const isSimulated = body.data && body.data.simulated === true;
             Swal.fire({
-              title: 'MINT SUCCESSFUL!',
+              title: isSimulated ? 'CREDENTIAL RECORDED (SIMULATED)' : 'MINT SUCCESSFUL!',
               html: `
                 <div class="space-y-6 font-bold text-left text-textMain">
-                  <div class="p-6 bg-amber-50 border-4 border-amber-500 rounded-none shadow-brutal-sm text-center">
+                  <div class="p-6 ${isSimulated ? 'bg-red-50 border-red-500' : 'bg-amber-50 border-amber-500'} border-4 rounded-none shadow-brutal-sm text-center">
                     <span class="text-5xl">🎓</span>
-                    <h4 class="text-xl font-black text-amber-900 uppercase mt-2">Verified Soulbound Badge Minted</h4>
-                    <p class="text-xs text-amber-700 uppercase font-black mt-1">Permanently secured on the Blockchain</p>
+                    <h4 class="text-xl font-black ${isSimulated ? 'text-red-700' : 'text-amber-900'} uppercase mt-2">${isSimulated ? 'Simulated Credential Recorded' : 'Verified Soulbound Badge Minted'}</h4>
+                    <p class="text-xs ${isSimulated ? 'text-red-600' : 'text-amber-700'} uppercase font-black mt-1">${isSimulated ? 'Development mode — NOT on a real chain' : 'Permanently secured on the Blockchain'}</p>
                   </div>
                   <div class="p-5 bg-white border-4 border-textMain text-sm space-y-4 font-mono shadow-brutal">
                     <div class="flex justify-between border-b border-gray-200 pb-2">
@@ -914,7 +915,7 @@ window.copyTxHash = (hash) => {
 };
 
 // Global function to trigger the "Verify Credential" modal
-window.showVerifyModal = (moduleId, tokenId, txHash, mintedAt) => {
+window.showVerifyModal = (moduleId, tokenId, txHash, mintedAt, simulated = false) => {
   // 1. Get wallet address
   const wallet = localStorage.getItem('walletAddress') || '0x71C7656EC7ab88b098defB751B7401B5f6d8976F';
   const shortWallet = wallet.startsWith('0x') && wallet.length > 10
@@ -977,10 +978,14 @@ window.showVerifyModal = (moduleId, tokenId, txHash, mintedAt) => {
     : txHash;
 
   // Show SweetAlert2 Modal
+  const simBanner = simulated
+    ? `<div class="p-2 bg-red-50 border-2 border-red-500 text-red-700 text-[10px] font-black uppercase text-center">Simulated credential — not on a real chain</div>`
+    : '';
   Swal.fire({
     title: `<span class="flex justify-center">VERIFY CREDENTIAL</span>`,
     html: `
       <div class="space-y-2 text-left font-bold text-textMain">
+        ${simBanner}
         <div class="flex justify-between items-center text-xs font-black uppercase text-textMuted border-b-2 border-gray-200 pb-1">
           <span>Wallet</span>
           <span class="font-mono text-brandViolet">${shortWallet}</span>
@@ -1013,17 +1018,19 @@ window.showVerifyModal = (moduleId, tokenId, txHash, mintedAt) => {
           </div>
           <div>
             <p class="text-[10px] uppercase text-textMuted font-black">Blockchain</p>
-            <p class="text-sm font-black text-textMain mt-0.5">Ethereum Sepolia</p>
+            <p class="text-sm font-black text-textMain mt-0.5">${simulated ? 'Simulated (dev only)' : 'Ethereum Sepolia'}</p>
           </div>
           <div>
             <p class="text-[10px] uppercase text-textMuted font-black">Transaction</p>
-            <p class="text-sm font-mono font-black text-brandViolet mt-0.5 cursor-pointer hover:underline" onclick="window.open('https://sepolia.etherscan.io/tx/${txHash}', '_blank')">${shortTx} ↗</p>
+            ${simulated
+              ? `<p class="text-sm font-mono font-black text-red-600 mt-0.5">${shortTx} (simulated)</p>`
+              : `<p class="text-sm font-mono font-black text-brandViolet mt-0.5 cursor-pointer hover:underline" onclick="window.open('https://sepolia.etherscan.io/tx/${txHash}', '_blank')">${shortTx} ↗</p>`}
           </div>
         </div>
       </div>
     `,
-    showCancelButton: true,
-    confirmButtonText: 'VERIFY',
+    showCancelButton: !simulated,
+    confirmButtonText: simulated ? 'GOT IT' : 'VERIFY',
     cancelButtonText: 'CLOSE',
     reverseButtons: true,
     buttonsStyling: false,
@@ -1036,7 +1043,7 @@ window.showVerifyModal = (moduleId, tokenId, txHash, mintedAt) => {
       cancelButton: 'flex-1 py-3 bg-white hover:bg-gray-100 text-textMain font-black uppercase border-2 border-textMain shadow-brutal-sm hover:translate-y-[1px] hover:translate-x-[1px] hover:shadow-[1px_1px_0px_#09090b] transition-all cursor-pointer text-center'
     }
   }).then((result) => {
-    if (result.isConfirmed) {
+    if (result.isConfirmed && !simulated) {
       window.open(`https://sepolia.etherscan.io/tx/${txHash}`, '_blank');
     }
   });

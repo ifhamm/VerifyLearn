@@ -18,6 +18,8 @@ services:
       - RPC_URL=${RPC_URL:-https://ethereum-sepolia-rpc.publicnode.com}
       - SYSTEM_PRIVATE_KEY=${SYSTEM_PRIVATE_KEY:-}
       - SBT_CONTRACT_ADDRESS=${SBT_CONTRACT_ADDRESS:-}
+      - BLOCKCHAIN_MODE=${BLOCKCHAIN_MODE:-}
+      - EXPLORER_URL=${EXPLORER_URL:-https://sepolia.etherscan.io}
     depends_on:
       - postgres
     volumes:

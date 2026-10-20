@@ -94,6 +94,21 @@ GEMINI_API_KEY=your_gemini_api_key_here
 # ALLOW_MOCK_LOGIN=true is set explicitly (never recommended).
 APP_ENV=development
 ALLOW_MOCK_LOGIN=true
+
+# Blockchain credential minting.
+# BLOCKCHAIN_MODE=real|simulated (omit to auto-resolve: production is always
+# "real"; development is "real" only when all three values below are set,
+# otherwise "simulated").
+# - real: mints actually hit the configured chain. If configuration is
+#   missing or the transaction fails, the mint FAILS (HTTP 502) — no fake
+#   transaction hash is ever recorded.
+# - simulated: dev-only credentials, clearly flagged in the UI and API.
+BLOCKCHAIN_MODE=
+RPC_URL=https://ethereum-sepolia-rpc.publicnode.com
+SYSTEM_PRIVATE_KEY=
+SBT_CONTRACT_ADDRESS=
+# Explorer links shown for real transactions (default: Sepolia Etherscan)
+EXPLORER_URL=https://sepolia.etherscan.io
 ```
 
 ### 2. Launch the Services

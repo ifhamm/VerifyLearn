@@ -171,6 +171,11 @@ async function initializeDatabase() {
       )
     `);
 
+    // Mint lifecycle (Phase 1d): pending -> confirmed | failed, plus an
+    // honest 'simulated' flag distinguishing dev-only records from real ones.
+    await client.query(`ALTER TABLE user_sbts ADD COLUMN IF NOT EXISTS status VARCHAR(20) DEFAULT 'confirmed'`);
+    await client.query(`ALTER TABLE user_sbts ADD COLUMN IF NOT EXISTS simulated BOOLEAN DEFAULT FALSE`);
+
     // 7. Create assessment_attempts table (server-issued quiz attempts)
     await client.query(`
       CREATE TABLE IF NOT EXISTS assessment_attempts (
@@ -226,6 +231,20 @@ async function initializeDatabase() {
       await client.query(`UPDATE quiz_results SET source = 'legacy_client' WHERE attempt_id IS NULL`);
       await client.query(`INSERT INTO schema_migrations (name) VALUES ('legacy_quiz_source_v1')`);
       console.log('[Database Migration] legacy_quiz_source_v1 applied: pre-existing quiz_results marked as legacy_client.');
+    }
+
+    // One-time migration (sbt_legacy_simulated_v1): every user_sbts row that
+    // exists today predates the mint lifecycle and was created under the old
+    // silent-fallback policy (real config missing/failing quietly produced mock
+    // hashes). Their provenance cannot be proven either way, so we conservatively
+    // label them simulated — claiming them as on-chain would be dishonest.
+    const legacySbtMigration = await client.query(
+      `SELECT 1 FROM schema_migrations WHERE name = 'sbt_legacy_simulated_v1'`
+    );
+    if (legacySbtMigration.rows.length === 0) {
+      await client.query(`UPDATE user_sbts SET simulated = TRUE WHERE status = 'confirmed'`);
+      await client.query(`INSERT INTO schema_migrations (name) VALUES ('sbt_legacy_simulated_v1')`);
+      console.log('[Database Migration] sbt_legacy_simulated_v1 applied: pre-existing user_sbts rows conservatively labeled simulated (provenance unknown).');
     }
 
     // --- Schema Migration Queries ---
