@@ -109,6 +109,16 @@ SYSTEM_PRIVATE_KEY=
 SBT_CONTRACT_ADDRESS=
 # Explorer links shown for real transactions (default: Sepolia Etherscan)
 EXPLORER_URL=https://sepolia.etherscan.io
+
+# Production hardening (backend)
+# TRUST_PROXY: number of reverse-proxy hops in front of the backend (usually 1).
+# Required for rate limiting to key on the real client IP. Leave unset locally.
+TRUST_PROXY=
+# CORS_ORIGIN: comma-separated allowed origins. Unset = open (development).
+CORS_ORIGIN=
+# AI_TIMEOUT_MS: fail-fast timeout for calls to the Python AI service (default 30000).
+AI_TIMEOUT_MS=30000
+# RATE_LIMIT_DISABLED: true disables all rate limiting — tests/local debug ONLY.
 ```
 
 ### 2. Launch the Services

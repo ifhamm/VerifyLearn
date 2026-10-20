@@ -1,6 +1,10 @@
 // Service to communicate with the external Python AI Engine
 const AI_SERVICE_URL = process.env.AI_SERVICE_URL || 'http://localhost:8000';
 
+// Fail fast when the AI engine hangs. Callers already handle thrown errors:
+// assessment treats timeouts as fail-closed (review_required, no fake pass).
+const AI_TIMEOUT_MS = parseInt(process.env.AI_TIMEOUT_MS, 10) || 30000;
+
 exports.analyzeKeystrokes = async (keystrokes) => {
   try {
     const response = await fetch(`${AI_SERVICE_URL}/api/verify-keystroke`, {
@@ -8,6 +12,7 @@ exports.analyzeKeystrokes = async (keystrokes) => {
       headers: {
         'Content-Type': 'application/json',
       },
+      signal: AbortSignal.timeout(AI_TIMEOUT_MS),
       body: JSON.stringify({ keystrokes }),
     });
 
@@ -39,6 +44,7 @@ exports.generateQuiz = async (material, n_pg = 4, n_essay = 1) => {
       headers: {
         'Content-Type': 'application/json',
       },
+      signal: AbortSignal.timeout(AI_TIMEOUT_MS),
       body: JSON.stringify({ material, n_pg, n_essay }),
     });
 
@@ -61,6 +67,7 @@ exports.generateLivecode = async (material, difficulty = 'normal') => {
       headers: {
         'Content-Type': 'application/json',
       },
+      signal: AbortSignal.timeout(AI_TIMEOUT_MS),
       body: JSON.stringify({ material, difficulty }),
     });
 
@@ -83,6 +90,7 @@ exports.generateVoiceChallenge = async (material, userCodeOrText, triggerReason)
       headers: {
         'Content-Type': 'application/json',
       },
+      signal: AbortSignal.timeout(AI_TIMEOUT_MS),
       body: JSON.stringify({ material, user_code_or_text: userCodeOrText, trigger_reason: triggerReason }),
     });
 
@@ -105,6 +113,7 @@ exports.generateFinalChallenge = async (material) => {
       headers: {
         'Content-Type': 'application/json',
       },
+      signal: AbortSignal.timeout(AI_TIMEOUT_MS),
       body: JSON.stringify({ material }),
     });
 
@@ -127,6 +136,7 @@ exports.verifyVoice = async (transcript, expectedKeywords) => {
       headers: {
         'Content-Type': 'application/json',
       },
+      signal: AbortSignal.timeout(AI_TIMEOUT_MS),
       body: JSON.stringify({ transcript, expected_keywords: expectedKeywords }),
     });
 
@@ -149,6 +159,7 @@ exports.generateAdaptiveLearningPlan = async ({ role, level, commitment, duratio
       headers: {
         'Content-Type': 'application/json',
       },
+      signal: AbortSignal.timeout(AI_TIMEOUT_MS),
       body: JSON.stringify({
         role,
         level,
@@ -176,6 +187,7 @@ exports.gradeEssay = async (question, explanation, userAnswer) => {
       headers: {
         'Content-Type': 'application/json',
       },
+      signal: AbortSignal.timeout(AI_TIMEOUT_MS),
       body: JSON.stringify({ question, explanation, user_answer: userAnswer }),
     });
 
