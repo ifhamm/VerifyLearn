@@ -68,6 +68,29 @@ document.addEventListener('DOMContentLoaded', () => {
             year: 'numeric', month: 'short', day: 'numeric'
           });
 
+          // Honest provenance badge: reflect what the server ACTUALLY verified,
+          // never implying on-chain status that was not checked.
+          let chainBadge, chainBadgeClass;
+          if (sbt.simulated) {
+            chainBadge = 'SIMULATED (DEV)';
+            chainBadgeClass = 'bg-red-600 text-white';
+          } else if (sbt.onChain && sbt.onChain.checked && sbt.onChain.valid) {
+            chainBadge = 'ON-CHAIN ✓';
+            chainBadgeClass = 'bg-green-600 text-white';
+          } else if (sbt.onChain && sbt.onChain.checked && !sbt.onChain.valid) {
+            chainBadge = 'CHAIN MISMATCH ✗';
+            chainBadgeClass = 'bg-red-600 text-white';
+          } else {
+            chainBadge = 'CHAIN UNCHECKED';
+            chainBadgeClass = 'bg-gray-500 text-white';
+          }
+
+          // Explorer link is only offered when a real on-chain tx is known
+          const explorerUrl = sbt.onChain ? sbt.onChain.explorerUrl : null;
+          const txRow = explorerUrl
+            ? `<a href="${explorerUrl}" target="_blank" rel="noopener noreferrer" class="text-xs font-mono opacity-80 break-all bg-black/10 p-2 border border-current hover:underline block">Tx: ${sbt.tx_hash} ↗</a>`
+            : `<div class="text-xs font-mono opacity-80 break-all bg-black/10 p-2 border border-current">Tx: ${sbt.tx_hash}${sbt.simulated ? ' (simulated)' : ''}</div>`;
+
           const card = document.createElement('div');
           card.className = `${bgClass} ${textClass} border-2 border-textMain p-5 shadow-brutal flex flex-col`;
           card.innerHTML = `
@@ -75,11 +98,12 @@ document.addEventListener('DOMContentLoaded', () => {
               <div class="font-black uppercase text-lg">${title}</div>
               <div class="text-xs font-bold border border-current px-2 py-1 uppercase bg-base text-textMain">SBT ID: #${sbt.token_id || '???'}</div>
             </div>
+            <div class="mb-3">
+              <span class="text-[10px] font-black uppercase px-2 py-1 ${chainBadgeClass}">${chainBadge}</span>
+            </div>
             <div class="mt-auto space-y-2">
               <div class="text-sm font-bold opacity-90">Minted: ${dateStr}</div>
-              <div class="text-xs font-mono opacity-80 break-all bg-black/10 p-2 border border-current">
-                Tx: ${sbt.tx_hash}
-              </div>
+              ${txRow}
             </div>
           `;
           sbtList.appendChild(card);
