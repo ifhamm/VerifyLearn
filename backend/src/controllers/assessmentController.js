@@ -7,6 +7,15 @@ const metricsCalculator = require('../utils/metricsCalculator');
 
 const ATTEMPT_TTL_SECONDS = 600;
 const HINT_LIMIT = 3;
+
+const ALLOWED_TEST_TYPES = new Set(['assessment', 'pre', 'post']);
+const normalizeTestType = (value) => {
+  const v = String(value || '').trim().toLowerCase();
+  if (v === 'pre' || v === 'post' || v === 'assessment' || v === '') {
+    return v === '' ? 'assessment' : v;
+  }
+  return null;
+};
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const LANGUAGE_SLUGS = ['javascript', 'go', 'python', 'ruby', 'java', 'c', 'php', 'rust'];
 
@@ -191,6 +200,11 @@ exports.start = async (req, res) => {
     const userId = req.user.userId;
     const body = req.body || {};
     const { role, slug, material, moduleMaterials, n_pg, n_essay } = body;
+    const testType = normalizeTestType(body.testType || body.test_type);
+
+    if (testType === null) {
+      return res.status(400).json({ error: "testType must be one of 'assessment', 'pre' or 'post'." });
+    }
 
     if (!slug) {
       return res.status(400).json({ error: 'slug is required.' });
@@ -205,8 +219,9 @@ exports.start = async (req, res) => {
     const existingRes = await db.query(
       `SELECT * FROM assessment_attempts
        WHERE user_id = $1 AND material_slug = $2 AND quiz_type = $3
+         AND COALESCE(test_type, 'assessment') = $4
        ORDER BY created_at DESC`,
-      [userId, materialSlug, quizType]
+      [userId, materialSlug, quizType, testType]
     );
     const existing = existingRes.rows || [];
 
@@ -281,8 +296,8 @@ exports.start = async (req, res) => {
 
     await db.query(
       `INSERT INTO assessment_attempts
-         (id, user_id, material_slug, quiz_type, role, status, questions, answer_key, started_at, expires_at)
-       VALUES ($1, $2, $3, $4, $5, 'in_progress', $6, $7, $8, $9)`,
+         (id, user_id, material_slug, quiz_type, role, status, questions, answer_key, started_at, expires_at, test_type)
+       VALUES ($1, $2, $3, $4, $5, 'in_progress', $6, $7, $8, $9, $10)`,
       [
         attemptId,
         userId,
@@ -293,6 +308,7 @@ exports.start = async (req, res) => {
         JSON.stringify(answerKey),
         startedAt,
         expiresAt,
+        testType,
       ]
     );
 
@@ -302,6 +318,7 @@ exports.start = async (req, res) => {
       startedAt: startedAt.toISOString(),
       expiresAt: expiresAt.toISOString(),
       expiresInSeconds: ATTEMPT_TTL_SECONDS,
+      testType,
     });
   } catch (error) {
     console.error('Error starting quiz attempt:', error);
@@ -546,8 +563,8 @@ exports.submit = async (req, res) => {
     await db.query(
       `INSERT INTO quiz_results
          (user_id, material_slug, quiz_type, score, total_questions, correct_answers, details,
-          keystroke_verified, keystroke_score, attempt_id, source, integrity_status, wpm, created_at)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, 'server', $11, $12, CURRENT_TIMESTAMP)`,
+          keystroke_verified, keystroke_score, attempt_id, source, integrity_status, wpm, test_type, created_at)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, 'server', $11, $12, $13, CURRENT_TIMESTAMP)`,
       [
         userId,
         attempt.material_slug,
@@ -570,6 +587,7 @@ exports.submit = async (req, res) => {
         attemptId,
         assessment.status,
         wpm,
+        normalizeTestType(attempt.test_type) || 'assessment',
       ]
     );
 
@@ -646,5 +664,159 @@ exports.hint = async (req, res) => {
   } catch (error) {
     console.error('Error fetching quiz hint:', error);
     res.status(500).json({ error: 'Failed to fetch the hint.' });
+  }
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Feature 8 — Pre/post-test tracking (diagnostics)
+// ─────────────────────────────────────────────────────────────────────────────
+
+// POST /api/v1/diagnostic/start
+// Starts a 'pre' or 'post' test. It reuses the regular assessment pipeline
+// (server-side generation, grading, integrity checks) and only differs in the
+// `test_type` tag that ends up on assessment_attempts.quiz_results rows.
+exports.startDiagnostic = async (req, res) => {
+  const body = req.body || {};
+  const requested = normalizeTestType(body.testType || body.test_type);
+
+  if (requested !== 'pre' && requested !== 'post') {
+    return res.status(400).json({
+      error: "testType must be either 'pre' or 'post' for a diagnostic test.",
+    });
+  }
+
+  // Delegate to the standard start flow with the diagnostic test type forced.
+  req.body = Object.assign({}, body, { testType: requested });
+  return exports.start(req, res);
+};
+
+// Latest 'pre' (or 'post') row for the user, optionally scoped to a material.
+const latestTestResult = async (userId, testType, materialSlug) => {
+  const params = [userId, testType];
+  let sql = `SELECT id, user_id, material_slug, quiz_type, score, total_questions,
+                    correct_answers, test_type, attempt_id, integrity_status, created_at
+               FROM quiz_results
+              WHERE user_id = $1 AND test_type = $2`;
+  if (materialSlug) {
+    params.push(materialSlug);
+    sql += ` AND material_slug = $${params.length}`;
+  }
+  sql += ` ORDER BY created_at DESC LIMIT 1`;
+
+  const result = await db.query(sql, params);
+  return result.rows && result.rows.length ? result.rows[0] : null;
+};
+
+// GET /api/v1/diagnostic/baseline
+// Returns the learner's baseline (latest 'pre' test) score.
+exports.getDiagnosticBaseline = async (req, res) => {
+  try {
+    const userId = req.user.userId;
+    const materialSlug = req.query && req.query.materialSlug ? String(req.query.materialSlug) : null;
+
+    const baseline = await latestTestResult(userId, 'pre', materialSlug);
+
+    if (!baseline) {
+      return res.json({
+        success: true,
+        hasBaseline: false,
+        baseline: null,
+        message: 'No pre-test baseline recorded yet.',
+      });
+    }
+
+    res.json({
+      success: true,
+      hasBaseline: true,
+      baseline: {
+        id: baseline.id,
+        materialSlug: baseline.material_slug,
+        quizType: baseline.quiz_type,
+        score: Number(baseline.score),
+        totalQuestions: baseline.total_questions,
+        correctAnswers: baseline.correct_answers,
+        testType: baseline.test_type,
+        attemptId: baseline.attempt_id,
+        integrityStatus: baseline.integrity_status,
+        createdAt: baseline.created_at,
+      },
+    });
+  } catch (error) {
+    console.error('Error fetching diagnostic baseline:', error);
+    res.status(500).json({ error: 'Failed to fetch the diagnostic baseline.' });
+  }
+};
+
+// GET /api/v1/diagnostic/improvement
+// Compares the latest 'pre' baseline against the latest 'post' result and
+// reports the improvement in percent.
+exports.getDiagnosticImprovement = async (req, res) => {
+  try {
+    const userId = req.user.userId;
+    const materialSlug = req.query && req.query.materialSlug ? String(req.query.materialSlug) : null;
+
+    const pre = await latestTestResult(userId, 'pre', materialSlug);
+    const post = await latestTestResult(userId, 'post', materialSlug);
+
+    if (!pre) {
+      return res.json({
+        success: true,
+        hasBaseline: false,
+        hasPostTest: !!post,
+        improvement: null,
+        message: 'No pre-test baseline recorded yet.',
+      });
+    }
+
+    const preScore = Number(pre.score) || 0;
+    const postScore = post ? Number(post.score) || 0 : null;
+
+    if (post === null) {
+      return res.json({
+        success: true,
+        hasBaseline: true,
+        hasPostTest: false,
+        baseline: { score: preScore, materialSlug: pre.material_slug, createdAt: pre.created_at },
+        post: null,
+        improvement: null,
+        message: 'No post-test recorded yet.',
+      });
+    }
+
+    const absoluteDelta = Math.round((postScore - preScore) * 100) / 100;
+    // A zero baseline makes a percentage meaningless (division by zero) —
+    // report the absolute delta instead of inventing a ratio.
+    const improvementPercent =
+      preScore > 0 ? Math.round((absoluteDelta / preScore) * 10000) / 100 : null;
+
+    res.json({
+      success: true,
+      hasBaseline: true,
+      hasPostTest: true,
+      baseline: {
+        score: preScore,
+        materialSlug: pre.material_slug,
+        totalQuestions: pre.total_questions,
+        correctAnswers: pre.correct_answers,
+        createdAt: pre.created_at,
+      },
+      post: {
+        score: postScore,
+        materialSlug: post.material_slug,
+        totalQuestions: post.total_questions,
+        correctAnswers: post.correct_answers,
+        createdAt: post.created_at,
+      },
+      improvement: {
+        preScore,
+        postScore,
+        absoluteDelta,
+        improvementPercent,
+        improved: absoluteDelta > 0,
+      },
+    });
+  } catch (error) {
+    console.error('Error fetching diagnostic improvement:', error);
+    res.status(500).json({ error: 'Failed to fetch the diagnostic improvement.' });
   }
 };

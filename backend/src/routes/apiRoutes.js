@@ -8,6 +8,7 @@ const walletAuth = require('../middlewares/walletAuth');
 const userController = require('../controllers/userController');
 const sbtController = require('../controllers/sbtController');
 const assessmentController = require('../controllers/assessmentController');
+const spacedRepetitionController = require('../controllers/spacedRepetitionController');
 const adminAuth = require('../middlewares/adminAuth');
 const credentialController = require('../controllers/credentialController');
 const dashboardController = require('../controllers/dashboardController');
@@ -44,6 +45,15 @@ router.post('/quiz/:attemptId/hint', walletAuth, assessmentController.hint);
 router.get('/user/sbts', walletAuth, sbtController.getUserSBTs);
 router.post('/user/mint-sbt', walletAuth, sbtController.mintSBT);
 router.get('/sbt/verify/:walletAddress', sbtController.verifySBT);
+
+// Spaced repetition (Phase 4 Feature 7)
+router.get('/review/schedule', walletAuth, spacedRepetitionController.getSchedule);
+router.post('/review/result', walletAuth, spacedRepetitionController.recordResult);
+
+// Diagnostic / pre-post test tracking (Phase 4 Feature 8)
+router.post('/quiz/diagnostic-start', walletAuth, assessmentController.startDiagnostic);
+router.get('/diagnostic/baseline', walletAuth, assessmentController.getDiagnosticBaseline);
+router.get('/diagnostic/improvement', walletAuth, assessmentController.getDiagnosticImprovement);
 
 // Admin credential management — ADMIN_WALLETS allowlist (fail-closed)
 router.post('/admin/sbt/:credentialId/revoke', walletAuth, adminAuth, sbtController.adminRevoke);
