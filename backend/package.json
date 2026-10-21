@@ -24,6 +24,7 @@
   },
   "devDependencies": {
     "concurrently": "^8.2.2",
+    "solc": "^0.8.37",
     "tailwindcss": "^3.4.0"
   }
 }

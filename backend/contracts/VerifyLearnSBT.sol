@@ -38,9 +38,16 @@ contract VerifyLearnSBT {
     // userAddress => (moduleId => hasMinted)
     mapping(address => mapping(string => bool)) private _hasMintedModule;
 
+    // Revocation state (Phase 3). A revoked token keeps its owner and URI so
+    // history stays auditable; verifiers MUST check revoked(tokenId) too.
+    // Revocation is terminal: _hasMintedModule is intentionally NOT cleared,
+    // so a revoked (user, moduleId) pair can never be re-minted.
+    mapping(uint256 => bool) private _revoked;
+
     // Events
     event Transfer(address indexed from, address indexed to, uint256 indexed tokenId);
     event SBTMinted(address indexed recipient, uint256 indexed tokenId, string moduleId, string tokenURI);
+    event Revoked(uint256 indexed tokenId, address indexed revokedBy, string reason);
 
     modifier onlyOwner() {
         require(msg.sender == owner, "VerifyLearnSBT: Caller is not the owner");
@@ -83,6 +90,27 @@ contract VerifyLearnSBT {
         emit SBTMinted(to, tokenId, moduleId, uri);
 
         return tokenId;
+    }
+
+    /**
+     * @dev Revoke a credential (issuance error, fraud found later, deprecated
+     * curriculum, superseded version). Only the system gateway (owner).
+     * The token remains queryable (ownerOf/tokenURI) for auditability.
+     */
+    function revoke(uint256 tokenId, string memory reason) external onlyOwner {
+        require(_owners[tokenId] != address(0), "VerifyLearnSBT: Cannot revoke nonexistent token");
+        require(!_revoked[tokenId], "VerifyLearnSBT: Token already revoked");
+
+        _revoked[tokenId] = true;
+        emit Revoked(tokenId, msg.sender, reason);
+    }
+
+    /**
+     * @dev Whether a token has been revoked. Verifiers must check this
+     * alongside ownerOf/tokenURI.
+     */
+    function revoked(uint256 tokenId) external view returns (bool) {
+        return _revoked[tokenId];
     }
 
     /**

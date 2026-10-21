@@ -20,6 +20,7 @@ function walk(dir) {
 walk(path.join(root, 'src'));
 walk(path.join(root, 'public', 'js'));
 walk(path.join(root, 'tests'));
+if (fs.existsSync(path.join(root, 'scripts'))) walk(path.join(root, 'scripts'));
 
 let failed = 0;
 for (const file of files) {

@@ -161,6 +161,41 @@ The AI Service will automatically detect this key and redirect embedding and gen
 
 ---
 
+## 🔗 Deploying the SBT contract (Sepolia) — one-time setup
+
+Real credential minting and revocation need `VerifyLearnSBT` deployed once.
+**You do this yourself — the agent never touches private keys or networks.**
+
+1. In the root `.env`, set a funded deployer wallet:
+   ```env
+   RPC_URL=https://ethereum-sepolia-rpc.publicnode.com
+   SYSTEM_PRIVATE_KEY=0x...        # deployer key — secret, never commit
+   ```
+   Fund the wallet from a Sepolia faucet (search "Sepolia faucet" — Alchemy,
+   Infura and others give it away for free).
+2. Compile + deploy (solc runs locally, installed as a dev dependency):
+   ```bash
+   cd backend
+   npm ci
+   node scripts/deploy.js
+   ```
+   The script prints the new contract address, the explorer link, and the
+   exact `.env` lines to paste. It aborts with clear messages on missing
+   config or zero balance, and never prints the key.
+3. Paste into root `.env` and restart the backend:
+   ```env
+   SBT_CONTRACT_ADDRESS=0x...      # from the script output
+   ADMIN_WALLETS=0xYourWallet      # who may revoke credentials (comma-separated)
+   BLOCKCHAIN_MODE=real            # optional in dev; production is real by default
+   ```
+4. Alternative: open [Remix IDE](https://remix.ethereum.org), paste
+   `backend/contracts/VerifyLearnSBT.sol`, compile (0.8.x), deploy with the
+   same wallet — then use the printed address as above.
+
+Contract v2 adds **revocation**: `revoke(tokenId, reason)` (owner-only) and
+`revoked(tokenId)` for verifiers. Revoked tokens stay queryable for audit, and
+a revoked (user, module) pair can never be re-minted.
+
 ## 🚀 Automated CI/CD (GitHub Actions)
 
 ### `.github/workflows/ci-cd.yml` — test & publish

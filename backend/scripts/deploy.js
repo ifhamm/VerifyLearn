@@ -1,135 +1,136 @@
-const fs = require('fs');
+/**
+ * Deploys VerifyLearnSBT.sol to the configured network (default: Sepolia).
+ *
+ * Run from backend/:   node scripts/deploy.js
+ *
+ * Reads the ROOT .env: RPC_URL, SYSTEM_PRIVATE_KEY (the deployer wallet).
+ * The private key is used in-process only — this script never prints it and
+ * never writes to any file.
+ *
+ * Requirements:
+ *   - deployer wallet funded with testnet ETH (Sepolia faucet)
+ *   - dev dependencies installed (npm ci) — solc compiles the contract locally
+ *
+ * Alternative without this script: Remix IDE (see readme, "Deploying the SBT
+ * contract") — paste contracts/VerifyLearnSBT.sol, compile, deploy.
+ */
 const path = require('path');
-const { execSync } = require('child_process');
+const fs = require('fs');
+const { ethers } = require('ethers');
+const solc = require('solc');
 
-async function main() {
-  console.log('=== VerifyLearn SBT Deployment Script ===');
+// Same root .env location the backend app uses
+require('dotenv').config({ path: path.resolve(__dirname, '../../.env') });
 
-  // 1. Install solc dynamically if not installed
-  try {
-    require.resolve('solc');
-  } catch (e) {
-    console.log('[Info] Installing Solidity compiler (solc)... Please wait.');
-    execSync('npm install --no-save solc@0.8.20', { stdio: 'inherit', cwd: path.resolve(__dirname, '..') });
-  }
+const CONTRACT_FILE = path.resolve(__dirname, '../contracts/VerifyLearnSBT.sol');
 
-  const solc = require('solc');
-  const { ethers } = require('ethers');
-
-  // Load .env values
-  const envPath = path.resolve(__dirname, '../../.env');
-  if (!fs.existsSync(envPath)) {
-    console.error('[Error] .env file not found at project root.');
-    process.exit(1);
-  }
-
-  let envContent = fs.readFileSync(envPath, 'utf8');
-  const getEnvValue = (key) => {
-    const match = envContent.match(new RegExp(`^${key}=(.*)$`, 'm'));
-    return match ? match[1].trim() : null;
-  };
-
-  const rpcUrl = getEnvValue('RPC_URL') || 'https://ethereum-sepolia-rpc.publicnode.com';
-  const privateKey = getEnvValue('SYSTEM_PRIVATE_KEY');
-
-  if (!privateKey) {
-    console.error('[Error] SYSTEM_PRIVATE_KEY is missing in your .env file.');
-    console.log('Please add your MetaMask wallet Private Key to your .env file first.');
-    process.exit(1);
-  }
-
-  console.log('[1/4] Compiling VerifyLearnSBT.sol...');
-  const contractPath = path.resolve(__dirname, '../contracts/VerifyLearnSBT.sol');
-  if (!fs.existsSync(contractPath)) {
-    console.error(`[Error] Contract file not found at: ${contractPath}`);
-    process.exit(1);
-  }
-
-  const source = fs.readFileSync(contractPath, 'utf8');
-  const input = {
-    language: 'Solidity',
-    sources: {
-      'VerifyLearnSBT.sol': {
-        content: source
-      }
-    },
-    settings: {
-      outputSelection: {
-        '*': {
-          '*': ['abi', 'evm.bytecode.object']
-        }
-      }
-    }
-  };
-
-  const output = JSON.parse(solc.compile(JSON.stringify(input)));
-  if (output.errors) {
-    const criticalErrors = output.errors.filter(e => e.severity === 'error');
-    if (criticalErrors.length > 0) {
-      console.error('[Error] Compilation failed:', criticalErrors);
-      process.exit(1);
-    }
-  }
-
-  const contractOutput = output.contracts['VerifyLearnSBT.sol']['VerifyLearnSBT'];
-  const abi = contractOutput.abi;
-  const bytecode = contractOutput.evm.bytecode.object;
-  console.log('[Success] Compilation successful!');
-
-  console.log('[2/4] Connecting to Sepolia Network...');
-  const provider = new ethers.JsonRpcProvider(rpcUrl);
-  
-  // Format private key (ensure it starts with 0x)
-  const formattedPrivateKey = privateKey.startsWith('0x') ? privateKey : '0x' + privateKey;
-  const wallet = new ethers.Wallet(formattedPrivateKey, provider);
-  const balance = await provider.getBalance(wallet.address);
-  
-  console.log(`Using Wallet Address: ${wallet.address}`);
-  console.log(`Wallet Balance: ${ethers.formatEther(balance)} Sepolia ETH`);
-
-  if (balance === 0n) {
-    console.error('[Error] Insufficient funds. Your wallet balance is 0 Sepolia ETH.');
-    console.log('Please request free Sepolia ETH using one of these easy faucets first:');
-    console.log('- https://faucets.chain.link/sepolia');
-    console.log('- https://sepolia-faucet.pk910.de/');
-    process.exit(1);
-  }
-
-  console.log('[3/4] Deploying VerifyLearnSBT contract to Sepolia Testnet...');
-  const factory = new ethers.ContractFactory(abi, bytecode, wallet);
-  
-  // Deploy the contract
-  const contract = await factory.deploy();
-  console.log(`Deployment transaction submitted. Hash: ${contract.deploymentTransaction().hash}`);
-  
-  console.log('Waiting for transaction confirmation... (takes ~10-15 seconds)');
-  await contract.waitForDeployment();
-  
-  const deployedAddress = await contract.getAddress();
-  console.log(`[Success] Contract deployed successfully! Address: ${deployedAddress}`);
-
-  console.log('[4/4] Updating your .env file...');
-  // Check if SBT_CONTRACT_ADDRESS already exists, update it. Otherwise append.
-  if (envContent.includes('SBT_CONTRACT_ADDRESS=')) {
-    envContent = envContent.replace(/^SBT_CONTRACT_ADDRESS=.*$/m, `SBT_CONTRACT_ADDRESS=${deployedAddress}`);
-  } else {
-    envContent += `\nSBT_CONTRACT_ADDRESS=${deployedAddress}\n`;
-  }
-  
-  // Force ensure RPC_URL is in the file
-  if (!envContent.includes('RPC_URL=')) {
-    envContent += `\nRPC_URL=https://ethereum-sepolia-rpc.publicnode.com\n`;
-  }
-
-  fs.writeFileSync(envPath, envContent, 'utf8');
-  console.log('[Success] .env file has been updated with your contract address!');
-  console.log('\n=============================================');
-  console.log('Next Steps:');
-  console.log('1. Run "docker restart verify-learn-backend" to restart the backend container.');
-  console.log('2. Complete your learning module and click "MINT SBT BADGE" to mint real on-chain credentials!');
-  console.log('=============================================');
+function fail(message) {
+  console.error('\n[Deploy] FAILED:', message);
+  process.exit(1);
 }
 
-main().catch(err => {
-  console.error('[Fatal Error] Deploy failed:', err);
+function compile() {
+  const source = fs.readFileSync(CONTRACT_FILE, 'utf8');
+  const input = {
+    language: 'Solidity',
+    sources: { 'VerifyLearnSBT.sol': { content: source } },
+    settings: {
+      optimizer: { enabled: true, runs: 200 },
+      outputSelection: { '*': { '*': ['abi', 'evm.bytecode.object'] } },
+    },
+  };
+
+  console.log('[Deploy] Compiling VerifyLearnSBT.sol with solc', solc.version().split('+')[0], '...');
+  const output = JSON.parse(solc.compile(JSON.stringify(input)));
+
+  const errors = (output.errors || []).filter((e) => e.severity === 'error');
+  if (errors.length > 0) {
+    fail('Compilation errors:\n' + errors.map((e) => e.formattedMessage).join('\n'));
+  }
+  const warnings = (output.errors || []).filter((e) => e.severity === 'warning');
+  warnings.forEach((w) => console.warn('[Deploy] Compiler warning:', w.formattedMessage));
+
+  const contract = output.contracts['VerifyLearnSBT.sol']['VerifyLearnSBT'];
+  if (!contract || !contract.evm.bytecode.object) {
+    fail('Compiler produced no bytecode — unexpected.');
+  }
+  return { abi: contract.abi, bytecode: '0x' + contract.evm.bytecode.object };
+}
+
+async function main() {
+  const rpcUrl = process.env.RPC_URL;
+  const privateKey = process.env.SYSTEM_PRIVATE_KEY;
+
+  const missing = [];
+  if (!rpcUrl) missing.push('RPC_URL');
+  if (!privateKey) missing.push('SYSTEM_PRIVATE_KEY');
+  if (missing.length > 0) {
+    fail(
+      `Missing in .env (root): ${missing.join(', ')}\n` +
+        `  RPC_URL               e.g. https://ethereum-sepolia-rpc.publicnode.com\n` +
+        `  SYSTEM_PRIVATE_KEY    deployer wallet key (0x + 64 hex). Keep it secret.`
+    );
+  }
+
+  const { abi, bytecode } = compile();
+
+  const provider = new ethers.JsonRpcProvider(rpcUrl);
+  let network;
+  try {
+    network = await provider.getNetwork();
+  } catch (e) {
+    fail(`Cannot reach RPC endpoint: ${e.shortMessage || e.message}`);
+  }
+
+  const wallet = new ethers.Wallet(privateKey, provider);
+  const balance = await provider.getBalance(wallet.address);
+
+  console.log(`[Deploy] Network:  ${network.name} (chainId ${network.chainId})`);
+  console.log(`[Deploy] Deployer: ${wallet.address}`);
+
+  if (balance === 0n) {
+    fail(
+      `Deployer wallet has zero balance on chainId ${network.chainId}.\n` +
+        `  Fund it from a faucet first (search "Sepolia faucet"), then re-run.\n` +
+        `  Balance: 0 ETH`
+    );
+  }
+  console.log(`[Deploy] Balance:  ${ethers.formatEther(balance)} ETH`);
+
+  console.log('[Deploy] Sending deployment transaction...');
+  const factory = new ethers.ContractFactory(abi, bytecode, wallet);
+  const contract = await factory.deploy();
+  const deployTx = contract.deploymentTransaction();
+  console.log(`[Deploy] Tx hash:  ${deployTx.hash}`);
+
+  await contract.waitForDeployment();
+  const address = await contract.getAddress();
+  const receipt = await deployTx.wait();
+
+  // Confirm bytecode actually landed at the address before claiming success
+  const code = await provider.getCode(address);
+  if (!code || code === '0x') {
+    fail('No bytecode found at the computed address — deployment did not persist.');
+  }
+
+  const explorer = (process.env.EXPLORER_URL || 'https://sepolia.etherscan.io').replace(/\/+$/, '');
+
+  console.log('\n========================================');
+  console.log('VerifyLearnSBT deployed successfully!');
+  console.log(`  Address:  ${address}`);
+  console.log(`  Block:    ${receipt.blockNumber}`);
+  console.log(`  Explorer: ${explorer}/address/${address}`);
+  console.log('========================================');
+  console.log('\nNext steps:');
+  console.log('  1. Add to .env (root):');
+  console.log(`       SBT_CONTRACT_ADDRESS=${address}`);
+  console.log('  2. Allow yourself to revoke credentials (comma-separated wallets):');
+  console.log('       ADMIN_WALLETS=<your wallet address>');
+  console.log('  3. Real mode (production defaults to it; in dev set explicitly):');
+  console.log('       BLOCKCHAIN_MODE=real');
+  console.log('  4. Restart the backend. Minting will now hit the chain above.');
+}
+
+main().catch((err) => {
+  fail(err.shortMessage || err.message || String(err));
 });
