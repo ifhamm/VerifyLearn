@@ -68,6 +68,10 @@ if (process.env.RATE_LIMIT_DISABLED !== 'true') {
 
   // Credential minting: strict — each mint touches the chain
   app.use('/api/v1/user/mint-sbt', makeLimiter(15 * 60 * 1000, 10, 'Too many mint requests, please try again later.'));
+
+  // Public credential sharing: read-only but hits the DB (and the chain for
+  // verification/QR), so it gets its own ceiling on top of the API backstop.
+  app.use('/api/v1/credentials', makeLimiter(5 * 60 * 1000, 60, 'Too many credential lookups, please try again later.'));
 }
 
 // Serve static files from public directory

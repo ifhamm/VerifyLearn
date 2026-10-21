@@ -9,6 +9,7 @@ const userController = require('../controllers/userController');
 const sbtController = require('../controllers/sbtController');
 const assessmentController = require('../controllers/assessmentController');
 const adminAuth = require('../middlewares/adminAuth');
+const credentialController = require('../controllers/credentialController');
 
 // Status route
 router.get('/status', (req, res) => {
@@ -45,6 +46,12 @@ router.get('/sbt/verify/:walletAddress', sbtController.verifySBT);
 
 // Admin credential management — ADMIN_WALLETS allowlist (fail-closed)
 router.post('/admin/sbt/:credentialId/revoke', walletAuth, adminAuth, sbtController.adminRevoke);
+
+// Public credential sharing (Credential Share Pack) — no auth: a credential
+// id is an unguessable UUID and the point is third-party verification.
+router.get('/credentials/:credentialId', credentialController.getCredential);
+router.get('/credentials/:credentialId/vc', credentialController.getCredentialVC);
+router.get('/credentials/:credentialId/qr.png', credentialController.getCredentialQR);
 
 
 // Learning routes

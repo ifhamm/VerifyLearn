@@ -19,7 +19,7 @@ exports.getUserSBTs = async (req, res) => {
   try {
     const userId = req.user.userId;
     const result = await db.query(
-      `SELECT id, module_id, tx_hash, token_id, minted_at, status, simulated
+      `SELECT id, module_id, tx_hash, token_id, minted_at, status, simulated, credential_id, credential_status
        FROM user_sbts
        WHERE user_id = $1 AND status <> 'failed'
        ORDER BY minted_at ASC`,
@@ -243,7 +243,7 @@ exports.verifySBT = async (req, res) => {
     // Find their SBTs (failed rows are not credentials — they never reached
     // the chain and are excluded from public verification)
     const sbtRes = await db.query(
-      `SELECT module_id, tx_hash, token_id, minted_at, status, simulated
+      `SELECT module_id, tx_hash, token_id, minted_at, status, simulated, credential_id, credential_status
        FROM user_sbts 
        WHERE user_id = $1 AND status <> 'failed'
        ORDER BY minted_at ASC`,
