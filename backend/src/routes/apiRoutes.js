@@ -80,7 +80,7 @@ router.post('/generate-livecode', walletAuth, aiController.generateLivecode);
 router.post('/generate-voice-challenge', walletAuth, aiController.generateVoiceChallenge);
 router.post('/generate-final-challenge', walletAuth, aiController.generateFinalChallenge);
 router.post('/verify-voice', walletAuth, retiredGradingHandler);
-router.post('/grade-essay', walletAuth, retiredGradingHandler);
+router.post('/grade-essay', walletAuth, aiController.gradeEssay);
 
 module.exports = router;
 
