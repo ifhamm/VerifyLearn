@@ -8,6 +8,7 @@ const walletAuth = require('../middlewares/walletAuth');
 const userController = require('../controllers/userController');
 const sbtController = require('../controllers/sbtController');
 const assessmentController = require('../controllers/assessmentController');
+const adminAuth = require('../middlewares/adminAuth');
 
 // Status route
 router.get('/status', (req, res) => {
@@ -41,6 +42,9 @@ router.post('/quiz/:attemptId/hint', walletAuth, assessmentController.hint);
 router.get('/user/sbts', walletAuth, sbtController.getUserSBTs);
 router.post('/user/mint-sbt', walletAuth, sbtController.mintSBT);
 router.get('/sbt/verify/:walletAddress', sbtController.verifySBT);
+
+// Admin credential management — ADMIN_WALLETS allowlist (fail-closed)
+router.post('/admin/sbt/:credentialId/revoke', walletAuth, adminAuth, sbtController.adminRevoke);
 
 
 // Learning routes

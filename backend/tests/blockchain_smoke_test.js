@@ -99,6 +99,30 @@ const FULL_CONFIG = {
       const row = state.sbts.find((s) => Number(s.user_id) === Number(params[0]) && s.module_id === params[1]);
       return { rows: row ? [{ id: row.id, status: row.status }] : [] };
     }
+    if (q.startsWith('SELECT id, status, simulated, token_id, credential_status FROM user_sbts')) {
+      const row = state.sbts.find((s) => String(s.credential_id) === String(params[0]));
+      return {
+        rows: row
+          ? [{
+              id: row.id,
+              status: row.status,
+              simulated: row.simulated === true,
+              token_id: row.token_id === undefined ? null : row.token_id,
+              credential_status: row.credential_status || 'active',
+            }]
+          : [],
+      };
+    }
+    if (q.startsWith(`UPDATE user_sbts SET credential_status = 'revoked'`)) {
+      const row = state.sbts.find((s) => Number(s.id) === Number(params[2]));
+      if (row) {
+        row.credential_status = 'revoked';
+        row.revoked_by_wallet = params[0];
+        row.revoke_reason = params[1];
+        row.revoked_at = 'CURRENT_TIMESTAMP';
+      }
+      return { rows: [], rowCount: row ? 1 : 0 };
+    }
     if (q.startsWith('SELECT wallet_address, integrity_score FROM users')) {
       const row = state.users.find((u) => Number(u.id) === Number(params[0]));
       return { rows: row ? [{ wallet_address: row.wallet_address, integrity_score: row.integrity_score }] : [] };
@@ -165,6 +189,12 @@ const FULL_CONFIG = {
     getMode: () => 'simulated',
     mintSBT: async () => svcStub._mintImpl(),
     verifyOnChain: async (proof) => svcStub._verifyImpl(proof),
+    _revokeImpl: (tokenId, reason) => ({ onchain: false, mode: 'simulated', reason: 'not_real_mode' }),
+    _revokeCalls: [],
+    revokeOnChain: async (tokenId, reason) => {
+      svcStub._revokeCalls.push({ tokenId, reason });
+      return svcStub._revokeImpl(tokenId, reason);
+    },
   };
   require.cache[svcPath] = { id: svcPath, filename: svcPath, loaded: true, exports: svcStub };
 
@@ -262,6 +292,90 @@ const FULL_CONFIG = {
   check('simulated row reported as simulated_mint', r.body.sbts[1].onChain.reason === 'simulated_mint', r.body.sbts[1].onChain);
   check('pending row reported as mint_pending (not checked)', r.body.sbts[2].onChain.reason === 'mint_pending', r.body.sbts[2].onChain);
   check('service consulted for every confirmed row (simulated guard lives in service)', svcStub._verifyCalls.length === 2, svcStub._verifyCalls.length);
+
+  section('T13 adminAuth: ADMIN_WALLETS allowlist is fail-closed');
+  const adminAuth = require(path.join(backend, 'src', 'middlewares', 'adminAuth.js'));
+  const { isAdminWallet } = adminAuth;
+  delete process.env.ADMIN_WALLETS;
+  check('unset ADMIN_WALLETS => nobody is admin', isAdminWallet('0xanything') === false, isAdminWallet('0xanything'));
+  process.env.ADMIN_WALLETS = '0xAAA1, 0xBBB2';
+  check('listed wallet matches case-insensitively', isAdminWallet('0xaaa1') === true, isAdminWallet('0xaaa1'));
+  check('whitespace tolerated in list', isAdminWallet(' 0xBBB2 ') === true);
+  check('unlisted wallet rejected', isAdminWallet('0xccc3') === false, isAdminWallet('0xccc3'));
+  check('missing/empty wallet rejected', isAdminWallet('') === false && isAdminWallet(undefined) === false, null);
+  // middleware behaviour
+  let mRes = res();
+  let mNext = false;
+  adminAuth({ user: { walletAddress: '0xaaa1' } }, mRes, () => { mNext = true; });
+  check('admin passes middleware (next called)', mNext === true && mRes.body === null, { mNext, body: mRes.body });
+  mRes = res();
+  mNext = false;
+  adminAuth({ user: { walletAddress: '0xccc3' } }, mRes, () => { mNext = true; });
+  check('non-admin => 403 JSON error', mNext === false && mRes.statusCode === 403 && mRes.body.error === 'Admin privileges required for this operation.', { mNext, code: mRes.statusCode, body: mRes.body });
+  mRes = res();
+  mNext = false;
+  adminAuth({}, mRes, () => { mNext = true; });
+  check('no authenticated user => 403 (fail-closed)', mNext === false && mRes.statusCode === 403, mRes.statusCode);
+  delete process.env.ADMIN_WALLETS;
+
+  section('T14 admin revoke lifecycle (chain-first honesty)');
+  const makeRow = (over) => Object.assign({
+    id: ++state.seq, user_id: 1, module_id: 'module_1', tx_hash: '0xaa', token_id: 5,
+    status: 'confirmed', simulated: true, credential_id: 'cred-' + state.seq,
+    credential_status: 'active',
+  }, over || {});
+  const adminReq = (credentialId, reason) => ({
+    user: { userId: 1, walletAddress: '0xADMIN' },
+    params: { credentialId },
+    body: reason === undefined ? {} : { reason },
+  });
+
+  state.sbts.length = 0;
+  const rowSim = makeRow({ simulated: true, credential_id: 'cred-sim' });
+  const rowReal = makeRow({ simulated: false, token_id: 9, credential_id: 'cred-real' });
+  const rowPending = makeRow({ status: 'pending', token_id: null, credential_id: 'cred-pending' });
+  state.sbts.push(rowSim, rowReal, rowPending);
+  svcStub._revokeCalls = [];
+
+  let rr = res();
+  await sbtController.adminRevoke(adminReq('cred-does-not-exist'), rr);
+  check('unknown credential => 404', rr.statusCode === 404, rr.statusCode);
+
+  rr = res();
+  await sbtController.adminRevoke(adminReq('cred-sim', 'issued by mistake'), rr);
+  check('simulated credential revokes at record level', rr.statusCode === 200 && rr.body.success === true, { code: rr.statusCode, body: rr.body });
+  check('response discloses onchain=false', rr.body.data.onchain === false, rr.body.data);
+  check('chain NOT called for simulated credential', svcStub._revokeCalls.length === 0, svcStub._revokeCalls.length);
+  check('row now revoked with audit fields', rowSim.credential_status === 'revoked' && rowSim.revoked_by_wallet === '0xADMIN' && rowSim.revoke_reason === 'issued by mistake', rowSim);
+
+  rr = res();
+  await sbtController.adminRevoke(adminReq('cred-sim'), rr);
+  check('already revoked => 409', rr.statusCode === 409, rr.statusCode);
+
+  rr = res();
+  await sbtController.adminRevoke(adminReq('cred-pending'), rr);
+  check('non-confirmed credential => 400', rr.statusCode === 400, rr.statusCode);
+
+  svcStub._revokeImpl = () => { const e = new Error('revert'); e.code = 'ONCHAIN_FAILED'; throw e; };
+  rr = res();
+  await sbtController.adminRevoke(adminReq('cred-real', 'fraud found'), rr);
+  check('real chain failure => 502', rr.statusCode === 502, rr.statusCode);
+  check('honest error: NOT revoked anywhere', /was NOT revoked anywhere/i.test(rr.body.error), rr.body.error);
+  check('DB row UNTOUCHED on chain failure', rowReal.credential_status === 'active', rowReal.credential_status);
+  check('chain was attempted for real credential', svcStub._revokeCalls.length === 1 && svcStub._revokeCalls[0].tokenId === 9, svcStub._revokeCalls);
+
+  svcStub._revokeImpl = () => ({ onchain: true, mode: 'real', txHash: '0xdeadbeef', blockNumber: 1 });
+  rr = res();
+  await sbtController.adminRevoke(adminReq('cred-real', 'fraud found'), rr);
+  check('chain success => 200 with onchain=true', rr.statusCode === 200 && rr.body.data.onchain === true, { code: rr.statusCode, body: rr.body });
+  check('row revoked after chain success', rowReal.credential_status === 'revoked', rowReal.credential_status);
+
+  section('T15 admin route is actually mounted');
+  const apiRoutes = require(path.join(backend, 'src', 'routes', 'apiRoutes.js'));
+  const mounted = apiRoutes.stack.some(
+    (layer) => layer.route && layer.route.path === '/admin/sbt/:credentialId/revoke' && layer.route.methods.post
+  );
+  check('POST /admin/sbt/:credentialId/revoke registered', mounted === true, mounted);
 
   // =====================================================================
   console.log('\n----------------------------------------');

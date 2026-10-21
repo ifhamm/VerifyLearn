@@ -1,14 +1,17 @@
 const { ethers } = require('ethers');
 
-// Minimal ABI for VerifyLearnSBT.sol — mint plus the read methods used to
-// independently verify a credential against the chain.
+// Minimal ABI for VerifyLearnSBT.sol — mint, revoke and the read methods
+// used to independently verify a credential against the chain.
 const SBT_ABI = [
   'function mintSBT(address to, string calldata moduleId, string calldata uri) external returns (uint256)',
   'function ownerOf(uint256 tokenId) external view returns (address)',
   'function tokenURI(uint256 tokenId) external view returns (string)',
   'function hasMinted(address user, string calldata moduleId) external view returns (bool)',
   'function balanceOf(address account) external view returns (uint256)',
+  'function revoke(uint256 tokenId, string calldata reason) external',
+  'function revoked(uint256 tokenId) external view returns (bool)',
   'event SBTMinted(address indexed recipient, uint256 indexed tokenId, string moduleId, string tokenURI)',
+  'event Revoked(uint256 indexed tokenId, address indexed revokedBy, string reason)',
 ];
 
 const DEFAULT_EXPLORER_URL = 'https://sepolia.etherscan.io';
@@ -220,6 +223,17 @@ exports.verifyOnChain = async ({ walletAddress, moduleId, tokenId, txHash, simul
         result.valid = false;
         result.reason = 'owner_mismatch';
       }
+      // Revocation state (contract v2). A v1 contract without revoke()
+      // throws here — leave revoked undefined rather than claiming a status.
+      try {
+        result.revoked = await contract.revoked(tokenId);
+        if (result.revoked === true) {
+          result.valid = false;
+          result.reason = 'revoked_on_chain';
+        }
+      } catch (e) {
+        result.revoked = undefined;
+      }
     } else {
       // 2b. No token id recorded — ask the contract whether it ever minted
       const minted = await contract.hasMinted(walletAddress, moduleId);
@@ -234,5 +248,43 @@ exports.verifyOnChain = async ({ walletAddress, moduleId, tokenId, txHash, simul
   } catch (err) {
     console.error('[Blockchain] On-chain verification RPC failed:', err);
     return { checked: false, valid: false, mode, reason: 'rpc_unavailable', explorerUrl };
+  }
+};
+
+/**
+ * Revoke a token on-chain (owner-only contract call).
+ *
+ * Guarded exactly like mint: simulated/unconfigured states return
+ * { onchain: false, reason } WITHOUT touching anything; a real failure THROWS
+ * (code ONCHAIN_FAILED) so the caller can leave the DB untouched too —
+ * never a half-revoked state claimed as success.
+ */
+exports.revokeOnChain = async (tokenId, reason = '') => {
+  const mode = getMode();
+
+  if (mode !== 'real') {
+    return { onchain: false, mode, reason: 'not_real_mode' };
+  }
+  if (!isConfigured()) {
+    return { onchain: false, mode, reason: 'not_configured' };
+  }
+  if (tokenId === null || tokenId === undefined) {
+    return { onchain: false, mode, reason: 'no_token_id' };
+  }
+
+  try {
+    const provider = new ethers.JsonRpcProvider(process.env.RPC_URL);
+    const wallet = new ethers.Wallet(process.env.SYSTEM_PRIVATE_KEY, provider);
+    const contract = getContract(wallet);
+
+    const tx = await contract.revoke(Number(tokenId), String(reason || '').slice(0, 200));
+    console.log(`[Blockchain] Revoke tx sent: ${tx.hash} (token ${tokenId}). Waiting...`);
+    const receipt = await tx.wait();
+    console.log(`[Blockchain] Revoke confirmed in block: ${receipt.blockNumber}`);
+
+    return { onchain: true, mode, txHash: tx.hash, blockNumber: receipt.blockNumber };
+  } catch (err) {
+    console.error('[Blockchain] On-chain revoke failed:', err);
+    throw blockchainError('ONCHAIN_FAILED', 'The on-chain revoke transaction failed.');
   }
 };

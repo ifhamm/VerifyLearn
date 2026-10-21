@@ -248,3 +248,87 @@ exports.verifySBT = async (req, res) => {
     res.status(500).json({ error: 'Failed to verify credentials.' });
   }
 };
+
+/**
+ * POST /admin/sbt/:credentialId/revoke  (walletAuth + adminAuth)
+ *
+ * Revocation is TERMINAL (contract v2 has no un-revoke, and a revoked
+ * (user, module) pair can never be re-minted) — there is deliberately no
+ * restore endpoint: the DB must never claim 'active' for something the chain
+ * (or the record) says is revoked.
+ *
+ * Honest ordering: in real mode with an on-chain token, the chain revoke
+ * happens FIRST. If it fails (502), the DB row is left untouched — never a
+ * half-revoked state. Simulated credentials revoke at the record level only
+ * (there is nothing on-chain to revoke), disclosed via data.onchain=false.
+ */
+exports.adminRevoke = async (req, res) => {
+  try {
+    const { credentialId } = req.params;
+    const adminWallet = req.user.walletAddress;
+    const reason = String((req.body && req.body.reason) || '').slice(0, 500);
+
+    const look = await db.query(
+      `SELECT id, status, simulated, token_id, credential_status
+       FROM user_sbts WHERE credential_id = $1`,
+      [credentialId]
+    );
+    if (look.rows.length === 0) {
+      return res.status(404).json({ error: 'Credential not found.' });
+    }
+    const row = look.rows[0];
+
+    if (row.status !== 'confirmed') {
+      return res.status(400).json({ error: 'Only confirmed credentials can be revoked.' });
+    }
+    if (row.credential_status === 'revoked') {
+      return res.status(409).json({ error: 'This credential is already revoked.' });
+    }
+
+    // 1. Real chain first (skip when the credential itself is simulated or
+    //    has no token — there is nothing on-chain to revoke).
+    let onchain = false;
+    if (row.simulated !== true && row.token_id !== null && row.token_id !== undefined) {
+      try {
+        const chainResult = await blockchainService.revokeOnChain(
+          row.token_id,
+          reason || 'revoked by VerifyLearn issuer'
+        );
+        onchain = chainResult.onchain === true;
+      } catch (chainErr) {
+        if (chainErr.code === 'ONCHAIN_FAILED') {
+          return res.status(502).json({
+            error: 'On-chain revoke failed — the credential was NOT revoked anywhere. Please retry.',
+          });
+        }
+        throw chainErr;
+      }
+    }
+
+    // 2. Record level
+    await db.query(
+      `UPDATE user_sbts
+       SET credential_status = 'revoked', revoked_at = CURRENT_TIMESTAMP,
+           revoked_by_wallet = $1, revoke_reason = $2
+       WHERE id = $3`,
+      [adminWallet, reason, row.id]
+    );
+
+    res.json({
+      success: true,
+      message: onchain
+        ? 'Credential revoked on-chain and in VerifyLearn records.'
+        : 'Credential revoked in VerifyLearn records. On-chain state was not changed (simulated credential or chain not configured) — see data.onchain.',
+      data: {
+        credentialId,
+        credentialStatus: 'revoked',
+        onchain,
+        revokedBy: adminWallet,
+        reason: reason || null,
+      },
+    });
+  } catch (error) {
+    console.error('Error revoking credential:', error);
+    res.status(500).json({ error: 'Failed to revoke credential.' });
+  }
+};
