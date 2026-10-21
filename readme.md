@@ -32,6 +32,13 @@ In the era of remote education, online credentials face a massive trust deficit.
 - **Soulbound Tokens (SBT)**: Automatically mints non-transferable, on-chain badges for completing modules and final paths.
 - **Trustless CV**: Credentials are permanently bound to the user's wallet address, serving as a tamper-proof digital resume.
 
+### 📦 6. Credential Share Pack (Public Verification)
+- **Shareable verification page** at `/verify/c/<credential-id>`: a print-ready certificate showing the achievement, the server-graded score, the holder, and a live provenance badge.
+- **Server-rendered QR code** (`/api/v1/credentials/<id>/qr.png`) so the page works with no client JS and prints cleanly on physical certificates.
+- **W3C-style Verifiable Credential export** (`/api/v1/credentials/<id>/vc`) — a machine-readable credential signed by the issuer with an EIP-191 signature, plus explicit provenance so a simulated or revoked credential can never masquerade as a valid on-chain one.
+- **Revocation**: admins (an `ADMIN_WALLETS` allowlist) can revoke a credential on-chain and in the record. Revoked credentials stay resolvable — an old link or a screenshot cannot be made to look valid.
+- **Honest lifecycle**: a mint that is broadcast but not yet confirmed is reported as `submitted` (HTTP 202), never as a fake success; a background watcher resolves it from the chain.
+
 ---
 
 ## 🏗️ System Architecture
@@ -109,6 +116,25 @@ SYSTEM_PRIVATE_KEY=
 SBT_CONTRACT_ADDRESS=
 # Explorer links shown for real transactions (default: Sepolia Etherscan)
 EXPLORER_URL=https://sepolia.etherscan.io
+# ADMIN_WALLETS: comma-separated wallets allowed to revoke credentials.
+# FAIL-CLOSED — if unset/empty, NOBODY is an admin and every revoke request
+# gets a 403. Revocation is terminal (no un-revoke), so keep this list tight.
+ADMIN_WALLETS=
+# BASE_URL: public origin used in shared credential links and QR codes
+# (defaults to the request host). Set it behind a proxy/CDN.
+BASE_URL=
+
+# Mint watcher: resolves mint transactions that were broadcast but not yet
+# confirmed when the request returned (status 'submitted'). It polls receipts
+# and, for records whose hash was lost in a crash, reconciles against the
+# contract — see backend/src/services/mintWatcher.js.
+# MINT_WATCHER_DISABLED=true turns it off (tests/local debugging only).
+MINT_WATCHER_INTERVAL_MS=30000
+MINT_PENDING_TIMEOUT_MS=600000
+MINT_SUBMITTED_TIMEOUT_MS=900000
+# How long to wait for a mint confirmation before handing off to the watcher
+# (the API then answers 202 with status 'submitted' instead of failing).
+MINT_WAIT_TIMEOUT_MS=45000
 
 # Production hardening (backend)
 # TRUST_PROXY: number of reverse-proxy hops in front of the backend (usually 1).
@@ -200,6 +226,41 @@ Real credential minting and revocation need `VerifyLearnSBT` deployed once.
 Contract v2 adds **revocation**: `revoke(tokenId, reason)` (owner-only) and
 `revoked(tokenId)` for verifiers. Revoked tokens stay queryable for audit, and
 a revoked (user, module) pair can never be re-minted.
+
+## 📦 Credential Share Pack — API & revocation
+
+Once a credential is confirmed it gets an unguessable `credential_id` (UUID).
+That id powers the public share page and the machine-readable exports:
+
+| Endpoint | Purpose |
+| --- | --- |
+| `GET /verify/c/:credentialId` | Human-facing, print-ready verification page |
+| `GET /api/v1/credentials/:credentialId` | Structured detail (holder, score, provenance, live on-chain check) |
+| `GET /api/v1/credentials/:credentialId/vc` | W3C-style Verifiable Credential JSON with an EIP-191 issuer signature |
+| `GET /api/v1/credentials/:credentialId/qr.png` | Server-rendered QR of the verify URL |
+| `POST /api/v1/admin/sbt/:credentialId/revoke` | Revoke (requires `walletAuth` + an `ADMIN_WALLETS` wallet) |
+
+**Revoking a credential** (issuance error, later-found fraud, retired
+curriculum):
+
+```bash
+curl -X POST https://your-host/api/v1/admin/sbt/<credentialId>/revoke \
+  -H 'Content-Type: application/json' \
+  -b cookies.txt \
+  -d '{"reason":"issued to the wrong account"}'
+```
+
+In real mode the on-chain `revoke` runs **first** — if it fails the request
+answers `502` and the record is left untouched (never a half-revoked state, and
+never a `200` for a revoke that did not happen). Revocation is **terminal**:
+there is no un-revoke, and the DB will never claim a revoked credential is
+active.
+
+**Honest lifecycle** — a mint that is broadcast but not yet confirmed returns
+`202` with `status: "submitted"` (never a fake success). The mint watcher
+resolves it from the chain; if the process died between broadcast and hash
+write, it reconciles through the contract's `hasMinted` and either recovers the
+credential (with no invented hash) or marks it failed so the user can retry.
 
 ## 🚀 Automated CI/CD (GitHub Actions)
 

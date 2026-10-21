@@ -210,10 +210,10 @@ const FULL_CONFIG = {
       if (row) row.status = 'failed';
       return { rows: [], rowCount: row ? 1 : 0 };
     }
-    if (q.startsWith('SELECT id, module_id, tx_hash, token_id, minted_at, status, simulated FROM user_sbts')) {
+    if (q.startsWith('SELECT id, module_id, tx_hash, token_id, minted_at, status, simulated, credential_id, credential_status FROM user_sbts')) {
       return { rows: state.sbts.filter((s) => Number(s.user_id) === Number(params[0]) && s.status !== 'failed') };
     }
-    if (q.startsWith('SELECT module_id, tx_hash, token_id, minted_at, status, simulated FROM user_sbts')) {
+    if (q.startsWith('SELECT module_id, tx_hash, token_id, minted_at, status, simulated, credential_id, credential_status FROM user_sbts')) {
       return { rows: state.sbts.filter((s) => Number(s.user_id) === Number(params[0]) && s.status !== 'failed') };
     }
     if (q.startsWith('SELECT id FROM quiz_results')) {
