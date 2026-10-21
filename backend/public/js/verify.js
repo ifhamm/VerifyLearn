@@ -85,11 +85,22 @@ document.addEventListener('DOMContentLoaded', () => {
             chainBadgeClass = 'bg-gray-500 text-white';
           }
 
-          // Explorer link is only offered when a real on-chain tx is known
+          // Explorer link is only offered when a real on-chain tx is known.
+          // A recovered credential (hash lost mid-crash) says so plainly
+          // instead of rendering a blank "Tx:" line.
           const explorerUrl = sbt.onChain ? sbt.onChain.explorerUrl : null;
-          const txRow = explorerUrl
+          const hasHash = !!sbt.tx_hash;
+          const txRow = (hasHash && explorerUrl)
             ? `<a href="${explorerUrl}" target="_blank" rel="noopener noreferrer" class="text-xs font-mono opacity-80 break-all bg-black/10 p-2 border border-current hover:underline block">Tx: ${sbt.tx_hash} ↗</a>`
-            : `<div class="text-xs font-mono opacity-80 break-all bg-black/10 p-2 border border-current">Tx: ${sbt.tx_hash}${sbt.simulated ? ' (simulated)' : ''}</div>`;
+            : hasHash
+              ? `<div class="text-xs font-mono opacity-80 break-all bg-black/10 p-2 border border-current">Tx: ${sbt.tx_hash}${sbt.simulated ? ' (simulated)' : ''}</div>`
+              : `<div class="text-xs font-mono opacity-80 break-all bg-black/10 p-2 border border-current">Tx: ${sbt.simulated ? 'not on-chain (simulated)' : 'unavailable (recovered without a hash)'}</div>`;
+
+          // Share link is only offered for real credential records (a share
+          // page needs a credential id; pending rows do not have one yet).
+          const shareRow = sbt.credential_id
+            ? `<a href="/verify/c/${sbt.credential_id}" class="block text-center text-xs font-black uppercase px-3 py-2 border-2 border-current bg-brandOrange text-white hover:bg-brandViolet transition">Share / Verify</a>`
+            : '';
 
           const card = document.createElement('div');
           card.className = `${bgClass} ${textClass} border-2 border-textMain p-5 shadow-brutal flex flex-col`;
@@ -104,6 +115,7 @@ document.addEventListener('DOMContentLoaded', () => {
             <div class="mt-auto space-y-2">
               <div class="text-sm font-bold opacity-90">Minted: ${dateStr}</div>
               ${txRow}
+              ${shareRow}
             </div>
           `;
           sbtList.appendChild(card);

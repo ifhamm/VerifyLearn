@@ -91,6 +91,14 @@ app.use('/api', (req, res) => {
 
 const { initializeDatabase } = require('./utils/dbInit');
 
+// Public credential share page. Must be an explicit route: the SPA fallback
+// below would otherwise serve index.html for /verify/c/<id>, and extensionless
+// paths never reach express.static. Served as a static file (no templating —
+// the page fetches its own data from the public credential API).
+app.get('/verify/c/:credentialId', (req, res) => {
+  res.sendFile(path.join(__dirname, '../public/credential.html'));
+});
+
 // Fallback to index.html for SPA if needed, or simple status
 app.get('*', (req, res) => {
   res.sendFile(path.join(__dirname, '../public/index.html'));
