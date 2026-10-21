@@ -116,9 +116,14 @@ initializeDatabase()
       console.log(`Server is running on port ${PORT}`);
     });
 
+    // Resolve credentials stuck mid-mint (broadcast without a receipt, or a
+    // hashless pending row) — see services/mintWatcher.js.
+    require('./services/mintWatcher').start();
+
     // Graceful shutdown: stop accepting connections, close the DB pool.
     const shutdown = (signal) => {
       console.log(`${signal} received — shutting down gracefully...`);
+      require('./services/mintWatcher').stop();
       server.close(() => {
         require('./utils/db').pool
           .end()

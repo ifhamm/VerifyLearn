@@ -145,8 +145,60 @@ const FULL_CONFIG = {
     }
     if (q.startsWith(`UPDATE user_sbts SET status = 'pending'`)) {
       const row = state.sbts.find((s) => Number(s.id) === Number(params[0]));
-      if (row) row.status = 'pending';
+      if (row) {
+        row.status = 'pending';
+        row.tx_hash = '';
+        row.submitted_at = null;
+        row.minted_at = new Date().toISOString();
+      }
       return { rows: [], rowCount: row ? 1 : 0 };
+    }
+    if (q.startsWith(`UPDATE user_sbts SET tx_hash = $1, status = 'submitted', submitted_at = CURRENT_TIMESTAMP`)) {
+      const row = state.sbts.find((s) => Number(s.id) === Number(params[1]));
+      if (row) {
+        row.tx_hash = params[0];
+        row.status = 'submitted';
+        row.submitted_at = new Date().toISOString();
+      }
+      return { rows: [], rowCount: row ? 1 : 0 };
+    }
+    if (q.startsWith(`UPDATE user_sbts SET tx_hash = $1, status = 'submitted', submitted_at = COALESCE`)) {
+      const row = state.sbts.find((s) => Number(s.id) === Number(params[1]));
+      if (row) {
+        row.tx_hash = params[0];
+        row.status = 'submitted';
+        if (!row.submitted_at) row.submitted_at = new Date().toISOString();
+      }
+      return { rows: [], rowCount: row ? 1 : 0 };
+    }
+    if (q.startsWith(`UPDATE user_sbts SET status = 'confirmed', token_id = COALESCE`)) {
+      const row = state.sbts.find((s) => Number(s.id) === Number(params[1]));
+      if (row) {
+        if (params[0] !== null && params[0] !== undefined) row.token_id = params[0];
+        row.status = 'confirmed';
+        row.simulated = false;
+        row.minted_at = new Date().toISOString();
+      }
+      return { rows: [], rowCount: row ? 1 : 0 };
+    }
+    if (q.startsWith(`UPDATE user_sbts SET status = 'confirmed', simulated = FALSE, minted_at = CURRENT_TIMESTAMP`)) {
+      const row = state.sbts.find((s) => Number(s.id) === Number(params[0]));
+      if (row) {
+        row.status = 'confirmed';
+        row.simulated = false;
+        row.minted_at = new Date().toISOString();
+      }
+      return { rows: [], rowCount: row ? 1 : 0 };
+    }
+    if (q.startsWith('SELECT s.id, s.user_id, s.module_id, s.tx_hash, s.status, s.simulated')) {
+      return {
+        rows: state.sbts
+          .filter((s) => s.status === 'pending' || s.status === 'submitted')
+          .map((s) => {
+            const user = state.users.find((u) => Number(u.id) === Number(s.user_id));
+            return { ...s, wallet_address: user ? user.wallet_address : null };
+          }),
+      };
     }
     if (q.startsWith('UPDATE user_sbts SET tx_hash =')) {
       const row = state.sbts.find((s) => Number(s.id) === Number(params[3]));
@@ -186,8 +238,30 @@ const FULL_CONFIG = {
       if (proof.simulated) return { checked: false, valid: false, mode: 'simulated', reason: 'simulated_mint', explorerUrl: null };
       return { checked: true, valid: true, mode: 'simulated', explorerUrl: null };
     },
-    getMode: () => 'simulated',
-    mintSBT: async () => svcStub._mintImpl(),
+    getMode: () => svcStub._mode,
+    _mode: 'simulated',
+    _configured: true,
+    isConfigured: () => svcStub._configured,
+    mintSBT: async (wallet, moduleId, opts = {}) => {
+      const result = svcStub._mintImpl(wallet, moduleId);
+      if (result && result.status === 'submitted' && opts && typeof opts.onSubmitted === 'function') {
+        await opts.onSubmitted(result.transactionHash);
+      }
+      return result;
+    },
+    verifyOnChain: async (proof) => svcStub._verifyImpl(proof),
+    _mintStatusImpl: () => ({ state: 'pending' }),
+    _mintStatusCalls: [],
+    getMintStatus: async (txHash) => {
+      svcStub._mintStatusCalls.push(txHash);
+      return svcStub._mintStatusImpl(txHash);
+    },
+    _hasMintedImpl: () => false,
+    _hasMintedCalls: [],
+    hasMintedOnChain: async (walletAddress, moduleId) => {
+      svcStub._hasMintedCalls.push({ walletAddress, moduleId });
+      return svcStub._hasMintedImpl(walletAddress, moduleId);
+    },
     verifyOnChain: async (proof) => svcStub._verifyImpl(proof),
     _revokeImpl: (tokenId, reason) => ({ onchain: false, mode: 'simulated', reason: 'not_real_mode' }),
     _revokeCalls: [],
@@ -376,6 +450,140 @@ const FULL_CONFIG = {
     (layer) => layer.route && layer.route.path === '/admin/sbt/:credentialId/revoke' && layer.route.methods.post
   );
   check('POST /admin/sbt/:credentialId/revoke registered', mounted === true, mounted);
+
+  section('T16 mint lifecycle: submitted handoff + watcher reconciliation');
+  const mintWatcher = require(path.join(backend, 'src', 'services', 'mintWatcher.js'));
+
+  // --- 16a: service hands the tx hash to onSubmitted BEFORE confirming ---
+  state.sbts.length = 0;
+  state.raceInsert = false;
+  svcStub._mode = 'simulated';
+  svcStub._configured = true;
+  svcStub._mintImpl = () => ({
+    transactionHash: '0x' + 'ee'.repeat(32),
+    tokenId: null,
+    status: 'submitted',
+    simulated: false,
+  });
+
+  let sr = res();
+  await sbtController.mintSBT(
+    { user: { userId: 1 }, body: { moduleId: 'module_1' } },
+    sr
+  );
+  check('submitted mint => HTTP 202 (work in progress, not done)', sr.statusCode === 202, sr.statusCode);
+  check('submitted response discloses status + hash, no tokenId',
+    sr.body.data.status === 'submitted' && sr.body.data.txHash === '0x' + 'ee'.repeat(32) && sr.body.data.tokenId === null,
+    sr.body.data);
+  const submittedRow = state.sbts[0];
+  check('row persisted as submitted with tx_hash (crash-safe)', submittedRow.status === 'submitted' && submittedRow.tx_hash === '0x' + 'ee'.repeat(32), submittedRow);
+  check('submitted_at recorded', !!submittedRow.submitted_at, submittedRow.submitted_at);
+
+  // Re-minting a submitted row must NOT start a second tx
+  sr = res();
+  await sbtController.mintSBT({ user: { userId: 1 }, body: { moduleId: 'module_1' } }, sr);
+  check('mint while submitted => 409, no second tx', sr.statusCode === 409, sr.statusCode);
+
+  // --- 16b: watcher confirms a submitted row from its receipt ---
+  svcStub._mode = 'real';
+  svcStub._configured = true;
+  svcStub._mintStatusCalls = [];
+  svcStub._mintStatusImpl = () => ({ state: 'confirmed', tokenId: 42, blockNumber: 5 });
+  let report = await mintWatcher.processStuckMints();
+  check('watcher confirmed the submitted row', report.confirmed === 1 && state.sbts[0].status === 'confirmed', { report, row: state.sbts[0].status });
+  check('real token id lifted from the receipt event', state.sbts[0].token_id === 42, state.sbts[0].token_id);
+  check('row marked not-simulated after real confirmation', state.sbts[0].simulated === false, state.sbts[0].simulated);
+  check('watcher queried the recorded hash', svcStub._mintStatusCalls[0] === '0x' + 'ee'.repeat(32), svcStub._mintStatusCalls);
+
+  // --- 16c: reverted tx fails immediately (no timeout wait) ---
+  state.sbts.length = 0;
+  state.sbts.push({
+    id: ++state.seq, user_id: 1, module_id: 'module_2', tx_hash: '0x' + 'ff'.repeat(32),
+    token_id: null, status: 'submitted', simulated: false, credential_status: 'active',
+    submitted_at: new Date().toISOString(), minted_at: new Date().toISOString(),
+  });
+  svcStub._mintStatusImpl = () => ({ state: 'reverted', blockNumber: 6 });
+  report = await mintWatcher.processStuckMints();
+  check('reverted tx => failed immediately', report.failed === 1 && state.sbts[0].status === 'failed', { report, row: state.sbts[0].status });
+
+  // --- 16d: fresh submitted row with no receipt yet is left alone ---
+  state.sbts.length = 0;
+  state.sbts.push({
+    id: ++state.seq, user_id: 1, module_id: 'module_3', tx_hash: '0x' + 'aa'.repeat(32),
+    token_id: null, status: 'submitted', simulated: false, credential_status: 'active',
+    submitted_at: new Date().toISOString(), minted_at: new Date().toISOString(),
+  });
+  svcStub._mintStatusImpl = () => ({ state: 'pending' });
+  report = await mintWatcher.processStuckMints();
+  check('fresh pending receipt => row untouched', report.pending === 1 && state.sbts[0].status === 'submitted', { report, row: state.sbts[0].status });
+
+  // --- 16e: stale submitted row (dropped tx) is failed ---
+  const staleIso = new Date(Date.now() - 60 * 60 * 1000).toISOString();
+  state.sbts[0].submitted_at = staleIso;
+  svcStub._mintStatusImpl = () => ({ state: 'not_found' });
+  report = await mintWatcher.processStuckMints();
+  check('stale + dropped tx => failed', report.failed === 1 && state.sbts[0].status === 'failed', { report, row: state.sbts[0].status });
+
+  // --- 16f: RPC failure leaves the row exactly as it was ---
+  state.sbts.length = 0;
+  state.sbts.push({
+    id: ++state.seq, user_id: 1, module_id: 'module_4', tx_hash: '0x' + 'bb'.repeat(32),
+    token_id: null, status: 'submitted', simulated: false, credential_status: 'active',
+    submitted_at: new Date().toISOString(), minted_at: new Date().toISOString(),
+  });
+  svcStub._mintStatusImpl = () => { throw new Error('rpc unreachable'); };
+  report = await mintWatcher.processStuckMints();
+  check('RPC error => row untouched (node outage proves nothing)', report.confirmed + report.failed + report.recovered === 0 && state.sbts[0].status === 'submitted', { report, row: state.sbts[0].status });
+
+  // --- 16g: stale hashless pending + chain says minted => honest recovery ---
+  state.sbts.length = 0;
+  state.sbts.push({
+    id: ++state.seq, user_id: 1, module_id: 'module_1', tx_hash: '',
+    token_id: null, status: 'pending', simulated: false, credential_status: 'active',
+    submitted_at: null, minted_at: staleIso,
+  });
+  svcStub._mode = 'real';
+  svcStub._configured = true;
+  svcStub._hasMintedCalls = [];
+  svcStub._hasMintedImpl = () => true;
+  report = await mintWatcher.processStuckMints();
+  check('stale pending + claimed on-chain => recovered as confirmed', report.recovered === 1 && state.sbts[0].status === 'confirmed', { report, row: state.sbts[0].status });
+  check('recovery invents NO tx hash and NO token id', state.sbts[0].tx_hash === '' && state.sbts[0].token_id === null, state.sbts[0]);
+  check('recovery marks the record not-simulated (it IS on-chain)', state.sbts[0].simulated === false, state.sbts[0].simulated);
+  check('recovery asked the contract, not the DB', svcStub._hasMintedCalls.length === 1 && svcStub._hasMintedCalls[0].moduleId === 'module_1', svcStub._hasMintedCalls);
+
+  // --- 16h: stale pending never minted => clean retry path ---
+  state.sbts.length = 0;
+  state.sbts.push({
+    id: ++state.seq, user_id: 1, module_id: 'module_2', tx_hash: '',
+    token_id: null, status: 'pending', simulated: false, credential_status: 'active',
+    submitted_at: null, minted_at: staleIso,
+  });
+  svcStub._hasMintedImpl = () => false;
+  report = await mintWatcher.processStuckMints();
+  check('stale pending + chain says never minted => failed', report.failed === 1 && state.sbts[0].status === 'failed', { report, row: state.sbts[0].status });
+
+  // --- 16i: simulated deployments fail stale pending without a chain call ---
+  state.sbts.length = 0;
+  state.sbts.push({
+    id: ++state.seq, user_id: 1, module_id: 'module_3', tx_hash: '',
+    token_id: null, status: 'pending', simulated: true, credential_status: 'active',
+    submitted_at: null, minted_at: staleIso,
+  });
+  svcStub._mode = 'simulated';
+  svcStub._hasMintedCalls = [];
+  report = await mintWatcher.processStuckMints();
+  check('simulated stale pending => failed', report.failed === 1 && state.sbts[0].status === 'failed', { report, row: state.sbts[0].status });
+  check('no chain call attempted in simulated mode', svcStub._hasMintedCalls.length === 0, svcStub._hasMintedCalls);
+
+  section('T17 watcher lifecycle is wired but inert by default');
+  const watcherCfg = mintWatcher.getConfig();
+  check('config exposes sane defaults', watcherCfg.intervalMs === 30000 && watcherCfg.pendingTimeoutMs === 600000 && watcherCfg.submittedTimeoutMs === 900000, watcherCfg);
+  process.env.MINT_WATCHER_DISABLED = 'true';
+  mintWatcher.start();
+  check('MINT_WATCHER_DISABLED honoured (start is a no-op)', true);
+  mintWatcher.stop();
+  delete process.env.MINT_WATCHER_DISABLED;
 
   // =====================================================================
   console.log('\n----------------------------------------');

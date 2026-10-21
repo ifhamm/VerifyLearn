@@ -62,6 +62,36 @@ function getContract(signerOrProvider) {
   return new ethers.Contract(process.env.SBT_CONTRACT_ADDRESS, SBT_ABI, signerOrProvider);
 }
 
+// Race a promise against a deadline. On timeout, rejects with a typed
+// WAIT_TIMEOUT error (unref'd timer so a pending race never blocks exit).
+function raceWithTimeout(promise, ms, label) {
+  let timer;
+  const timeout = new Promise((_, reject) => {
+    timer = setTimeout(() => {
+      reject(blockchainError('WAIT_TIMEOUT', `${label} timed out after ${ms}ms`));
+    }, ms);
+    if (timer.unref) timer.unref();
+  });
+  return Promise.race([promise, timeout]).finally(() => clearTimeout(timer));
+}
+
+// Pull the real Token ID out of an SBTMinted event log (null if not found —
+// never a random fallback; callers treat null as "tokenId unknown").
+function extractTokenIdFromReceipt(receipt) {
+  if (!receipt || !receipt.logs) return null;
+  for (const log of receipt.logs) {
+    try {
+      const parsedLog = getContract().interface.parseLog(log);
+      if (parsedLog && parsedLog.name === 'SBTMinted') {
+        return Number(parsedLog.args.tokenId);
+      }
+    } catch (e) {
+      // ignore logs from other contracts
+    }
+  }
+  return null;
+}
+
 exports.getMode = getMode;
 exports.isConfigured = isConfigured;
 
@@ -69,11 +99,17 @@ exports.isConfigured = isConfigured;
  * Mint an SBT for (recipientWallet, moduleId).
  *
  * Simulated mode: returns a clearly-marked simulated result (simulated: true).
- * Real mode: performs an actual on-chain mint. On ANY failure it THROWS a
- * typed error — there is no fallback to a mock hash. Callers must persist a
- * 'failed' status, never a fabricated transaction hash.
+ * Real mode: performs an actual on-chain mint. The tx hash is handed to
+ * opts.onSubmitted(hash) the moment the tx is sent (so a crash during
+ * confirmation still leaves a recoverable record). If confirmation does not
+ * arrive within MINT_WAIT_TIMEOUT_MS, the result status is 'submitted'
+ * (NOT a failure — the watcher resolves it later). On ANY definite failure
+ * it THROWS a typed error — there is no fallback to a mock hash. Callers
+ * must persist a 'failed' status, never a fabricated transaction hash.
  */
-exports.mintSBT = async (recipientWallet, moduleId) => {
+const MINT_WAIT_TIMEOUT_MS = parseInt(process.env.MINT_WAIT_TIMEOUT_MS, 10) || 45000;
+
+exports.mintSBT = async (recipientWallet, moduleId, opts = {}) => {
   const mode = getMode();
   const metadataURI = `https://api.verifylearn.com/metadata/sbt/${moduleId}`;
 
@@ -106,26 +142,46 @@ exports.mintSBT = async (recipientWallet, moduleId) => {
     const tx = await contract.mintSBT(recipientWallet, moduleId, metadataURI);
     console.log(`[Blockchain] Tx sent: ${tx.hash}. Waiting for confirmation...`);
 
-    const receipt = await tx.wait();
-    console.log(`[Blockchain] Tx confirmed in block: ${receipt.blockNumber}`);
-
-    // Parse event logs to get the real Token ID (no random fallback)
-    let tokenId = null;
-    for (const log of receipt.logs) {
+    // Hand the hash to the caller IMMEDIATELY: if this process crashes while
+    // waiting, the record still holds a resolvable on-chain reference (the
+    // watcher picks it up from status='submitted'). Callback errors must not
+    // kill an already-broadcast tx — log loudly and continue.
+    if (typeof opts.onSubmitted === 'function') {
       try {
-        const parsedLog = contract.interface.parseLog(log);
-        if (parsedLog && parsedLog.name === 'SBTMinted') {
-          tokenId = Number(parsedLog.args.tokenId);
-          break;
-        }
+        await opts.onSubmitted(tx.hash);
       } catch (e) {
-        // ignore logs from other contracts
+        console.error(
+          '[Blockchain] onSubmitted callback failed — tx is on-chain but the record may lack the hash:',
+          e.message
+        );
       }
     }
 
+    // Confirmation does not always arrive inside this process's lifetime.
+    // A timeout is NOT a failure (the tx may confirm a second later) — it
+    // returns status 'submitted' so the watcher can resolve the receipt.
+    let receipt;
+    try {
+      receipt = await raceWithTimeout(tx.wait(), MINT_WAIT_TIMEOUT_MS, 'mint confirmation');
+    } catch (waitErr) {
+      if (waitErr && waitErr.code === 'WAIT_TIMEOUT') {
+        console.warn(
+          `[Blockchain] Confirmation still pending after ${MINT_WAIT_TIMEOUT_MS}ms — handing off to mint watcher.`
+        );
+        return {
+          transactionHash: tx.hash,
+          tokenId: null,
+          status: 'submitted',
+          simulated: false,
+        };
+      }
+      throw waitErr; // revert / RPC failure → handled by the outer catch
+    }
+    console.log(`[Blockchain] Tx confirmed in block: ${receipt.blockNumber}`);
+
     return {
       transactionHash: tx.hash,
-      tokenId,
+      tokenId: extractTokenIdFromReceipt(receipt),
       status: 'confirmed',
       simulated: false,
     };
@@ -287,4 +343,56 @@ exports.revokeOnChain = async (tokenId, reason = '') => {
     console.error('[Blockchain] On-chain revoke failed:', err);
     throw blockchainError('ONCHAIN_FAILED', 'The on-chain revoke transaction failed.');
   }
+};
+
+/**
+ * Resolve the definitive on-chain state of a mint tx (mint watcher input).
+ *
+ *   { state: 'confirmed', tokenId, blockNumber }  — receipt present, success
+ *   { state: 'reverted',  blockNumber }           — receipt present, failed
+ *   { state: 'pending' }                          — known to the node, no receipt yet
+ *   { state: 'not_found' }                        — node does not know this hash (dropped)
+ *
+ * THROWS on RPC failure / misconfiguration — never guesses. Callers must
+ * leave records untouched when this throws (the node being down says
+ * nothing about whether the tx landed).
+ */
+exports.getMintStatus = async (txHash) => {
+  if (!txHash) throw blockchainError('NO_TX_HASH', 'No transaction hash to check.');
+  if (!isConfigured()) {
+    throw blockchainError('NOT_CONFIGURED', 'RPC_URL / SYSTEM_PRIVATE_KEY / SBT_CONTRACT_ADDRESS not all set.');
+  }
+  const provider = new ethers.JsonRpcProvider(process.env.RPC_URL);
+  const receipt = await provider.getTransactionReceipt(txHash);
+  if (receipt) {
+    if (receipt.status === 1) {
+      return {
+        state: 'confirmed',
+        tokenId: extractTokenIdFromReceipt(receipt),
+        blockNumber: receipt.blockNumber,
+      };
+    }
+    return { state: 'reverted', blockNumber: receipt.blockNumber };
+  }
+  const tx = await provider.getTransaction(txHash);
+  return { state: tx ? 'pending' : 'not_found' };
+};
+
+/**
+ * Ask the contract whether (wallet, moduleId) was ever minted — used by the
+ * watcher to reconcile a record whose hash was lost (crash between broadcast
+ * and hash write): chain says minted ⇒ recover as confirmed-without-hash;
+ * chain says no ⇒ the tx never landed ⇒ safe to mark failed.
+ * THROWS on RPC failure (same honesty contract as getMintStatus).
+ */
+exports.hasMintedOnChain = async (walletAddress, moduleId) => {
+  if (!walletAddress || !moduleId) {
+    throw blockchainError('INSUFFICIENT_PROOF', 'walletAddress and moduleId are required.');
+  }
+  if (!isConfigured()) {
+    throw blockchainError('NOT_CONFIGURED', 'RPC_URL / SYSTEM_PRIVATE_KEY / SBT_CONTRACT_ADDRESS not all set.');
+  }
+  const provider = new ethers.JsonRpcProvider(process.env.RPC_URL);
+  const contract = getContract(provider);
+  return (await contract.hasMinted(walletAddress, moduleId)) === true;
 };

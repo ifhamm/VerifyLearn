@@ -44,7 +44,8 @@ exports.mintSBT = async (req, res) => {
 
     // 1. Resolve any existing row. Legacy rows default to 'confirmed' and
     //    block re-mints; 'failed' rows are retried by reusing the same row;
-    //    'pending' rows mean a mint is already in flight.
+    //    'pending'/'submitted' rows mean a mint is already in flight (the
+    //    mint watcher resolves 'submitted' rows from their tx hash).
     const existing = await db.query(
       `SELECT id, status FROM user_sbts WHERE user_id = $1 AND module_id = $2`,
       [userId, moduleId]
@@ -53,6 +54,11 @@ exports.mintSBT = async (req, res) => {
       const row = existing.rows[0];
       if (row.status === 'pending') {
         return res.status(409).json({ error: 'A mint for this module is already in progress.' });
+      }
+      if (row.status === 'submitted') {
+        return res.status(409).json({
+          error: 'A mint for this module is awaiting on-chain confirmation. It will confirm automatically — no need to retry.'
+        });
       }
       if (row.status === 'confirmed') {
         return res.status(400).json({ error: 'Soulbound Token already minted for this module.' });
@@ -107,9 +113,14 @@ exports.mintSBT = async (req, res) => {
     }
 
     // 5. Reserve an honest 'pending' row BEFORE touching the chain, so a
-    //    crash mid-mint leaves a truthful record instead of nothing.
+    //    crash mid-mint leaves a truthful record instead of nothing. The row
+    //    is also the retry clock: minted_at marks THIS attempt's start, so a
+    //    retried row is never mistaken for a stale one by the watcher.
     if (sbtRowId) {
-      await db.query(`UPDATE user_sbts SET status = 'pending' WHERE id = $1`, [sbtRowId]);
+      await db.query(
+        `UPDATE user_sbts SET status = 'pending', tx_hash = '', submitted_at = NULL, minted_at = CURRENT_TIMESTAMP WHERE id = $1`,
+        [sbtRowId]
+      );
     } else {
       try {
         const insert = await db.query(
@@ -131,7 +142,39 @@ exports.mintSBT = async (req, res) => {
     //    but in real mode it THROWS instead of fabricating a hash).
     console.log(`[SBT Controller] Requesting SBT mint for user: ${userId}, wallet: ${walletAddress}, moduleId: ${moduleId}`);
     try {
-      const mintResult = await blockchainService.mintSBT(walletAddress, moduleId);
+      const mintResult = await blockchainService.mintSBT(walletAddress, moduleId, {
+        // Real mode: called the moment the tx is broadcast, so a crash while
+        // waiting for the receipt still leaves a resolvable record.
+        onSubmitted: async (txHash) => {
+          await db.query(
+            `UPDATE user_sbts SET tx_hash = $1, status = 'submitted', submitted_at = CURRENT_TIMESTAMP WHERE id = $2`,
+            [txHash, sbtRowId]
+          );
+        },
+      });
+
+      // Confirmation did not arrive in time — the tx is broadcast and the
+      // watcher owns it now. Honest 202: work is in progress, not done.
+      if (mintResult.status === 'submitted') {
+        await db.query(
+          `UPDATE user_sbts
+           SET tx_hash = $1, status = 'submitted', submitted_at = COALESCE(submitted_at, CURRENT_TIMESTAMP)
+           WHERE id = $2`,
+          [mintResult.transactionHash, sbtRowId]
+        );
+
+        return res.status(202).json({
+          success: true,
+          message: 'Transaction submitted — awaiting on-chain confirmation. It will confirm automatically.',
+          data: {
+            moduleId,
+            txHash: mintResult.transactionHash,
+            tokenId: null,
+            status: 'submitted',
+            simulated: false,
+          },
+        });
+      }
 
       await db.query(
         `UPDATE user_sbts
@@ -149,12 +192,14 @@ exports.mintSBT = async (req, res) => {
           moduleId,
           txHash: mintResult.transactionHash,
           tokenId: mintResult.tokenId,
+          status: 'confirmed',
           simulated: mintResult.simulated === true
         }
       });
     } catch (mintErr) {
       // Real-mode failure: mark the row failed and tell the truth — never
-      // return a fabricated transaction hash.
+      // return a fabricated transaction hash. (A tx hash recorded by
+      // onSubmitted is kept: a reverted tx really did exist on-chain.)
       console.error('Error minting SBT:', mintErr);
       try {
         await db.query(`UPDATE user_sbts SET status = 'failed' WHERE id = $1`, [sbtRowId]);
