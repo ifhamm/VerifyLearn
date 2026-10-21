@@ -176,6 +176,33 @@ async function initializeDatabase() {
     await client.query(`ALTER TABLE user_sbts ADD COLUMN IF NOT EXISTS status VARCHAR(20) DEFAULT 'confirmed'`);
     await client.query(`ALTER TABLE user_sbts ADD COLUMN IF NOT EXISTS simulated BOOLEAN DEFAULT FALSE`);
 
+    // Credential sharing + revocation (Phase 3):
+    //   credential_id    — unguessable public id for share/verify URLs
+    //   credential_status— active | revoked | expired | superseded, tracked
+    //                     INDEPENDENTLY from the mint lifecycle `status`
+    //   revoked_*        — who/when/why, kept on the row as a minimal audit trail
+    //   submitted_at     — when an on-chain tx hash was recorded (watcher input)
+    await client.query(`ALTER TABLE user_sbts ADD COLUMN IF NOT EXISTS credential_id UUID DEFAULT gen_random_uuid()`);
+    await client.query(`ALTER TABLE user_sbts ADD COLUMN IF NOT EXISTS credential_status VARCHAR(20) DEFAULT 'active'`);
+    await client.query(`ALTER TABLE user_sbts ADD COLUMN IF NOT EXISTS revoked_at TIMESTAMP`);
+    await client.query(`ALTER TABLE user_sbts ADD COLUMN IF NOT EXISTS revoked_by_wallet VARCHAR(255)`);
+    await client.query(`ALTER TABLE user_sbts ADD COLUMN IF NOT EXISTS revoke_reason TEXT`);
+    await client.query(`ALTER TABLE user_sbts ADD COLUMN IF NOT EXISTS submitted_at TIMESTAMP`);
+    await client.query(`CREATE UNIQUE INDEX IF NOT EXISTS idx_user_sbts_credential_id ON user_sbts(credential_id)`);
+
+    // One-time migration (credential_ids_v1): backfill public credential ids
+    // for rows that existed before the column was added. (PG11+ fills existing
+    // rows when adding a column with a default; the explicit backfill makes
+    // this deterministic and covers re-runs.)
+    const credentialIdsMigration = await client.query(
+      `SELECT 1 FROM schema_migrations WHERE name = 'credential_ids_v1'`
+    );
+    if (credentialIdsMigration.rows.length === 0) {
+      await client.query(`UPDATE user_sbts SET credential_id = gen_random_uuid() WHERE credential_id IS NULL`);
+      await client.query(`INSERT INTO schema_migrations (name) VALUES ('credential_ids_v1')`);
+      console.log('[Database Migration] credential_ids_v1 applied: public credential ids backfilled.');
+    }
+
     // 7. Create assessment_attempts table (server-issued quiz attempts)
     await client.query(`
       CREATE TABLE IF NOT EXISTS assessment_attempts (
