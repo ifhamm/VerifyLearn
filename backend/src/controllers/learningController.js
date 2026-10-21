@@ -1,5 +1,6 @@
 const { getRolePlan, findMaterial, listMaterials } = require('../services/learningPathService');
 const aiService = require('../services/aiService');
+const db = require('../utils/db');
 
 // Controller for learning logic and path generation
 
@@ -33,6 +34,31 @@ exports.getLearningPath = async (req, res) => {
       error: error.message,
       help: 'Use query parameters: ?role=backend&duration=4&level=beginner&commitment=2',
     });
+  }
+};
+
+exports.getPathVersion = async (req, res) => {
+  try {
+    const userId = req.user?.userId;
+    const role = String(req.query.role || 'backend').toLowerCase();
+    const result = await db.query(
+      `SELECT version FROM user_learning_paths WHERE user_id = $1 AND role = $2`,
+      [userId, role]
+    );
+    const userVer = await db.query(
+      `SELECT learning_path_version FROM users WHERE id = $1`,
+      [userId]
+    );
+    res.json({
+      message: 'Path version fetched',
+      data: {
+        path_version: result.rows[0]?.version ?? 1,
+        user_master_version: userVer.rows[0]?.learning_path_version ?? 1,
+        role,
+      },
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
   }
 };
 

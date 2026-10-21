@@ -1,4 +1,5 @@
 const aiService = require('../services/aiService');
+const db = require('../utils/db');
 const { resolveMaterial } = require('../services/materialResolver');
 
 exports.generateQuiz = async (req, res) => {
@@ -108,13 +109,31 @@ exports.verifyVoice = async (req, res) => {
 
 exports.gradeEssay = async (req, res) => {
   try {
-    const { question, explanation, userAnswer } = req.body;
+    const { question, explanation, userAnswer, attempt_id, rubric } = req.body;
     if (!question || !explanation || !userAnswer) {
       return res.status(400).json({ error: 'Must include question, explanation, and userAnswer.' });
     }
 
     const data = await aiService.gradeEssay(question, explanation, userAnswer);
-    res.json({ message: 'Essay graded successfully', data });
+
+    // Phase 4 Feature 9 — honest provenance: save rubric feedback with AI flag
+    if (attempt_id) {
+      await db.query(`
+        INSERT INTO essay_feedback (attempt_id, score, strengths, weaknesses, recommendations, rubric, model, used_ai)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+      `, [
+        attempt_id,
+        data.score ?? null,
+        JSON.stringify(data.strengths ?? null),
+        JSON.stringify(data.weaknesses ?? null),
+        JSON.stringify(data.recommendations ?? null),
+        JSON.stringify(rubric ?? null),
+        data.model || 'unknown',
+        true
+      ]);
+    }
+
+    res.json({ message: 'Essay graded successfully', data, used_ai: true });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }

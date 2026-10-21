@@ -10,6 +10,7 @@ const sbtController = require('../controllers/sbtController');
 const assessmentController = require('../controllers/assessmentController');
 const adminAuth = require('../middlewares/adminAuth');
 const credentialController = require('../controllers/credentialController');
+const dashboardController = require('../controllers/dashboardController');
 
 // Status route
 router.get('/status', (req, res) => {
@@ -61,6 +62,7 @@ router.get('/material', learningController.getMaterial);
 // Integrity/verification routes
 router.post('/verify-keystroke', walletAuth, integrityController.verifyKeystroke);
 router.get('/integrity/score', walletAuth, integrityController.getScore);
+router.get('/dashboard/insights', walletAuth, dashboardController.getInsights);
 
 // Dynamic AI Generation routes
 router.post('/generate-quiz', walletAuth, aiController.generateQuiz);

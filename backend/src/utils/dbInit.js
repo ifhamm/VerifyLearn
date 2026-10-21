@@ -282,6 +282,66 @@ async function initializeDatabase() {
     // Ensure user_progress has notes column if table already exists
     await client.query(`ALTER TABLE user_progress ADD COLUMN IF NOT EXISTS notes TEXT`);
 
+    // --- Phase 4 Sprint 3 — Learning quality schema (features 6-10) ---
+
+    // Feature 6 (Dashboard insight): persist per-attempt WPM for the WPM-over-time metric
+    await client.query(`ALTER TABLE quiz_results ADD COLUMN IF NOT EXISTS wpm DOUBLE PRECISION`);
+
+    // Feature 7 (Spaced repetition): SM-2 style schedule, one row per (user, material)
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS spaced_repetition (
+        id SERIAL PRIMARY KEY,
+        user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        material_slug VARCHAR(255) NOT NULL,
+        ease_factor DOUBLE PRECISION NOT NULL DEFAULT 2.5,
+        interval_days INTEGER NOT NULL DEFAULT 0,
+        repetitions INTEGER NOT NULL DEFAULT 0,
+        lapses INTEGER NOT NULL DEFAULT 0,
+        last_reviewed TIMESTAMP,
+        next_review_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        last_result VARCHAR(30),
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE (user_id, material_slug)
+      )
+    `);
+
+    // Feature 8 (Pre/post-test diagnostic): tag which kind of test produced the row
+    // Feature 8 (Pre/post-test diagnostic): tag attempts so submit writes the
+    // right test_type into quiz_results.
+    await client.query(`ALTER TABLE assessment_attempts ADD COLUMN IF NOT EXISTS test_type VARCHAR(20) DEFAULT 'assessment'`);
+    await client.query(`ALTER TABLE quiz_results ADD COLUMN IF NOT EXISTS test_type VARCHAR(20) DEFAULT 'assessment'`);
+
+    // Feature 9 (Essay rubric feedback): provenance for AI-assisted essay feedback
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS essay_feedback (
+        id SERIAL PRIMARY KEY,
+        attempt_id UUID,
+        score DOUBLE PRECISION,
+        total_points INTEGER,
+        strengths JSONB,
+        weaknesses JSONB,
+        recommendations JSONB,
+        rubric JSONB,
+        model VARCHAR(200),
+        used_ai BOOLEAN DEFAULT FALSE,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+
+    // Feature 10 (Path versioning): explicit versions so curriculum edits never
+    // silently rewrite a learner's existing progress.
+    await client.query(`ALTER TABLE user_learning_paths ADD COLUMN IF NOT EXISTS version INT DEFAULT 1`);
+    await client.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS learning_path_version INT DEFAULT 1`);
+    await client.query(`ALTER TABLE user_progress ADD COLUMN IF NOT EXISTS material_version INT DEFAULT 1`);
+
+    // Phase 4 migration log (honest provenance for future deploys): write once
+    const phase4Migration = await client.query(`SELECT 1 FROM schema_migrations WHERE name = 'phase4_sprint3_learning_quality_v1'`);
+    if (phase4Migration.rows.length === 0) {
+      await client.query(`INSERT INTO schema_migrations (name) VALUES ('phase4_sprint3_learning_quality_v1')`);
+      console.log('[Database Migration] phase4_sprint3_learning_quality_v1 applied: dashboard/spaced-repetition/diagnostic/essay/versioning foundation.');
+    }
+
     await client.query('COMMIT');
     console.log('[Database] Database tables initialized successfully.');
   } catch (error) {

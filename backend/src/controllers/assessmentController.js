@@ -3,6 +3,7 @@ const db = require('../utils/db');
 const aiService = require('../services/aiService');
 const { resolveMaterial } = require('../services/materialResolver');
 const integEngine = require('../services/integrityEngine');
+const metricsCalculator = require('../utils/metricsCalculator');
 
 const ATTEMPT_TTL_SECONDS = 600;
 const HINT_LIMIT = 3;
@@ -540,11 +541,13 @@ exports.submit = async (req, res) => {
         value: String(a.value === undefined || a.value === null ? '' : a.value),
       }));
 
+    const wpm = metricsCalculator.calculateWPM(keystrokes);
+
     await db.query(
       `INSERT INTO quiz_results
          (user_id, material_slug, quiz_type, score, total_questions, correct_answers, details,
-          keystroke_verified, keystroke_score, attempt_id, source, integrity_status, created_at)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, 'server', $11, CURRENT_TIMESTAMP)`,
+          keystroke_verified, keystroke_score, attempt_id, source, integrity_status, wpm, created_at)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, 'server', $11, $12, CURRENT_TIMESTAMP)`,
       [
         userId,
         attempt.material_slug,
@@ -566,6 +569,7 @@ exports.submit = async (req, res) => {
           : null,
         attemptId,
         assessment.status,
+        wpm,
       ]
     );
 
