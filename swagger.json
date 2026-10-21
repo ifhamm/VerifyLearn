@@ -1,0 +1,176 @@
+{
+  "openapi": "3.0.0",
+  "info": {
+    "title": "VerifyLearn Phase 4 API",
+    "version": "1.0.0",
+    "description": "Sprint 3 Learning Quality — Dashboard insight, Spaced repetition, Pre/post-test diagnostic, Actionable essay feedback, Learning path versioning"
+  },
+  "paths": {
+    "/api/v1/dashboard/insights": {
+      "get": {
+        "summary": "Feature 6 — Dashboard insight for learner",
+        "description": "Skill mastery per topic, WPM over time, integrity score, quiz accuracy, completion streak, weak topics, next material recommendation, estimated time to completion.",
+        "security": [{ "BearerAuth": [] }],
+        "responses": {
+          "200": {
+            "description": "Insights payload",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": { "type": "string" },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "mastery": { "type": "array", "items": { "type": "object" } },
+                        "wpmSeries": { "type": "array", "items": { "type": "object" } },
+                        "integrityScore": { "type": "integer" },
+                        "accuracy": { "type": "number" },
+                        "streakDays": { "type": "integer" },
+                        "weakTopics": { "type": "array", "items": { "type": "string" } },
+                        "recommendation": { "type": "object" },
+                        "estimatedCompletionWeeks": { "type": "number" }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": { "description": "Missing or invalid wallet session" }
+        }
+      }
+    },
+    "/api/v1/review/schedule": {
+      "get": {
+        "summary": "Feature 7 — Spaced repetition schedule (due reviews)",
+        "description": "Lists materials whose next_review_at has arrived, based on the SM-2 style schedule stored per (user, material).",
+        "security": [{ "BearerAuth": [] }],
+        "responses": {
+          "200": { "description": "Due review items" },
+          "401": { "description": "Missing or invalid wallet session" }
+        }
+      }
+    },
+    "/api/v1/review/result": {
+      "post": {
+        "summary": "Feature 7 — Record a review result (adaptive reschedule)",
+        "description": "Applies the SM-2 update: correct answers grow the interval, wrong answers reset it and count a lapse.",
+        "security": [{ "BearerAuth": [] }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["materialSlug", "correct"],
+                "properties": {
+                  "materialSlug": { "type": "string" },
+                  "correct": { "type": "boolean" },
+                  "lastResult": { "type": "string" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "Updated schedule row" },
+          "400": { "description": "Invalid payload" },
+          "401": { "description": "Missing or invalid wallet session" }
+        }
+      }
+    },
+    "/api/v1/quiz/diagnostic-start": {
+      "post": {
+        "summary": "Feature 8 — Start a pre-test or post-test diagnostic attempt",
+        "description": "Creates an assessment attempt tagged with test_type = pre | post so baseline and improvement can be compared.",
+        "security": [{ "BearerAuth": [] }],
+        "responses": {
+          "200": { "description": "Diagnostic attempt created" },
+          "400": { "description": "Invalid material or role" },
+          "401": { "description": "Missing or invalid wallet session" }
+        }
+      }
+    },
+    "/api/v1/diagnostic/baseline": {
+      "get": {
+        "summary": "Feature 8 — Pre-test baseline score",
+        "description": "Returns the learner's most recent pre-test result (the baseline used for skip-mastery decisions).",
+        "security": [{ "BearerAuth": [] }],
+        "responses": {
+          "200": { "description": "Baseline score" },
+          "401": { "description": "Missing or invalid wallet session" }
+        }
+      }
+    },
+    "/api/v1/diagnostic/improvement": {
+      "get": {
+        "summary": "Feature 8 — Post-test vs pre-test improvement",
+        "description": "Compares the latest post-test against the pre-test baseline and returns the delta.",
+        "security": [{ "BearerAuth": [] }],
+        "responses": {
+          "200": { "description": "Improvement delta" },
+          "401": { "description": "Missing or invalid wallet session" }
+        }
+      }
+    },
+    "/api/v1/grade-essay": {
+      "post": {
+        "summary": "Feature 9 — Actionable essay feedback with rubric",
+        "description": "Grades an essay via the AI service and persists rubric, strengths, weaknesses and recommendations into essay_feedback with an honest used_ai flag.",
+        "security": [{ "BearerAuth": [] }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["question", "explanation", "userAnswer"],
+                "properties": {
+                  "question": { "type": "string" },
+                  "explanation": { "type": "string" },
+                  "userAnswer": { "type": "string" },
+                  "attempt_id": { "type": "string", "format": "uuid" },
+                  "rubric": { "type": "object" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "Grade plus saved rubric feedback" },
+          "400": { "description": "Missing question, explanation or userAnswer" },
+          "401": { "description": "Missing or invalid wallet session" },
+          "500": { "description": "Grading service failure" }
+        }
+      }
+    },
+    "/api/v1/learning-path": {
+      "get": {
+        "summary": "Feature 10 — Learning path (versioned)",
+        "description": "Adaptive learning plan for a role. The stored path carries a version so curriculum edits never silently rewrite existing progress.",
+        "security": [{ "BearerAuth": [] }],
+        "parameters": [
+          { "name": "role", "in": "query", "schema": { "type": "string" } },
+          { "name": "duration", "in": "query", "schema": { "type": "integer" } },
+          { "name": "level", "in": "query", "schema": { "type": "string" } },
+          { "name": "commitment", "in": "query", "schema": { "type": "number" } }
+        ],
+        "responses": {
+          "200": { "description": "Learning plan" },
+          "401": { "description": "Missing or invalid wallet session" }
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "BearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT / wallet session token"
+      }
+    }
+  }
+}
