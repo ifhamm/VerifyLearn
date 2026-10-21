@@ -38,7 +38,7 @@ jobs:
         working-directory: backend
         run: npm run check
 
-      - name: Smoke tests (auth, assessment, blockchain, app boot)
+      - name: Smoke tests (auth, assessment, blockchain, credentials, share page, db init, app boot)
         working-directory: backend
         run: npm run test:smoke
 
