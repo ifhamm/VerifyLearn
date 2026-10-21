@@ -143,26 +143,26 @@ contract VerifyLearnSBT {
      * Any transfer attempt after minting will revert, locking the token to the recipient's wallet forever.
      */
     function transferFrom(
-        address from,
-        address to,
-        uint256 tokenId
+        address,
+        address,
+        uint256
     ) external pure {
         revert("VerifyLearnSBT: Soulbound tokens are non-transferable");
     }
 
     function safeTransferFrom(
-        address from,
-        address to,
-        uint256 tokenId
+        address,
+        address,
+        uint256
     ) external pure {
         revert("VerifyLearnSBT: Soulbound tokens are non-transferable");
     }
 
     function safeTransferFrom(
-        address from,
-        address to,
-        uint256 tokenId,
-        bytes calldata data
+        address,
+        address,
+        uint256,
+        bytes calldata
     ) external pure {
         revert("VerifyLearnSBT: Soulbound tokens are non-transferable");
     }

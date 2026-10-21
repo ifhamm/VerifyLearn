@@ -3,9 +3,11 @@
  *
  * Run from backend/:   node scripts/deploy.js
  *
- * Reads the ROOT .env: RPC_URL, SYSTEM_PRIVATE_KEY (the deployer wallet).
- * The private key is used in-process only — this script never prints it and
- * never writes to any file.
+ * Reads the ROOT .env: RPC_URL (defaults to Sepolia public node),
+ * SYSTEM_PRIVATE_KEY (the deployer wallet).
+ * The private key is used in-process only — this script never prints it.
+ * After a successful deploy it writes SBT_CONTRACT_ADDRESS (a PUBLIC value)
+ * into the root .env; nothing else in the file is modified.
  *
  * Requirements:
  *   - deployer wallet funded with testnet ETH (Sepolia faucet)
@@ -22,7 +24,28 @@ const solc = require('solc');
 // Same root .env location the backend app uses
 require('dotenv').config({ path: path.resolve(__dirname, '../../.env') });
 
+const ENV_PATH = path.resolve(__dirname, '../../.env');
 const CONTRACT_FILE = path.resolve(__dirname, '../contracts/VerifyLearnSBT.sol');
+const DEFAULT_RPC = 'https://ethereum-sepolia-rpc.publicnode.com';
+
+// Persist the DEPLOYED ADDRESS (a public value, never a secret) into the root
+// .env so the backend picks it up on restart. Keys are never touched.
+function recordContractAddress(address) {
+  if (!fs.existsSync(ENV_PATH)) {
+    console.log('[Deploy] No root .env found — add this line manually:');
+    console.log(`        SBT_CONTRACT_ADDRESS=${address}`);
+    return false;
+  }
+  let envContent = fs.readFileSync(ENV_PATH, 'utf8');
+  if (/^SBT_CONTRACT_ADDRESS=.*$/m.test(envContent)) {
+    envContent = envContent.replace(/^SBT_CONTRACT_ADDRESS=.*$/m, `SBT_CONTRACT_ADDRESS=${address}`);
+  } else {
+    envContent += `${envContent.endsWith('\n') || envContent === '' ? '' : '\n'}SBT_CONTRACT_ADDRESS=${address}\n`;
+  }
+  fs.writeFileSync(ENV_PATH, envContent, 'utf8');
+  console.log(`[Deploy] SBT_CONTRACT_ADDRESS updated in ${ENV_PATH}`);
+  return true;
+}
 
 function fail(message) {
   console.error('\n[Deploy] FAILED:', message);
@@ -58,17 +81,16 @@ function compile() {
 }
 
 async function main() {
-  const rpcUrl = process.env.RPC_URL;
+  const rpcUrl = process.env.RPC_URL || DEFAULT_RPC;
   const privateKey = process.env.SYSTEM_PRIVATE_KEY;
 
   const missing = [];
-  if (!rpcUrl) missing.push('RPC_URL');
   if (!privateKey) missing.push('SYSTEM_PRIVATE_KEY');
   if (missing.length > 0) {
     fail(
       `Missing in .env (root): ${missing.join(', ')}\n` +
-        `  RPC_URL               e.g. https://ethereum-sepolia-rpc.publicnode.com\n` +
-        `  SYSTEM_PRIVATE_KEY    deployer wallet key (0x + 64 hex). Keep it secret.`
+        `  SYSTEM_PRIVATE_KEY    deployer wallet key (0x + 64 hex). Keep it secret.\n` +
+        `  RPC_URL               optional — defaults to ${DEFAULT_RPC}`
     );
   }
 
@@ -82,7 +104,9 @@ async function main() {
     fail(`Cannot reach RPC endpoint: ${e.shortMessage || e.message}`);
   }
 
-  const wallet = new ethers.Wallet(privateKey, provider);
+  // Accept keys with or without the 0x prefix (MetaMask exports both forms)
+  const normalizedKey = privateKey.startsWith('0x') ? privateKey : '0x' + privateKey;
+  const wallet = new ethers.Wallet(normalizedKey, provider);
   const balance = await provider.getBalance(wallet.address);
 
   console.log(`[Deploy] Network:  ${network.name} (chainId ${network.chainId})`);
@@ -91,7 +115,9 @@ async function main() {
   if (balance === 0n) {
     fail(
       `Deployer wallet has zero balance on chainId ${network.chainId}.\n` +
-        `  Fund it from a faucet first (search "Sepolia faucet"), then re-run.\n` +
+        `  Fund it from a faucet first, then re-run:\n` +
+        `    - https://faucets.chain.link/sepolia\n` +
+        `    - https://sepolia-faucet.pk910.de/\n` +
         `  Balance: 0 ETH`
     );
   }
@@ -121,14 +147,17 @@ async function main() {
   console.log(`  Block:    ${receipt.blockNumber}`);
   console.log(`  Explorer: ${explorer}/address/${address}`);
   console.log('========================================');
+
+  recordContractAddress(address);
+
   console.log('\nNext steps:');
-  console.log('  1. Add to .env (root):');
-  console.log(`       SBT_CONTRACT_ADDRESS=${address}`);
-  console.log('  2. Allow yourself to revoke credentials (comma-separated wallets):');
-  console.log('       ADMIN_WALLETS=<your wallet address>');
-  console.log('  3. Real mode (production defaults to it; in dev set explicitly):');
-  console.log('       BLOCKCHAIN_MODE=real');
-  console.log('  4. Restart the backend. Minting will now hit the chain above.');
+  console.log('  1. Allow yourself to revoke credentials (comma-separated wallets):');
+  console.log('       ADMIN_WALLETS=<your wallet address>      # add to root .env');
+  console.log('  2. Real mode (production defaults to it; in dev set explicitly):');
+  console.log('       BLOCKCHAIN_MODE=real                     # add to root .env');
+  console.log('  3. Restart the backend:');
+  console.log('       docker restart verify-learn-backend      # (or npm run dev)');
+  console.log('  4. Mint a credential — it now hits the chain above for real.');
 }
 
 main().catch((err) => {

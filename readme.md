@@ -179,14 +179,19 @@ Real credential minting and revocation need `VerifyLearnSBT` deployed once.
    npm ci
    node scripts/deploy.js
    ```
-   The script prints the new contract address, the explorer link, and the
-   exact `.env` lines to paste. It aborts with clear messages on missing
-   config or zero balance, and never prints the key.
-3. Paste into root `.env` and restart the backend:
+   The script prints the new contract address + explorer link, **writes
+   `SBT_CONTRACT_ADDRESS` into the root `.env` automatically** (a public value
+   — keys are never written or printed), and aborts with clear messages on
+   missing config or zero balance. Faucets:
+   [chain.link](https://faucets.chain.link/sepolia) ·
+   [pk910](https://sepolia-faucet.pk910.de/).
+3. Add the admin list and restart:
    ```env
-   SBT_CONTRACT_ADDRESS=0x...      # from the script output
    ADMIN_WALLETS=0xYourWallet      # who may revoke credentials (comma-separated)
    BLOCKCHAIN_MODE=real            # optional in dev; production is real by default
+   ```
+   ```bash
+   docker restart verify-learn-backend   # or re-run npm run dev
    ```
 4. Alternative: open [Remix IDE](https://remix.ethereum.org), paste
    `backend/contracts/VerifyLearnSBT.sol`, compile (0.8.x), deploy with the
