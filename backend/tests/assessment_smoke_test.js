@@ -27,6 +27,7 @@ const state = {
   quizResults: [],
   integrityEvents: [],
   userProgress: [],
+  essayFeedback: [],
 };
 
 function sha256(s) {
@@ -235,6 +236,20 @@ function run(rawText, rawParams) {
         completed_at: new Date(),
       });
     }
+    return { rows: [], rowCount: 1 };
+  }
+
+  if (sql.includes('INSERT INTO essay_feedback')) {
+    state.essayFeedback.push({
+      attempt_id: params[0],
+      score: params[1],
+      strengths: params[2],
+      weaknesses: params[3],
+      recommendations: params[4],
+      rubric: params[5],
+      model: params[6],
+      used_ai: params[7],
+    });
     return { rows: [], rowCount: 1 };
   }
 
@@ -535,10 +550,42 @@ async function main() {
     const RETIRED_BODY = { error: 'This endpoint has been retired. Server-side grading is now required.' };
     r = await api('POST', '/quiz/result', { token: TOKEN_A, body: { materialSlug: 'x', quizType: 'quiz' } });
     check('POST /quiz/result -> 410 exact body', r.status === 410 && JSON.stringify(r.body) === JSON.stringify(RETIRED_BODY), r);
-    r = await api('POST', '/grade-essay', { token: TOKEN_A, body: { question: 'q', explanation: 'e', userAnswer: 'a' } });
-    check('POST /grade-essay -> 410 exact body', r.status === 410 && JSON.stringify(r.body) === JSON.stringify(RETIRED_BODY), r);
     r = await api('POST', '/verify-voice', { token: TOKEN_A, body: { transcript: 'hi', expectedKeywords: ['a'] } });
     check('POST /verify-voice -> 410 exact body', r.status === 410 && JSON.stringify(r.body) === JSON.stringify(RETIRED_BODY), r);
+
+    // -----------------------------------------------------------------
+    // /grade-essay is NOT retired: Phase 4 Feature 9 (essay rubric feedback
+    // with AI provenance) re-opened it in commit 9954811. It is an auxiliary
+    // feedback endpoint — the authoritative assessment score is computed
+    // server-side in assessmentController.submit, which calls aiService
+    // directly and never routes through this endpoint.
+    section('T7b POST /grade-essay -> live Feature 9 endpoint');
+    const essayCallsBefore = aiCalls.gradeEssay.length;
+    r = await api('POST', '/grade-essay', {
+      token: TOKEN_A,
+      body: {
+        question: 'Explain the main HTTP verbs.',
+        explanation: 'Verbs: GET, POST, PUT, DELETE.',
+        userAnswer: 'GET and POST are the main ones.',
+        attempt_id: 'attempt-essay-1',
+        rubric: { focus: 'HTTP verbs' },
+      },
+    });
+    check('POST /grade-essay -> 200', r.status === 200, r);
+    check('grade-essay message', r.body.message === 'Essay graded successfully', r.body);
+    check('grade-essay returns score', r.body.data && r.body.data.score === 80, r.body);
+    check('grade-essay returns feedback', r.body.data && r.body.data.feedback === 'Solid answer.', r.body);
+    check('grade-essay reports used_ai provenance', r.body.used_ai === true, r.body);
+    check('grade-essay forwarded question/explanation/userAnswer to aiService', (() => {
+      const c = aiCalls.gradeEssay[essayCallsBefore];
+      return !!c && c.question === 'Explain the main HTTP verbs.' && c.explanation === 'Verbs: GET, POST, PUT, DELETE.' && c.userAnswer === 'GET and POST are the main ones.';
+    })(), aiCalls.gradeEssay[essayCallsBefore]);
+    check('grade-essay persisted essay_feedback with rubric + used_ai', (() => {
+      const row = state.essayFeedback[state.essayFeedback.length - 1];
+      return !!row && row.attempt_id === 'attempt-essay-1' && row.score === 80 && row.rubric === JSON.stringify({ focus: 'HTTP verbs' }) && row.used_ai === true;
+    })(), state.essayFeedback[state.essayFeedback.length - 1]);
+    r = await api('POST', '/grade-essay', { token: TOKEN_A, body: { question: 'q' } });
+    check('POST /grade-essay missing fields -> 400', r.status === 400, r);
 
     // -----------------------------------------------------------------
     section('T8 module quiz slugs (quiz-module-<n>)');
